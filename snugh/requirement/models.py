@@ -38,11 +38,11 @@ class Requirement(models.Model):
     start_year = models.PositiveSmallIntegerField()
     end_year = models.PositiveSmallIntegerField()
     description = models.CharField(max_length=500, blank=True)
-    is_credit_requirement = models.BooleanField()
+    is_credit_requirement = models.BoleanField()
     required_credit = models.PositiveSmallIntegerField(default=0)
     requirement_type = models.PositiveSmallIntegerField(choices=REQUIREMENT_TYPE)
-    lecture_type_detail = models.PositiveSmallIntegerField(choices=REQUIREMENT_TYPE_DETAIL, default=1)
-    lecture_type_detail_detail = models.PositiveSmallIntegerField(choices=REQUIREMENT_TYPE_DETAIL_DETAIL, default=1)
+    requirement_type_detail = models.PositiveSmallIntegerField(choices=REQUIREMENT_TYPE_DETAIL, default=1)
+    requirement_type_detail_detail = models.PositiveSmallIntegerField(choices=REQUIREMENT_TYPE_DETAIL_DETAIL, default=1)
 
     class Meta:
         ordering = ['-end_year', '-start_year'] # 최신순
