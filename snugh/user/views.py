@@ -7,4 +7,4 @@ class UserViewSet(viewsets.GenericViewSet):
 #    serializer_class=
     permisison_classes=(IsAuthenticated(), )
 
-
+    def 
