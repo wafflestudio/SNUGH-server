@@ -8,9 +8,10 @@ class UserSerializer(serializers.ModelSerializer):
     username= serializers.CharField()
     first_name= serializers.CharField()
     last_name= serializers.CharField()
+    full_name= serializers.SerializerMethodField()
     student_id= serializers.SerializerMethodField()
-#    cumulative_semester = serializers.SerializerMethodField()
     major=serializers.SerializerMethodField()
+    status=serializers.SerializerMethodField()
     class Meta:
         model=User
         fields=(
@@ -18,14 +19,19 @@ class UserSerializer(serializers.ModelSerializer):
             "username",
             "first_name",
             "last_name",
+            "full_name",
             "student_id",
-#            "cumulative_semester"
+            "status",
             "major"
         )
-        
+
     def get_student_id(self, user):
         userprofile=user.userprofile
         return userprofile.student_id
+
+    def get_status(self, user):
+        userprofile=user.userprofile
+        return userprofile.status
 
     def get_major(self, user):
         ls=[]
@@ -35,16 +41,12 @@ class UserSerializer(serializers.ModelSerializer):
             ls.append(body)
         return ls
 
+    def get_full_name(self, user):
+        return user.first_name+user.last_name
 
-#    def get_cumulative_semester(self, user):
-#        userprofile=user.userprofile
-#        return userprofile.cumulative_semester
 
 
 """
-userConfig
-status
-
-cumulative semester
-status
-pk와other query params 관련 """
+int list
+error response
+"""
