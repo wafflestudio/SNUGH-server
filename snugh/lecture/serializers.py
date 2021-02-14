@@ -14,8 +14,7 @@ class PlanSerializer(serializers.ModelSerializer):
         )
     
     def get_semesters(self, plan):
-        pass # plan_id에 해당하는 모든 semester들 
-        # return SemesterSerializer()  
+        return SemesterSerializer(plan.semesters, many=True).data # plan_id에 해당하는 모든 semester들 
 
 class SemesterSerializer(serializers.ModelSerializer):
     lectures = serializers.SerializerMethodField()
@@ -31,8 +30,7 @@ class SemesterSerializer(serializers.ModelSerializer):
         )
     
     def get_lectures(self, semester):
-        pass # 해당 semester에 속하는 모든 lecture들 
-        # return LectureSerializer() 
+        return LectureSerializer(semester.lectures, many=True).data # 해당 semester에 속하는 모든 lecture들, SemesterLecture 
 
 class LectureSerializer(serializers.ModelSerializer):
     class Meta:
