@@ -10,7 +10,7 @@ class Requirement(models.Model):
         (1, 'general'),  # 교양
         (2, 'major_requirement'),  # 전공 필수
         (3, 'major_elective'),  # 전공 선택
-        (4, 'all') # 전체 
+        (4, 'all'), # 전체 
         (5, 'none'), # 해당없음(일반규정)
     )
     REQUIREMENT_TYPE_DETAIL = (
