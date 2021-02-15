@@ -25,7 +25,7 @@ SECRET_KEY = 'a6ejp$*!cz7+5zd00nz6$10%ph!877_0hp%02z((eet_2xof$%'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*'] # '*'를 추가해서 모든 호스트를 허용합니다.
 
 
 # Application definition
