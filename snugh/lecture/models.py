@@ -69,7 +69,7 @@ class SemesterLecture(models.Model):
         (12, 'nature and technology'), # 자연과 기술
         (13, 'life and environment'), # 생명과 환경
     )
-    semsester = models.ForeignKey(Semester, related_name='semesterlecture', on_delete=models.CASCADE)
+    semester = models.ForeignKey(Semester, related_name='semesterlecture', on_delete=models.CASCADE)
     lecture = models.ForeignKey(Lecture, related_name='semesterlecture', on_delete=models.CASCADE)
     lecture_type = models.PositiveSmallIntegerField(choices=LECTURE_TYPE)
     lecture_type_detail = models.PositiveSmallIntegerField(choices=LECTURE_TYPE_DETAIL, default = 1)

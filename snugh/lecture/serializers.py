@@ -1,5 +1,5 @@
 from rest_framework import serializers 
-from lecture.models import Plan, Semester, Lecture, PlanMajor, SemesterLecture, MajorLecture 
+from lecture.models import Plan, Semester, Lecture # PlanMajor, SemesterLecture, MajorLecture 
 
 class PlanSerializer(serializers.ModelSerializer):
     semesters = serializers.SerializerMethodField() 
