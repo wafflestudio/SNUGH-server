@@ -18,7 +18,7 @@ class PlanViewSet(viewsets.GenericViewSet):
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED) 
 
-    # PUT /plan 
+    # PUT /plan/?plan_id=(int)
     def update(self, request, pk=None):
         plan = self.get_object()
         data = request.data.copy()
@@ -27,22 +27,27 @@ class PlanViewSet(viewsets.GenericViewSet):
         serializer.update(plan, serializer.validated_data)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # DEL /plan
+    # DEL /plan/?plan_id=(int)
     def destroy(self, request, pk=None):
         self.get_object().delete()
         return Response(status=status.HTTP_200_OK) # Need body or edit API document
 
-    # GET /plan 
+    # GET /plan/?plan_id=(int) 
     def retrieve(self, request, pk=None):
         plan_id = request.query_params.get("plan_id")
         plan = Plan.objects.get(id=plan_id)
         return Response(self.get_serializer(plan), status=status.HTTP_200_OK)
 
+    # GET /plan
+    def list(self, request):
+        plans = self.get_queryset()
+        return Response(self.get_serializer(plans, many=True).data, status=status.HTTP_200_OK)
+
 class SemesterViewSet(viewsets.GenericViewSet):
     queryset = Semester.objects.all()
     serializer_class = SemesterSerializer 
 
-    # POST /semester
+    # POST /semester/?plan_id=(int)
     def create(self, request):
         data = request.data.copy() 
         serializer = self.get_serializer(data=data) 
@@ -50,7 +55,7 @@ class SemesterViewSet(viewsets.GenericViewSet):
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED) 
 
-    # PUT /semester
+    # PUT /semester/?plan_id=(int)
     def update(self, request, pk=None):
         # SemesterLecture 
         semester = self.get_object()
@@ -60,12 +65,12 @@ class SemesterViewSet(viewsets.GenericViewSet):
         serializer.update(semester, serializer.validated_data)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # DEL /semester
+    # DEL /semester/?plan_id=(int)&semester_id=(int)
     def destroy(self, request, pk=None):
         self.get_object().delete()
         return Response(status=status.HTTP_200_OK) # Need body or edit API document
 
-    # GET /semester
+    # GET /semester/?plan_id=(int)&semester_id=(int)
     def retrieve(self, request, pk=None):
         plan_id = request.query_params.get("plan_id")
         semester_id = request.query_params.get("semester_id")
@@ -77,7 +82,7 @@ class LectureViewSet(viewsets.GenericViewSet):
     queryset = Lecture.objects.all()
     serializer_class = LectureSerializer 
 
-    # POST /lecture
+    # POST /lecture/?plan_id=(int)&semester_id=(int)
     def create(self, request):
         # SemesterLecture
         data = request.data.copy() 
@@ -86,14 +91,14 @@ class LectureViewSet(viewsets.GenericViewSet):
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED) 
 
-    # PUT /lecture
+    # PUT /lecture/?plan_id=(int)&semester_id=(int)&lecture_id=(int)
     def update(self, request, pk=None):
         pass # SemesterLecture
 
-    # DEL /lecture
+    # DEL /lecture/?plan_id=(int)&semester_id=(int)&lecture_id=(int)
     def destroy(self, request, pk=None):
         pass # SemesterLecture 
 
-    # GET /lecture
+    # GET /lecture/?lecture_type=(int)&search=(string)
     def retrieve(self, request, pk=None):
         pass 
