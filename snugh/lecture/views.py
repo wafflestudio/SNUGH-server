@@ -47,11 +47,14 @@ class SemesterViewSet(viewsets.GenericViewSet):
 
     # POST /semester/?plan_id=(int)
     def create(self, request): 
-        data = request.data.copy() # Check if request.query_params is needed
+        plan_id = request.query_params.get("plan_id")
+        data = request.data.copy()
+        data['plan'] = plan_id 
+        print(data)
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED) # Different body
+        return Response(serializer.data, status=status.HTTP_201_CREATED) # Change body to include all semesters in the plan
     
     # PUT /semester/?plan_id=(int)
     def update(self, request, pk=None):

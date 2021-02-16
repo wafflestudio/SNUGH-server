@@ -18,7 +18,7 @@ class PlanSerializer(serializers.ModelSerializer):
 
 class SemesterSerializer(serializers.ModelSerializer):
     lectures = serializers.SerializerMethodField()
-    plan_id = serializers.IntegerField(write_only=True)
+    # plan_id = serializers.IntegerField(write_only=True)
 
     class Meta:
         model = Semester 
@@ -29,15 +29,15 @@ class SemesterSerializer(serializers.ModelSerializer):
             'semester_type',
             'is_complete',
             'lectures',
-            'plan_id'
+            # 'plan_id',
         )
     
-    def create(self, validated_data):
-        validated_data['plan'] = Plan.objects.get(id=validated_data.pop('plan_id'))
-        return super(SemesterSerializer, self).create(validated_data)
+    # def create(self, validated_data):
+    #     validated_data['plan'] = Plan.objects.get(id=validated_data.pop('plan_id'))
+    #     return super(SemesterSerializer, self).create(validated_data)
 
     def get_lectures(self, semester):
-        return LectureSerializer(semester.lectures, many=True).data # 해당 semester에 속하는 모든 lecture들, SemesterLecture 
+        return LectureSerializer(semester.semesterlecture, many=True).data # 해당 semester에 속하는 모든 lecture들, SemesterLecture 
 
 class LectureSerializer(serializers.ModelSerializer):
     class Meta:
