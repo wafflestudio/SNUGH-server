@@ -2,6 +2,7 @@ from rest_framework import serializers
 from requirement.models import Requirement, PlanRequirement
 from lecture.models import Plan
 
+
 class RequirementSerializer(serializers.ModelSerializer):
     id = serializers.SerializerMethodField()
     description = serializers.SerializerMethodField()
@@ -52,7 +53,8 @@ class RequirementSerializer(serializers.ModelSerializer):
         requirement = Requirement.objects.get(pk=plan_requirement.plan_id)
         return requirement.required_credit
 
-class ProgressSerializer(serializers.ModelSerializer): # 미완성
+
+class ProgressSerializer(serializers.ModelSerializer):
     all = serializers.SerializerMethodField()
     major_requirement = serializers.SerializerMethodField()
     major_elective = serializers.SerializerMethodField()
@@ -68,21 +70,61 @@ class ProgressSerializer(serializers.ModelSerializer): # 미완성
         )
 
     def get_all(self, plan):
-        return None
+        data = []
+
+        earned_credit = 0
+        for e in PlanRequirement.objects.filter(plan_id=plan.id):
+            earned_credit += e.earned_credit
+
+        required_credit = 0
+        for e in Requirement.objects.all():
+            required_credit += e.required_credit
+
+        progress = earned_credit / required_credit
+
+        data['required_credit'] = required_credit
+        data['earned_credit'] = earned_credit
+        data['progress'] = progress
+        return ProgressDetailSerializer(data).data
 
     def get_major_requirement(self, plan):
-        return None
+        data = []
+
+        required_credit = None
+        earned_credit = None
+        progress = earned_credit / required_credit
+
+        data['required_credit'] = required_credit
+        data['earned_credit'] = earned_credit
+        data['progress'] = progress
+        return ProgressDetailSerializer(data).data
 
     def get_major_elective(self, plan):
-        return None
+        data = []
+
+        required_credit = None
+        earned_credit = None
+        progress = earned_credit / required_credit
+
+        data['required_credit'] = required_credit
+        data['earned_credit'] = earned_credit
+        data['progress'] = progress
+        return ProgressDetailSerializer(data).data
 
     def get_general(self, plan):
-        return None
+        data = []
 
-class ProgressDetailSerializer(serializers.ModelSerializer): # 미완성
-    required_credit = serializers.SerializerMethodField()
-    earned_credit = serializers.SerializerMethodField()
-    progress = serializers.SerializerMethodField()
+        required_credit = None
+        earned_credit = None
+        progress = earned_credit / required_credit
+
+        data['required_credit'] = required_credit
+        data['earned_credit'] = earned_credit
+        data['progress'] = progress
+        return ProgressDetailSerializer(data).data
+
+
+class ProgressDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         fields = (
