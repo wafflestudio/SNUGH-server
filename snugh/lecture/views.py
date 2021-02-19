@@ -137,8 +137,17 @@ class LectureViewSet(viewsets.GenericViewSet):
         semesterlecture.semester = new_semester 
         semesterlecture.save() 
 
-        serializer = self.get_serializer(plan)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        ls = [] 
+        semesters = Semester.objects.filter(plan=plan)
+        for semester in semesters: 
+            ls.append(SemesterSerializer(semester).data)
+        
+        body = {
+            "plan": int(plan_id),
+            "semesters": ls,
+        }
+
+        return Response(body, status=status.HTTP_200_OK) # Check semester_type 
 
     # DEL /lecture/?plan_id=(int)&semester_id=(int)&lecture_id=(int)
     def destroy(self, request, pk=None):
