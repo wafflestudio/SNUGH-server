@@ -98,12 +98,14 @@ class LectureViewSet(viewsets.GenericViewSet):
         
         for lecture_id in lecture_id_list:
             lecture = Lecture.objects.get(id=lecture_id) 
-            SemesterLecture.objects.create(semester=semester, lecture=lecture) 
+            majorlecture = MajorLecture.objects.get(lecture=lecture)
+            SemesterLecture.objects.create(semester=semester, lecture=lecture, lecture_type=majorlecture.lecture_type, lecture_type_detail=majorlecture.lecture_type_detail, lecture_type_detail_detail=majorlecture.lecture_type_detail_detail, recent_sequence=0) # Take care of recent_sequence
 
         semesterlectures = SemesterLecture.objects.filter(semester=semester) 
 
         ls = []
-        for lecture in semesterlectures:
+        for semesterlecture in semesterlectures:
+            lecture = semesterlecture.lecture
             ls.append({
                 "id": lecture.id,
                 "lecture_name": lecture.lecture_name,
@@ -113,27 +115,61 @@ class LectureViewSet(viewsets.GenericViewSet):
             })
 
         body = {
-            "plan": plan_id, 
-            "semester": semester_id,
+            "plan": int(plan_id), 
+            "semester": int(semester_id),
             "lectures": ls, 
         }
         return Response(body, status=status.HTTP_201_CREATED) 
     
     # PUT /lecture/?plan_id=(int)&semester_id=(int)&lecture_id=(int)
-    def update(self, request):
+    def put(self, request):
+        plan_id = request.query_params.get("plan_id")
+        plan = Plan.objects.get(id=plan_id)
         semester_id = request.query_params.get("semester_id")
         semester = Semester.objects.get(id=semester_id) 
         lecture_id = request.query_params.get("lecture_id")
         lecture = Lecture.objects.get(id=lecture_id)
-        semesterlecture = SemesterLecture.objects.get(semester=semester, lecture=lecture)
+        semesterlecture = SemesterLecture.objects.get(semester=semester, lecture=lecture) 
 
-        pass 
+        data = request.data.copy() 
+        new_semester_id = data['semester_id']
+        new_semester = Semester.objects.get(id=new_semester_id)
+        semesterlecture.semester = new_semester 
+        semesterlecture.save() 
+
+        serializer = self.get_serializer(plan)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     # DEL /lecture/?plan_id=(int)&semester_id=(int)&lecture_id=(int)
     def destroy(self, request, pk=None):
-        # semesterlecture = SemesterLecture.objects.get(semester=semester, lecture=lecture)
-        # semesterlecture.delete() 
-        pass 
+        plan_id = request.query_params.get("plan_id")
+        semester_id = request.query_params.get("semester_id")
+        semester = Semester.objects.get(id=semester_id)
+        lecture_id = request.query_params.get("lecture_id")
+        lecture = Lecture.objects.get(id=lecture_id)
+        semesterlecture = SemesterLecture.objects.get(semester=semester, lecture=lecture)
+        semesterlecture.delete() 
+
+        semesterlectures = SemesterLecture.objects.filter(semester=semester)
+
+        ls = [] 
+        for semesterlecture in semesterlectures: 
+            lecture = semesterlecture.lecture 
+            ls.append({
+                "id": lecture.id,
+                "lecture_name": lecture.lecture_name,
+                "credit": lecture.credit,
+                "is_open": lecture.is_open,
+                "open_semester": lecture.open_semester,
+            })
+        
+        body = {
+            "plan": int(plan_id),
+            "semester": int(semester_id),
+            "lectures": ls,
+        }
+
+        return Response(body, status=status.HTTP_200_OK) 
 
     # GET /lecture/?lecture_type=(int)&search=(string)
     def retrieve(self, request, pk=None):
