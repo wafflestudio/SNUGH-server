@@ -85,7 +85,9 @@ class SemesterViewSet(viewsets.GenericViewSet):
 
 class LectureViewSet(viewsets.GenericViewSet):
     queryset = Lecture.objects.all()
-    serializer_class = SemesterLectureSerializer 
+    search_fields = ['lecture_name']
+    filter_backends = (filters.SearchFilter, )
+    serializer_class = LectureSerializer 
 
     # POST /lecture/?plan_id=(int)&semester_id=(int)
     def create(self, request): 
@@ -99,7 +101,8 @@ class LectureViewSet(viewsets.GenericViewSet):
         for lecture_id in lecture_id_list:
             lecture = Lecture.objects.get(id=lecture_id) 
             majorlecture = MajorLecture.objects.get(lecture=lecture)
-            SemesterLecture.objects.create(semester=semester, lecture=lecture, lecture_type=majorlecture.lecture_type, lecture_type_detail=majorlecture.lecture_type_detail, lecture_type_detail_detail=majorlecture.lecture_type_detail_detail, recent_sequence=0) # Take care of recent_sequence
+            # Need to calculate recent_sequence
+            SemesterLecture.objects.create(semester=semester, lecture=lecture, lecture_type=majorlecture.lecture_type, lecture_type_detail=majorlecture.lecture_type_detail, lecture_type_detail_detail=majorlecture.lecture_type_detail_detail, recent_sequence=0) 
 
         semesterlectures = SemesterLecture.objects.filter(semester=semester) 
 
@@ -181,7 +184,18 @@ class LectureViewSet(viewsets.GenericViewSet):
         return Response(body, status=status.HTTP_200_OK) 
 
     # GET /lecture/?lecture_type=(int)&search=(string)
-    def retrieve(self, request, pk=None):
-        # lecture_type = request.query_params.get("lecture_type")
-        # search_keyword = request.query_params.get("search")
-        pass 
+    def list(self, request): 
+        queryset = self.get_queryset() 
+        lecture_type = request.query_params.get("lecture_type")
+        filter_backends = self.filter_queryset(queryset) 
+        ls = []
+        for lecture in filter_backends:
+            majorlecture = MajorLecture.objects.get(lecture=lecture)
+            if (majorlecture.lecture_type == lecture_type):
+                ls.append(self.get_serializer(lecture).data)
+        
+        body = {
+            "lectures": ls,
+        }
+        # serializer = self.get_serializer(filter_backends, many=True)
+        return Response(body, status=status.HTTP_200_OK) 
