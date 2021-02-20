@@ -31,7 +31,12 @@ class SemesterSerializer(serializers.ModelSerializer):
         )
 
     def get_lectures(self, semester):
-        return LectureSerializer(semester.semesterlecture, many=True).data # 해당 semester에 속하는 모든 lecture들, SemesterLecture 
+        lectures = set() 
+        semesterlectures = semester.semesterlecture.all() 
+        for semesterlecture in semesterlectures:
+            lecture = semesterlecture.lecture 
+            lectures.add(lecture.id) 
+        return LectureSerializer(Lecture.objects.filter(pk__in=lectures), many=True).data # 해당 semester에 속하는 모든 lecture들, SemesterLecture 
 
 class LectureSerializer(serializers.ModelSerializer):
     class Meta:
