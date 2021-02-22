@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from user.models import Major
 from lecture.models import Plan
 
+# Create your models here.
 # Requirement, PlanRequirement
 
 class Requirement(models.Model):
@@ -51,5 +52,4 @@ class PlanRequirement(models.Model):
     plan =  models.ForeignKey(Plan, related_name='planrequirement', on_delete=models.CASCADE)
     requirement = models.ForeignKey(Requirement, related_name='planrequirement', on_delete=models.CASCADE)
     is_fulfilled = models.BooleanField(default=False)
-    earned_credit = models.PositiveSmallIntegerField(default=0)
-
+    earned_credit = models.PositiveSmallIntegerField(default=0) 

@@ -27,11 +27,9 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*'] # '*'를 추가해서 모든 호스트를 허용합니다.
 
-
 # Application definition
 
 INSTALLED_APPS = [
-    'user.apps.UserConfig',    
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -40,9 +38,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework.authtoken',
-    'user',
-    'lecture',
-    'requirement',
+    'lecture.apps.LectureConfig',
+    'user.apps.UserConfig',
+    'requirement.apps.RequirementConfig'
 ]
 
 MIDDLEWARE = [
@@ -87,9 +85,12 @@ WSGI_APPLICATION = 'snugh.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+        'ENGINE': 'django.db.backends.mysql',
+        'HOST': 'localhost', 
+        'PORT': 3306,
+        'NAME': 'snugh_server',
+        'USER': 'snugh-server',
+        'PASSWORD': 'baby_ammo',    }
 }
 
 CACHES = {
