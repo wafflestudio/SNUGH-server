@@ -45,8 +45,3 @@ class UserSerializer(serializers.ModelSerializer):
         return user.first_name+user.last_name
 
 
-
-"""
-int list
-error response
-"""

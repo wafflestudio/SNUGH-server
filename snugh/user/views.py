@@ -156,8 +156,15 @@ class UserViewSet(viewsets.GenericViewSet):
 
         #GET all majors
         if self.request.method == 'GET':
+            name=request.query_params.get('name')
             ls=[]
-            for major in Major.objects.all():
+
+            if name:
+                majors=Major.objects.filter(major_name__contains=name)
+            else: 
+                majors=Major.objects.all()
+
+            for major in majors:
                 ls.append({"id":major.id, "name":major.major_name, "type":major.major_type})
             body={"major":ls}
             return Response(body, status=status.HTTP_200_OK)        
