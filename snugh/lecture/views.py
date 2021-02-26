@@ -1,8 +1,8 @@
 from django.shortcuts import render 
 from rest_framework import status, viewsets, filters
 from rest_framework.response import Response 
-from lecture.models import Plan, Semester, Lecture, SemesterLecture, MajorLecture   
-from lecture.serializers import PlanSerializer, SemesterSerializer, LectureSerializer, SemesterLectureSerializer
+from lecture.models import * 
+from lecture.serializers import *
 
 class PlanViewSet(viewsets.GenericViewSet):
     queryset = Plan.objects.all()
@@ -34,7 +34,7 @@ class PlanViewSet(viewsets.GenericViewSet):
     def retrieve(self, request, pk=None):
         plan = self.get_object() 
         serializer = self.get_serializer(plan)
-        return Response(serializer.data, status=status.HTTP_200_OK) # Add majors, semester credits in Response body
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     # GET /plan
     def list(self, request):
@@ -43,20 +43,15 @@ class PlanViewSet(viewsets.GenericViewSet):
 
 class SemesterViewSet(viewsets.GenericViewSet):
     queryset = Semester.objects.all()
-    serializer_class = SemesterSerializer 
+    serializer_class = SimpleSemesterSerializer 
 
-    # POST /semester/?plan_id=(int)
+    # POST /semester
     def create(self, request): 
-        plan_id = request.query_params.get("plan_id")
         data = request.data.copy()
-        data['plan'] = plan_id 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-
-        plan = Plan.objects.get(id=plan_id)
-        serializer = PlanSerializer(plan)
-        return Response(serializer.data, status=status.HTTP_201_CREATED) # Change id to plan
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
     
     # PUT /semester/(int)
     def update(self, request, pk=None):
@@ -65,21 +60,17 @@ class SemesterViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(semester, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.update(semester, serializer.validated_data)
-    
-        serializer = PlanSerializer(semester.plan) 
-        return Response(serializer.data, status=status.HTTP_200_OK) # Change id to plan
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
     # DEL /semester/(int)
     def destroy(self, request, pk=None):
-        plan = self.get_object().plan 
         self.get_object().delete() 
-        serializer = PlanSerializer(plan)
-        return Response(serializer.data, status=status.HTTP_200_OK) # Change id to plan
+        return Response(status=status.HTTP_200_OK)
     
     # GET /semester/(int)
     def retrieve(self, request, pk=None):
         semester = self.get_object() 
-        serializer = self.get_serializer(semester)
+        serializer = SemesterSerializer(semester)
         return Response(serializer.data, status=status.HTTP_200_OK) 
 
 class LectureViewSet(viewsets.GenericViewSet):
@@ -88,14 +79,12 @@ class LectureViewSet(viewsets.GenericViewSet):
     filter_backends = (filters.SearchFilter, )
     serializer_class = SemesterLectureSerializer 
 
-    # POST /lecture/?semester_id=(int)
+    # POST /lecture
     def create(self, request): 
-        semester_id = request.query_params.get("semester_id")
+        semester_id = request.data.get('semester_id')
+        lecture_id_list = request.data.get('lecture_id') 
+        recent_sequence_list = request.data.get('recent_sequence')
         semester = Semester.objects.get(id=semester_id) 
-
-        data = request.data.copy() 
-        lecture_id_list = data['lecture_id']
-        recent_sequence_list = data['recent_sequence']
         
         for i in range(len(lecture_id_list)): 
             lecture = Lecture.objects.get(id=lecture_id_list[i]) 
@@ -106,7 +95,14 @@ class LectureViewSet(viewsets.GenericViewSet):
         ls = [] 
         for semesterlecture in semesterlectures:
             lecture = semesterlecture.lecture
-            ls.append(LectureSerializer(lecture).data)
+            ls.append({
+                "lecture_id": lecture.id, 
+                "semester_lecture_id": semesterlecture.id, 
+                "lecture_name": lecture.lecture_name,
+                "credit": lecture.credit, 
+                "is_open": lecture.is_open, 
+                "open_semester": lecture.open_semester, 
+            })
 
         body = {
             "plan": int(semester.plan.id),
@@ -129,19 +125,26 @@ class LectureViewSet(viewsets.GenericViewSet):
         self.get_object().delete()
         return Response(status=status.HTTP_200_OK) 
 
-    # GET /lecture/?lecture_type=(int)&search=(string)
+    # GET /lecture/?lecture_type=(int)&search_keyword=(string)
     def list(self, request): 
         queryset = self.get_queryset() 
-        lecture_type = request.query_params.get("lecture_type")
+        lecture_type = request.query_params.get("lecture_type", None)
+        search_keyword = request.query_params.get("search_keyword", None)
+        if lecture_type is not None:
+            queryset = queryset.filter(lecture_type=lecture_type)
         filter_backends = self.filter_queryset(queryset) 
-        ls = []
-        for lecture in filter_backends:
-            majorlecture = MajorLecture.objects.get(lecture=lecture)
-            if (majorlecture.lecture_type == lecture_type):
-                ls.append(self.get_serializer(lecture).data)
-        
+
+        lectures = set() 
+        for semesterlecture in filter_backends:
+            lecture = Lecture.objects.get(semesterlecture=semesterlecture)
+            if search_keyword is not None and search_keyword in lecture.lecture_name:
+                lectures.add(lecture) 
+        ls = [] 
+        for lecture in lectures:
+            ls.append(LectureSerializer(lecture).data)
         body = {
             "lectures": ls,
         }
-        # serializer = self.get_serializer(filter_backends, many=True)
+        # page = self.paginate_queryset(filter_backends)
+        # return self.get_paginated_response(serializer.data) 
         return Response(body, status=status.HTTP_200_OK) 

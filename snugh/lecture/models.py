@@ -2,8 +2,6 @@ from django.contrib.auth.models import User
 from django.db import models
 from user.models import Major
 
-# Lecture, Plan, Semester, PlanMajor, SemesterLecture, MajorLecture 
-
 class Lecture(models.Model):
     SEMESTER_TYPE = (
         (1, 'unknown'),
