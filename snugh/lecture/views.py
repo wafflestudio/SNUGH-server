@@ -128,7 +128,6 @@ class LectureViewSet(viewsets.GenericViewSet):
     # GET /lecture/?lecture_type=(int)&search_keyword=(string)
     def list(self, request): 
         queryset = self.get_queryset() 
-        print(Lecture.objects.all) 
         lecture_type = request.query_params.get("lecture_type", None)
         search_keyword = request.query_params.get("search_keyword", None)
         if lecture_type is not None:
@@ -141,8 +140,6 @@ class LectureViewSet(viewsets.GenericViewSet):
             if search_keyword is None:
                 lectures.add(lecture)
             elif search_keyword in lecture.lecture_name:
-                print(search_keyword)
-                print(lecture.lecture_name)
                 lectures.add(lecture) 
         ls = [] 
         for lecture in lectures:
