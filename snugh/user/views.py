@@ -15,27 +15,20 @@ class UserViewSet(viewsets.GenericViewSet):
     # POST /user/    
     def create(self, request):
         body=request.data
-        username=body.get('username')
+        email=body.get('email')
         password=body.get('password')
-        student_id=body.get('student_id')
-        first_name=body.get('first_name')
-        last_name=body.get('last_name')
+        year=body.get('year')
+        full_name=body.get('full_name')
         major_list=body.get('major_id')
         student_status=body.get('status')
 
         #err response 1
-        if not ( bool(username) and bool(password) and bool(student_id) and bool (first_name) and bool(last_name) and bool (major_list) and bool(student_status) ):
+        if not ( bool(email) and bool(password) and bool(year) and bool (full_name) and bool (major_list) and bool(student_status) ):
             return Response({"error":"Required fields missing"}, status=status.HTTP_400_BAD_REQUEST)
-        #err response 2
-        try: 
-            UserProfile.objects.get(student_id=student_id)
-            return Response({"error":"existing user"}, status=status.HTTP_400_BAD_REQUEST)
-        except UserProfile.DoesNotExist:
-            pass
 
         #create user
-        user=User.objects.create_user(username=username, password=password, first_name=first_name, last_name=last_name)
-        UserProfile.objects.create(user=user, student_id=student_id, status=student_status)
+        user=User.objects.create_user(username=email, email=email, password=password, first_name=full_name)
+        UserProfile.objects.create(user=user, year=year, status=student_status)
         for major in major_list:
             UserMajor.objects.create(user=user, major=Major.objects.get(id=major))
         login(request, user)
@@ -59,7 +52,7 @@ class UserViewSet(viewsets.GenericViewSet):
     #PUT /user/
     @action(detail=False, methods=['PUT'])
     def login(self, request):
-        username=request.data.get('username')
+        username=request.data.get('email') #email을 username으로 로그인
         password=request.data.get('password')
 
         #err response 1

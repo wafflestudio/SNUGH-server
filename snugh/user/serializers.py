@@ -5,29 +5,25 @@ from user.models import *
 
 class UserSerializer(serializers.ModelSerializer):
     id= serializers.IntegerField()
-    username= serializers.CharField()
-    first_name= serializers.CharField()
-    last_name= serializers.CharField()
+    email= serializers.CharField()
     full_name= serializers.SerializerMethodField()
-    student_id= serializers.SerializerMethodField()
+    year= serializers.SerializerMethodField()
     major=serializers.SerializerMethodField()
     status=serializers.SerializerMethodField()
     class Meta:
         model=User
         fields=(
             "id",
-            "username",
-            "first_name",
-            "last_name",
+            "email",
             "full_name",
-            "student_id",
+            "year",
             "status",
             "major"
         )
 
-    def get_student_id(self, user):
+    def get_year(self, user):
         userprofile=user.userprofile
-        return userprofile.student_id
+        return userprofile.year
 
     def get_status(self, user):
         userprofile=user.userprofile
@@ -42,6 +38,4 @@ class UserSerializer(serializers.ModelSerializer):
         return ls
 
     def get_full_name(self, user):
-        return user.first_name+user.last_name
-
-
+        return user.first_name
