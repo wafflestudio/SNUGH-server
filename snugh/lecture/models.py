@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.db import models
 from user.models import Major
 
+# Create your models here.
 # Lecture, Plan, Semester, PlanMajor, SemesterLecture, MajorLecture 
 
 class Lecture(models.Model):
@@ -18,9 +19,9 @@ class Lecture(models.Model):
     open_semester = models.PositiveSmallIntegerField(choices=SEMESTER_TYPE, default=1)
 
 class Plan(models.Model):
-    user = models.ForeignKey(User, related_name='plan', on_delete=models.CASCADE)
-    plan_name = models.CharField(max_length=50, db_index=True)
-    recent_scroll = models.IntegerField()
+    # user = models.ForeignKey(User, related_name='plan', on_delete=models.CASCADE)
+    plan_name = models.CharField(max_length=50, db_index=True, default="계획표")
+    recent_scroll = models.IntegerField(default=0)
 
 class Semester(models.Model):
     SEMESTER_TYPE = (
@@ -31,6 +32,7 @@ class Semester(models.Model):
     )
     plan = models.ForeignKey(Plan, related_name='semester', on_delete=models.CASCADE)
     year = models.PositiveIntegerField()
+    is_complete = models.BooleanField(default=False) 
     semester_type = models.PositiveSmallIntegerField(choices=SEMESTER_TYPE)
 
 class PlanMajor(models.Model):
@@ -119,4 +121,4 @@ class MajorLecture(models.Model):
     class Meta:
         unique_together = (
             ('major', 'lecture')
-        )
+        ) 
