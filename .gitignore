@@ -130,3 +130,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+snugh/.idea/inspectionProfiles/profiles_settings.xml
+snugh/.idea/misc.xml
+snugh/.idea/modules.xml
+snugh/.idea/snugh.iml
+snugh/.idea/vcs.xml
