@@ -38,7 +38,7 @@ class Requirement(models.Model):
     start_year = models.PositiveSmallIntegerField()
     end_year = models.PositiveSmallIntegerField()
     description = models.CharField(max_length=500, blank=True)
-    is_credit_requirement = models.BoleanField()
+    is_credit_requirement = models.BooleanField()
     required_credit = models.PositiveSmallIntegerField(default=0)
     requirement_type = models.PositiveSmallIntegerField(choices=REQUIREMENT_TYPE)
     requirement_type_detail = models.PositiveSmallIntegerField(choices=REQUIREMENT_TYPE_DETAIL, default=1)
