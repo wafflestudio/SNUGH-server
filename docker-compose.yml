@@ -1,0 +1,25 @@
+version: '3'
+services:
+
+    nginx:
+        container_name: nginx
+        build: ./nginx
+        image: my-snugh-server/nginx
+        restart: always
+        ports:
+          - "80:80"
+        volumes:
+          - ./snugh:/srv/SNUGH-server
+          - ./log:/var/log/nginx
+        depends_on:
+          - django
+
+    django:
+        container_name: django
+        build: ./snugh
+        image: my-snugh-server/django
+        restart: always
+        command: uwsgi --ini uwsgi.ini
+        volumes:
+          - ./snugh:/srv/SNUGH-server
+          - ./log:/var/log/uwsgi

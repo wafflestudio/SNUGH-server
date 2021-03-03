@@ -10,7 +10,7 @@ class UserProfile(models.Model):
         (3, 'break'),# 휴학         
     )
     user = models.OneToOneField(User, related_name='userprofile', on_delete=models.CASCADE)
-    student_id = models.CharField(max_length=10, db_index=True, blank=False)
+    year = models.IntegerField()
     status = models.PositiveSmallIntegerField(choices=STUDENT_STATUS, default=1)
 
 class Major(models.Model):

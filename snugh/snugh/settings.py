@@ -25,8 +25,7 @@ SECRET_KEY = 'a6ejp$*!cz7+5zd00nz6$10%ph!877_0hp%02z((eet_2xof$%'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['*'] # '*'를 추가해서 모든 호스트를 허용합니다.
 
 # Application definition
 
@@ -37,9 +36,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'rest_framework.authtoken',
     'lecture.apps.LectureConfig',
     'user.apps.UserConfig',
-    'requirement.apps.RequirementConfig',
+    'requirement.apps.RequirementConfig'
 ]
 
 MIDDLEWARE = [
@@ -51,6 +52,12 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ]
+}
 
 ROOT_URLCONF = 'snugh.urls'
 
@@ -84,6 +91,15 @@ DATABASES = {
         'NAME': 'snugh_server',
         'USER': 'snugh-server',
         'PASSWORD': 'baby_ammo',
+}
+
+CACHES = {
+        "default": {
+        "BACKEND" : "django_redis.cache.RedisCache",
+        "LOCATION" : "redis://127.0.0.1",
+        "OPTIONS": {
+            "CLIENT_CLASS" : "django_redis.client.DefaultClient",
+        }
     }
 }
 
