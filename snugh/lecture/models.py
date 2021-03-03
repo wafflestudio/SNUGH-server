@@ -121,4 +121,4 @@ class MajorLecture(models.Model):
     class Meta:
         unique_together = (
             ('major', 'lecture')
-        ) 
+        )

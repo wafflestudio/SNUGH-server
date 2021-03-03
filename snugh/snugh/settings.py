@@ -90,7 +90,7 @@ DATABASES = {
         'PORT': 3306,
         'NAME': 'snugh_server',
         'USER': 'snugh-server',
-        'PASSWORD': 'baby_ammo',    }
+        'PASSWORD': 'baby_ammo',
 }
 
 CACHES = {
