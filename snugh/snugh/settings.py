@@ -91,6 +91,7 @@ DATABASES = {
         'NAME': 'snugh_server',
         'USER': 'snugh-server',
         'PASSWORD': 'baby_ammo',
+    }
 }
 
 CACHES = {
