@@ -25,7 +25,8 @@ class UserViewSet(viewsets.GenericViewSet):
         #err response 1
         if not ( bool(email) and bool(password) and bool(year) and bool (full_name) and bool (major_list) and bool(student_status) ):
             return Response({"error":"Required fields missing"}, status=status.HTTP_400_BAD_REQUEST)
-
+        
+        Major.objects.create(major_name="ammonite science", major_type=1)
         #create user
         user=User.objects.create_user(username=email, email=email, password=password, first_name=full_name)
         UserProfile.objects.create(user=user, year=year, status=student_status)
