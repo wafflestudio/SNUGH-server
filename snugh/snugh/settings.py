@@ -113,11 +113,14 @@ WSGI_APPLICATION = 'snugh.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'HOST': 'localhost', 
-        'PORT': 3306,
-        'NAME': 'snugh_server',
-        'USER': 'snugh-server',
+        'NAME': 'snugh-db',
+        'USER': 'admin',
         'PASSWORD': 'baby_ammo',
+        'HOST': 'snugh-db.cey1mulmuayy.us-east-2.rds.amazonaws.com',
+        'PORT': '3306',
+        'OPTIONS': {
+            'init_command': 'SET sql_mode="STRICT_TRANS_TABLES"'
+        }
     }
 }
 
