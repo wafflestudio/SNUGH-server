@@ -13,7 +13,7 @@ class RequirementSerializer(serializers.ModelSerializer):
     required_credit = serializers.SerializerMethodField()
 
     class Meta:
-        Model = PlanRequirement
+        model = PlanRequirement
         fields = (
             'id',
             'description',
@@ -53,7 +53,6 @@ class RequirementSerializer(serializers.ModelSerializer):
         requirement = Requirement.objects.get(pk=plan_requirement.plan_id)
         return requirement.required_credit
 
-
 class ProgressSerializer(serializers.ModelSerializer):
     all = serializers.SerializerMethodField()
     major_requirement = serializers.SerializerMethodField()
@@ -61,7 +60,7 @@ class ProgressSerializer(serializers.ModelSerializer):
     general = serializers.SerializerMethodField()
 
     class Meta:
-        Model = Plan
+        model = Plan
         fields = (
             'all',
             'major_requirement',
@@ -82,7 +81,10 @@ class ProgressSerializer(serializers.ModelSerializer):
         for r in requirement:
             required_credit += r.required_credit
 
-        progress = earned_credit / required_credit
+        if required_credit != 0:
+            progress = earned_credit / required_credit
+        else:
+            progress = 0.0
 
         data['required_credit'] = required_credit
         data['earned_credit'] = earned_credit
@@ -92,17 +94,20 @@ class ProgressSerializer(serializers.ModelSerializer):
     def get_major_requirement(self, plan):
         data = {}
 
-        planrequirement = PlanRequirement.objects.filter(plan_id=plan.id, requirement__requirement_type="major_requirement")
+        planrequirement = PlanRequirement.objects.filter(plan_id=plan.id, requirement__requirement_type=2)
         earned_credit = 0
         for pr in planrequirement:
             earned_credit += pr.earned_credit
 
-        requirement = Requirement.objects.filter(planrequirement__plan_id=plan.id, requirement_type="major_requirement")
+        requirement = Requirement.objects.filter(planrequirement__plan_id=plan.id, requirement_type=2)
         required_credit = 0
         for r in requirement:
             required_credit += r.required_credit
 
-        progress = earned_credit / required_credit
+        if required_credit != 0:
+            progress = earned_credit / required_credit
+        else:
+            progress = 0.0
 
         data['required_credit'] = required_credit
         data['earned_credit'] = earned_credit
@@ -112,17 +117,20 @@ class ProgressSerializer(serializers.ModelSerializer):
     def get_major_elective(self, plan):
         data = {}
 
-        planrequirement = PlanRequirement.objects.filter(plan_id=plan.id, requirement__requirement_type="major_elective")
+        planrequirement = PlanRequirement.objects.filter(plan_id=plan.id, requirement__requirement_type=3)
         earned_credit = 0
         for pr in planrequirement:
             earned_credit += pr.earned_credit
 
-        requirement = Requirement.objects.filter(planrequirement__plan_id=plan.id, requirement_type="major_elective")
+        requirement = Requirement.objects.filter(planrequirement__plan_id=plan.id, requirement_type=3)
         required_credit = 0
         for r in requirement:
             required_credit += r.required_credit
 
-        progress = earned_credit / required_credit
+        if required_credit != 0:
+            progress = earned_credit / required_credit
+        else:
+            progress = 0.0
 
         data['required_credit'] = required_credit
         data['earned_credit'] = earned_credit
@@ -132,17 +140,20 @@ class ProgressSerializer(serializers.ModelSerializer):
     def get_general(self, plan):
         data = {}
 
-        planrequirement = PlanRequirement.objects.filter(plan_id=plan.id, requirement__requirement_type="general")
+        planrequirement = PlanRequirement.objects.filter(plan_id=plan.id, requirement__requirement_type=4)
         earned_credit = 0
         for pr in planrequirement:
             earned_credit += pr.earned_credit
 
-        requirement = Requirement.objects.filter(planrequirement__plan_id=plan.id, requirement_type="general")
+        requirement = Requirement.objects.filter(planrequirement__plan_id=plan.id, requirement_type=4)
         required_credit = 0
         for r in requirement:
             required_credit += r.required_credit
 
-        progress = earned_credit / required_credit
+        if required_credit != 0:
+            progress = earned_credit / required_credit
+        else:
+            progress = 0.0
 
         data['required_credit'] = required_credit
         data['earned_credit'] = earned_credit
