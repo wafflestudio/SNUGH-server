@@ -39,19 +39,29 @@ class UserViewSet(viewsets.GenericViewSet):
     # POST /user/    
     def create(self, request):
         body=request.data
+        errorls=[]
+
         email=body.get('email')
+        if not email:
+            errorls.append('email')
         password=body.get('password')
+        if not password:
+            errorls.append('password')
         year=body.get('year')
+        if not year:
+            errorls.append('year')
         full_name=body.get('full_name')
+        if not full_name:
+            errorls.append('full_name')
         major_list=body.get('major_id')
+        if not major_list:
+            errorls.append('major_id')
         student_status=body.get('status')
+        if not student_status:
+            errorls.append('status')
 
         #err response 1
-        if not ( bool(email) and bool(password) and bool(year) and bool (full_name) and bool (major_list) and bool(student_status) ):
-            errorls=[]
-            for i in body:
-                if not body.get(i):
-                    errorls.append(i)
+        if len(errorls)>0:
             text=""
             for j in errorls:
                 text=text+j
@@ -61,7 +71,7 @@ class UserViewSet(viewsets.GenericViewSet):
         
         #err response 2
         try: 
-            User.objects.get(username=username)
+            User.objects.get(username=email)
             return Response({"error":"existing user"}, status=status.HTTP_400_BAD_REQUEST)
         except User.DoesNotExist:
             pass
