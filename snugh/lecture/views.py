@@ -40,9 +40,12 @@ class PlanViewSet(viewsets.GenericViewSet):
 
     # GET /plan
     def list(self, request):
-        plans = self.get_queryset()
-        return Response(self.get_serializer(plans, many=True).data, status=status.HTTP_200_OK) 
-     
+        # plans = self.get_queryset()
+        # return Response(self.get_serializer(plans, many=True).data, status=status.HTTP_200_OK) 
+        user = request.user
+        plans = Plan.objects.filter(user=user)
+        return Response(self.get_serializer(plans, many=True).data, status=status.HTTP_200_OK)
+
     # POST/GET/DELETE /plan/major
     @action(detail=True, methods=['POST', 'DELETE', 'GET'])    
     def major(self, request, pk=None):    
