@@ -19,7 +19,7 @@ class Lecture(models.Model):
     open_semester = models.PositiveSmallIntegerField(choices=SEMESTER_TYPE, default=1)
 
 class Plan(models.Model):
-    # user = models.ForeignKey(User, related_name='plan', on_delete=models.CASCADE)
+    user = models.ForeignKey(User, related_name='plan', on_delete=models.CASCADE)
     plan_name = models.CharField(max_length=50, db_index=True, default="계획표")
     recent_scroll = models.IntegerField(default=0)
 
