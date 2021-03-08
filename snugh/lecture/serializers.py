@@ -7,7 +7,7 @@ class PlanSerializer(serializers.ModelSerializer):
         model = Plan
         fields = (
             'id', 
-            # 'user_id', 
+            'user', 
             'plan_name',
             'recent_scroll',
             'semesters',
