@@ -6,7 +6,7 @@ from user.models import Major
 # Lecture, Plan, Semester, PlanMajor, SemesterLecture, MajorLecture 
 
 class Lecture(models.Model):
-    lecture_id = models.CharField(max_length=50)
+    lecture_id = models.CharField(max_length=50, default="")
     SEMESTER_TYPE = (
         (1, 'unknown'),
         (2, 'first'),
@@ -16,11 +16,11 @@ class Lecture(models.Model):
     )
     lecture_name = models.CharField(max_length=50, db_index=True)
     credit = models.PositiveIntegerField(default=0)
-    is_open = models.BooleanField(default = False)
+    is_open = models.BooleanField(default=False)
     open_semester = models.PositiveSmallIntegerField(choices=SEMESTER_TYPE, default=1)
 
 class Plan(models.Model):
-    user = models.ForeignKey(User, related_name='plan', on_delete=models.CASCADE)
+    user = models.ForeignKey(User, related_name='plan', on_delete=models.CASCADE, null=True)
     plan_name = models.CharField(max_length=50, db_index=True, default="계획표")
     recent_scroll = models.IntegerField(default=0)
 
@@ -75,7 +75,7 @@ class SemesterLecture(models.Model):
     semester = models.ForeignKey(Semester, related_name='semesterlecture', on_delete=models.CASCADE)
     lecture = models.ForeignKey(Lecture, related_name='semesterlecture', on_delete=models.CASCADE)
     lecture_type = models.PositiveSmallIntegerField(choices=LECTURE_TYPE)
-    lecture_type_detail = models.PositiveSmallIntegerField(choices=LECTURE_TYPE_DETAIL, default = 1)
+    lecture_type_detail = models.PositiveSmallIntegerField(choices=LECTURE_TYPE_DETAIL, default=1)
     lecture_type_detail_detail = models.PositiveSmallIntegerField(choices=LECTURE_TYPE_DETAIL_DETAIL, default = 1)
     recent_sequence = models.PositiveSmallIntegerField()
 
