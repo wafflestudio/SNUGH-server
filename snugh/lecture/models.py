@@ -6,7 +6,6 @@ from user.models import Major
 # Lecture, Plan, Semester, PlanMajor, SemesterLecture, MajorLecture 
 
 class Lecture(models.Model):
-    lecture_id = models.CharField(max_length=50, default="")
     SEMESTER_TYPE = (
         (1, 'unknown'),
         (2, 'first'),
