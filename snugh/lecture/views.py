@@ -12,10 +12,22 @@ class PlanViewSet(viewsets.GenericViewSet):
 
     # POST /plan
     def create(self, request):
+        major_id = request.query_params.get("major_id", None)
+        #err response 1
+        if major_id is None:
+            return Response({"error":"major_id missing"}, status=status.HTTP_400_BAD_REQUEST)    
+        #err response 2
+        try:
+            major = Major.objects.get(id=major_id)
+        except Major.DoesNotExist:
+            return Response({"error":"No major matching the given major_id and plan id"}, status=status.HTTP_404_NOT_FOUND)
         data = request.data.copy() 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         serializer.save() 
+        plan_id = serializer.data["id"]
+        plan = Plan.objects.get(id=plan_id)
+        PlanMajor.objects.create(plan=plan, major=major)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
     # PUT /plan/(int)
