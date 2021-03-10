@@ -13,9 +13,6 @@ class MajorViewSet(viewsets.GenericViewSet):
 
     def list(self, request):   
         user=request.user
-        #err response 1
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
 
         #GET all majors
         name=request.query_params.get('name')
@@ -27,7 +24,7 @@ class MajorViewSet(viewsets.GenericViewSet):
             majors=Major.objects.all()
 
         for major in majors:
-            ls.append({"id":major.id, "name":major.major_name, "type":major.major_type})
+            ls.append({"id":major.id, "major_name":major.major_name, "major_type":major.major_type})
         body={"major":ls}
         return Response(body, status=status.HTTP_200_OK)        
 
@@ -226,7 +223,7 @@ class UserViewSet(viewsets.GenericViewSet):
         ls=[]
         for usermajor in user.usermajor.all():
             major=usermajor.major
-            ls.append({"id":major.id, "name":major.major_name, "type":major.major_type})
+            ls.append({"id":major.id, "major_name":major.major_name, "major_type":major.major_type})
         body={"major":ls}
 
         if self.request.method == 'POST':
