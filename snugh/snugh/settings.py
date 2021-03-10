@@ -114,31 +114,20 @@ TEMPLATES = [
 WSGI_APPLICATION = 'snugh.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/3.1/ref/settings/#databases
-
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'snugh_db',
-#         'USER': 'admin',
-#         'PASSWORD': 'babyammo',
-#         'HOST': 'snugh-db.cey1mulmuayy.us-east-2.rds.amazonaws.com',
-#         'PORT': '3306',
-#         'OPTIONS': {
-#             'init_command': 'SET sql_mode="STRICT_TRANS_TABLES"'
-#         }
-#     }
-# }
+Database
+https://docs.djangoproject.com/en/3.1/ref/settings/#databases
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'HOST': 'localhost', 
-        'PORT': 3306,
-        'NAME': 'snugh_server',
-        'USER': 'snugh-server',
-        'PASSWORD': 'baby_ammo',
+        'NAME': 'snugh_db',
+        'USER': 'admin',
+        'PASSWORD': 'babyammo',
+        'HOST': 'snugh-db.cey1mulmuayy.us-east-2.rds.amazonaws.com',
+        'PORT': '3306',
+        'OPTIONS': {
+            'init_command': 'SET sql_mode="STRICT_TRANS_TABLES"'
+        }
     }
 }
 
