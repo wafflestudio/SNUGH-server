@@ -20,6 +20,9 @@ class PlanViewSet(viewsets.GenericViewSet):
     
     # PUT /plan/(int)
     def update(self, request, pk=None):
+        user = request.user
+        if not user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
         plan = self.get_object() 
         data = request.data.copy() 
         serializer = self.get_serializer(plan, data=data, partial=True)
@@ -29,20 +32,26 @@ class PlanViewSet(viewsets.GenericViewSet):
     
     # DEL /plan/(int)
     def destroy(self, request, pk=None):
+        user = request.user
+        if not user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
         self.get_object().delete()
         return Response(status=status.HTTP_200_OK)
     
     # GET /plan/(int)
     def retrieve(self, request, pk=None):
+        user = request.user
+        if not user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
         plan = self.get_object() 
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     # GET /plan
     def list(self, request):
-        # plans = self.get_queryset()
-        # return Response(self.get_serializer(plans, many=True).data, status=status.HTTP_200_OK) 
         user = request.user
+        if not user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
         plans = Plan.objects.filter(user=user)
         return Response(self.get_serializer(plans, many=True).data, status=status.HTTP_200_OK)
 
@@ -97,6 +106,9 @@ class SemesterViewSet(viewsets.GenericViewSet):
 
     # POST /semester
     def create(self, request): 
+        user = request.user
+        if not user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
         data = request.data.copy()
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
@@ -105,6 +117,9 @@ class SemesterViewSet(viewsets.GenericViewSet):
     
     # PUT /semester/(int)
     def update(self, request, pk=None):
+        user = request.user
+        if not user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
         semester = self.get_object()
         data = request.data.copy() 
         serializer = self.get_serializer(semester, data=data, partial=True)
@@ -114,11 +129,17 @@ class SemesterViewSet(viewsets.GenericViewSet):
     
     # DEL /semester/(int)
     def destroy(self, request, pk=None):
+        user = request.user
+        if not user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
         self.get_object().delete() 
         return Response(status=status.HTTP_200_OK)
     
     # GET /semester/(int)
     def retrieve(self, request, pk=None):
+        user = request.user
+        if not user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
         semester = self.get_object() 
         serializer = SemesterSerializer(semester)
         return Response(serializer.data, status=status.HTTP_200_OK) 
@@ -131,6 +152,9 @@ class LectureViewSet(viewsets.GenericViewSet):
 
     # POST /lecture
     def create(self, request): 
+        user = request.user
+        if not user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
         semester_id = request.data.get('semester_id')
         lecture_id_list = request.data.get('lecture_id') 
         recent_sequence_list = request.data.get('recent_sequence')
@@ -163,6 +187,9 @@ class LectureViewSet(viewsets.GenericViewSet):
     
     # PUT /lecture/(int)
     def update(self, request, pk=None):
+        user = request.user
+        if not user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
         semesterlecture = self.get_object()
         data = request.data.copy() 
         serializer = self.get_serializer(semesterlecture, data=data, partial=True)
@@ -172,6 +199,9 @@ class LectureViewSet(viewsets.GenericViewSet):
 
     # DEL /lecture/(int) 
     def destroy(self, request, pk=None):
+        user = request.user
+        if not user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
         self.get_object().delete()
         return Response(status=status.HTTP_200_OK) 
 

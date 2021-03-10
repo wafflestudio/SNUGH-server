@@ -1,5 +1,4 @@
 from django.db import models
-from django.contrib.auth.models import User
 from user.models import Major
 from lecture.models import Plan
 
@@ -8,11 +7,11 @@ from lecture.models import Plan
 
 class Requirement(models.Model):
     REQUIREMENT_TYPE = (
-        (1, 'general'),  # 교양
-        (2, 'major_requirement'),  # 전공 필수
-        (3, 'major_elective'),  # 전공 선택
-        (4, 'all'), # 전체 
-        (5, 'none'), # 해당없음(일반규정)
+        (1, 'none'), # 해당없음(일반규정)
+        (2, 'major_requirement'), # 전공 필수
+        (3, 'major_elective'), # 전공 선택
+        (4, 'general'), # 교양
+        (5, 'all'), # 전체
     )
     REQUIREMENT_TYPE_DETAIL = (
         (1, 'none'),  # 구분 없음
@@ -35,21 +34,21 @@ class Requirement(models.Model):
         (12, 'nature and technology'),  # 자연과 기술
         (13, 'life and environment'),  # 생명과 환경
     )
-    major =  models.ForeignKey(Major, related_name='requirement', on_delete=models.CASCADE)
+    major = models.ForeignKey(Major, related_name='requirement', on_delete=models.CASCADE)
     start_year = models.PositiveSmallIntegerField()
     end_year = models.PositiveSmallIntegerField()
     description = models.CharField(max_length=500, blank=True)
     is_credit_requirement = models.BooleanField()
     required_credit = models.PositiveSmallIntegerField(default=0)
     requirement_type = models.PositiveSmallIntegerField(choices=REQUIREMENT_TYPE)
-    lecture_type_detail = models.PositiveSmallIntegerField(choices=REQUIREMENT_TYPE_DETAIL, default=1)
-    lecture_type_detail_detail = models.PositiveSmallIntegerField(choices=REQUIREMENT_TYPE_DETAIL_DETAIL, default=1)
+    requirement_type_detail = models.PositiveSmallIntegerField(choices=REQUIREMENT_TYPE_DETAIL, default=1)
+    requirement_type_detail_detail = models.PositiveSmallIntegerField(choices=REQUIREMENT_TYPE_DETAIL_DETAIL, default=1)
 
     class Meta:
         ordering = ['-end_year', '-start_year'] # 최신순
 
 class PlanRequirement(models.Model):
-    plan =  models.ForeignKey(Plan, related_name='planrequirement', on_delete=models.CASCADE)
+    plan = models.ForeignKey(Plan, related_name='planrequirement', on_delete=models.CASCADE)
     requirement = models.ForeignKey(Requirement, related_name='planrequirement', on_delete=models.CASCADE)
     is_fulfilled = models.BooleanField(default=False)
     earned_credit = models.PositiveSmallIntegerField(default=0) 

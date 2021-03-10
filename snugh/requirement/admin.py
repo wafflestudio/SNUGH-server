@@ -1,3 +1,5 @@
 from django.contrib import admin
+from requirement.models import Requirement, PlanRequirement
 
-# Register your models here.
+admin.site.register(Requirement)
+admin.site.register(PlanRequirement)
