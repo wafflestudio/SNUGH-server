@@ -1,5 +1,5 @@
 from rest_framework import serializers 
-from lecture.models import Plan, Semester, Lecture, SemesterLecture 
+from lecture.models import *
 
 class PlanSerializer(serializers.ModelSerializer):
     semesters = serializers.SerializerMethodField() 
@@ -58,26 +58,38 @@ class SemesterSerializer(serializers.ModelSerializer):
 
     def get_major_requirement_credits(self, semester):
         total_credits = 0
-        semesterlectures = semester.semesterlecture.all() 
-        for semesterlecture in semesterlectures: 
-            if semesterlecture.lecture_type == 2:
-                total_credits += semesterlecture.lecture.credit 
+        semesterlectures = semester.semesterlecture.all()     
+        planmajors = PlanMajor.objects.filter(plan=semester.plan)
+        for planmajor in planmajors:
+            for semesterlecture in semesterlectures:
+                lecture = semesterlecture.lecture 
+                majorlecture = MajorLecture.objects.get(lecture=lecture)
+                if semesterlecture.lecture_type == 2 and majorlecture.major == planmajor.major:
+                    total_credits += semesterlecture.lecture.credit
         return total_credits 
-
+            
     def get_major_elective_credits(self, semester):
         total_credits = 0
-        semesterlectures = semester.semesterlecture.all() 
-        for semesterlecture in semesterlectures: 
-            if semesterlecture.lecture_type == 3:
-                total_credits += semesterlecture.lecture.credit 
+        semesterlectures = semester.semesterlecture.all()     
+        planmajors = PlanMajor.objects.filter(plan=semester.plan)
+        for planmajor in planmajors:
+            for semesterlecture in semesterlectures:
+                lecture = semesterlecture.lecture 
+                majorlecture = MajorLecture.objects.get(lecture=lecture)
+                if semesterlecture.lecture_type == 3 and majorlecture.major == planmajor.major:
+                    total_credits += semesterlecture.lecture.credit
         return total_credits 
 
     def get_general_credits(self, semester): 
         total_credits = 0
         semesterlectures = semester.semesterlecture.all() 
-        for semesterlecture in semesterlectures: 
-            if semesterlecture.lecture_type == 1:
-                total_credits += semesterlecture.lecture.credit 
+        planmajors = PlanMajor.objects.filter(plan=semester.plan)
+        for planmajor in planmajors:
+            for semesterlecture in semesterlectures: 
+                lecture = semesterlecture.lecture 
+                majorlecture = MajorLecture.objects.get(lecture=lecture) 
+                if semesterlecture.lecture_type == 1 or (majorlecture.major != planmajor.major and (semesterlecture.lecture_type == 2 or semesterlecture.lecture_type == 3)):
+                    total_credits += semesterlecture.lecture.credit 
         return total_credits 
 
 class LectureSerializer(serializers.ModelSerializer):
