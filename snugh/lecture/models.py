@@ -13,8 +13,11 @@ class Lecture(models.Model):
         (3, 'second'),
         (4, 'summer'),
         (5, 'winter'),
+        (6, 'all'),
     )
     lecture_name = models.CharField(max_length=50, db_index=True)
+    open_department = models.CharField(max_length = 50)
+    open_major = models.CharField(max_length = 50)
     credit = models.PositiveIntegerField(default=0)
     is_open = models.BooleanField(default=False)
     open_semester = models.PositiveSmallIntegerField(choices=SEMESTER_TYPE, default=1)
@@ -50,12 +53,14 @@ class SemesterLecture(models.Model):
         (1, 'general'), # 교양
         (2, 'major_requirement'), # 전공 필수
         (3, 'major_elective'), # 전공 선택
+        (4, 'general_elective'),  # 일선
     )
     LECTURE_TYPE_DETAIL = (
         (1, 'none'), # 구분 없음
         (2, 'base_of_study'),  #  학문의 기초
         (3, 'world_of_study'),  # 학문의 세계
         (4, 'other'), # 일반교양
+        (5, 'teaching'),  # 교직
     )
     LECTURE_TYPE_DETAIL_DETAIL = (
         (1, 'none'),  # 구분 없음
@@ -89,12 +94,14 @@ class MajorLecture(models.Model):
         (1, 'general'),  # 교양
         (2, 'major_requirement'),  # 전공 필수
         (3, 'major_elective'),  # 전공 선택
+        (4, 'general_elective'), # 일선
     )
     LECTURE_TYPE_DETAIL = (
         (1, 'none'),  # 구분 없음
         (2, 'base_of_study'),  # 학문의 기초
         (3, 'world_of_study'),  # 학문의 세계
         (4, 'other'),  # 일반교양
+        (5, 'teaching'), # 교직
     )
     LECTURE_TYPE_DETAIL_DETAIL = (
         (1, 'none'),  # 구분 없음
@@ -115,6 +122,9 @@ class MajorLecture(models.Model):
     lecture = models.ForeignKey(Lecture, related_name='majorlecture', on_delete=models.CASCADE)
     start_year = models.PositiveSmallIntegerField()
     end_year = models.PositiveSmallIntegerField()
+    grade = models.PositiveSmallIntegerField()
+    is_required = models.BooleanField(default = false)
+    past_lecture = models.CharField(max_length= 50)
     lecture_type = models.PositiveSmallIntegerField(choices=LECTURE_TYPE)
     lecture_type_detail = models.PositiveSmallIntegerField(choices=LECTURE_TYPE_DETAIL, default = 1)
     lecture_type_detail_detail = models.PositiveSmallIntegerField(choices=LECTURE_TYPE_DETAIL_DETAIL, default = 1)
