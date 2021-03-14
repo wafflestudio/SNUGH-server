@@ -188,7 +188,7 @@ class UserViewSet(viewsets.GenericViewSet):
         return Response(status=status.HTTP_200_OK)
 
     #POST/DELETE/GET /user/major/  
-    @action(detail=False, methods=['POST', 'DELETE', 'GET'])    
+    @action(detail=False, methods=['POST', 'DELETE'])    
     def major(self, request):
         user=request.user
 
@@ -196,8 +196,17 @@ class UserViewSet(viewsets.GenericViewSet):
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
+        if self.request.method == 'POST':
+            major_name=request.data.get('major_name') 
+            major_type=request.data.get('major_type') 
+            try:
+                majorsearch=Major.objects.get(major_name=major_name, major_type=major_type)
+                major_id=majorsearch.id
+            except Major.DoesNotExist:
+                return Response({"error":"could not find major"})
+        elif self.request.method == 'DELETE':              
+            major_id=request.query_params.get("major_id")
 
-        major_id=request.query_params.get("major_id")
         #err response 2
         if not bool(major_id):
             return Response({"error":"major_id missing"}, status=status.HTTP_400_BAD_REQUEST)    
