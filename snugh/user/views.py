@@ -203,7 +203,7 @@ class UserViewSet(viewsets.GenericViewSet):
                 majorsearch=Major.objects.get(major_name=major_name, major_type=major_type)
                 major_id=majorsearch.id
             except Major.DoesNotExist:
-                return Response({"error":"could not find major"})
+                return Response({"error":"No major with the given major_name and major_type"})
         elif self.request.method == 'DELETE':              
             major_id=request.query_params.get("major_id")
 
