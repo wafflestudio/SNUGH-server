@@ -24,7 +24,8 @@ class MajorViewSet(viewsets.GenericViewSet):
             majors=Major.objects.all()
 
         for major in majors:
-            ls.append({"id":major.id, "major_name":major.major_name, "major_type":major.major_type})
+            if major.major_name not in ls:
+                ls.append(major.major_name)
         body={"major":ls}
         return Response(body, status=status.HTTP_200_OK)        
 
@@ -67,6 +68,37 @@ class UserViewSet(viewsets.GenericViewSet):
             return Response({"error":text}, status=status.HTTP_400_BAD_REQUEST)
         
         #err response 2
+        ls1=[email, password, year, full_name, student_status]
+        ls2=["str", "str", "int", "str", "int"]
+        ls3=["email", "password", "year", "full_name", "status"]
+        errorls=[]
+        for i in range(0, len(ls1)):
+            if ls2[i]=="str":
+                a=isinstance(ls1[i], str)
+            elif ls2[i]=="int":
+                a=isinstance(ls1[i], int)
+            if not a:
+                errorls.append(ls3[i])        
+ 
+        if len(errorls)>0:
+            text=""
+            for j in errorls:
+                text=text+j
+                text=text+", "
+            text=text[:-2]+" wrong data type"
+            return Response({"error":text}, status=status.HTTP_400_BAD_REQUEST)
+
+        if "@" not in email:
+            return Response({"error":"email form wrong"}, status=status.HTTP_400_BAD_REQUEST)
+        if len(password)<6:
+            return Response({"error":"password too short"}, status=status.HTTP_400_BAD_REQUEST)
+        if year<1000 or year>9999:
+            return Response({"error":"year too large or too small"}, status=status.HTTP_400_BAD_REQUEST)
+        if len(full_name)<2 or len(full_name)>30:
+            return Response({"error":"full_name too short or too long"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+        #err response 3
         try: 
             User.objects.get(username=email)
             return Response({"error":"existing user"}, status=status.HTTP_400_BAD_REQUEST)
@@ -205,7 +237,7 @@ class UserViewSet(viewsets.GenericViewSet):
             except Major.DoesNotExist:
                 return Response({"error":"No major with the given major_name and major_type"})
         elif self.request.method == 'DELETE':              
-            major_id=request.query_params.get("major_id")
+            major_id=request.body.get("major_id")
 
         #err response 2
         if not bool(major_id):
