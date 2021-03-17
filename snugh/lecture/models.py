@@ -24,14 +24,15 @@ class Lecture(models.Model):
     lecture_name = models.CharField(max_length=50, db_index=True)
     open_department = models.CharField(max_length=50, null=True)
     open_major = models.CharField(max_length=50, null=True)
-    credit = models.PositiveIntegerField(default=0)
-    is_open = models.BooleanField(default=False)
     open_semester = models.CharField(choices=SEMESTER_TYPE, default=UNKNOWN)
+    credit = models.PositiveIntegerField(default=0)
+    grade = models.PositiveSmallIntegerField(null=True)
+    prev_lecture_id = models.CharField(max_length=50, null=True)
 
 
 class Plan(models.Model):
-    user = models.ForeignKey(User, related_name='plan', on_delete=models.CASCADE, null=True)
-    plan_name = models.CharField(max_length=50, db_index=True, default="계획표")
+    user = models.ForeignKey(User, related_name='plan', on_delete=models.CASCADE)
+    plan_name = models.CharField(max_length=50, db_index=True, default="새로운 계획")
     recent_scroll = models.IntegerField(default=0)
 
 
@@ -198,9 +199,7 @@ class MajorLecture(models.Model):
     lecture = models.ForeignKey(Lecture, related_name='majorlecture', on_delete=models.CASCADE)
     start_year = models.PositiveSmallIntegerField()
     end_year = models.PositiveSmallIntegerField()
-    grade = models.PositiveSmallIntegerField(null=True)
     is_required = models.BooleanField(default=False)
-    past_lecture = models.CharField(max_length=50, null=True)
     lecture_type = models.CharField(choices=LECTURE_TYPE)
     lecture_type_detail = models.CharField(choices=LECTURE_TYPE_DETAIL, default=NONE)
     lecture_type_detail_detail = models.CharField(choices=LECTURE_TYPE_DETAIL_DETAIL, default=NONE)
