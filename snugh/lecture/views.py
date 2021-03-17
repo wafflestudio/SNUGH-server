@@ -5,6 +5,7 @@ from lecture.serializers import *
 from user.models import *
 from rest_framework.decorators import action
 
+
 class PlanViewSet(viewsets.GenericViewSet):
     queryset = Plan.objects.all()
     serializer_class = PlanSerializer 
