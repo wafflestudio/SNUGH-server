@@ -97,13 +97,15 @@ class ProgressSerializer(serializers.ModelSerializer):
     def get_major_requirement(self, plan):
         # 이수 학점 계산하기
         earned_credit = 0
-        planrequirement = PlanRequirement.objects.filter(plan=plan, requirement__requirement_type=2)
+        planrequirement = PlanRequirement.objects.filter(plan=plan,
+                                                         requirement__requirement_type=Requirement.MAJOR_REQUIREMENT)
         for pr in planrequirement:
             earned_credit += pr.earned_credit
 
         # 기준 학점 계산하기
         required_credit = 0
-        requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=2)
+        requirement = Requirement.objects.filter(planrequirement__plan=plan,
+                                                 requirement_type=Requirement.MAJOR_REQUIREMENT)
         for r in requirement:
             required_credit += r.required_credit
 
@@ -119,23 +121,26 @@ class ProgressSerializer(serializers.ModelSerializer):
     def get_major_elective(self, plan):
         # 이수 학점 계산하기
         earned_credit = 0
-        planrequirement = PlanRequirement.objects.filter(plan=plan, requirement__requirement_type=3)
+        planrequirement = PlanRequirement.objects.filter(plan=plan,
+                                                         requirement__requirement_type=Requirement.MAJOR_ELECTIVE)
         for pr in planrequirement:
             earned_credit += pr.earned_credit
 
         # 기준 학점 계산하기
         required_credit = 0
-        requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=3)
+        requirement = Requirement.objects.filter(planrequirement__plan=plan,
+                                                 requirement_type=Requirement.MAJOR_ELECTIVE)
         for r in requirement:
             required_credit += r.required_credit
 
         # (교직을 전선에 포함) 이수 학점 계산하기
-        planrequirement = PlanRequirement.objects.filter(plan=plan, requirement__requirement_type=6)
+        planrequirement = PlanRequirement.objects.filter(plan=plan,
+                                                         requirement__requirement_type=Requirement.TEACHING)
         for pr in planrequirement:
             earned_credit += pr.earned_credit
 
         # (교직을 전선에 포함) 기준 학점 계산하기
-        requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=6)
+        requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=Requirement.TEACHING)
         for r in requirement:
             required_credit += r.required_credit
 
@@ -151,13 +156,13 @@ class ProgressSerializer(serializers.ModelSerializer):
     def get_general(self, plan):
         # 이수 학점 계산하기
         earned_credit = 0
-        planrequirement = PlanRequirement.objects.filter(plan=plan, requirement__requirement_type=4)
+        planrequirement = PlanRequirement.objects.filter(plan=plan, requirement__requirement_type=Requirement.GENERAL)
         for pr in planrequirement:
             earned_credit += pr.earned_credit
 
         # 기준 학점 계산하기
         required_credit = 0
-        requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=4)
+        requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=Requirement.GENERAL)
         for r in requirement:
             required_credit += r.required_credit
 
@@ -173,13 +178,15 @@ class ProgressSerializer(serializers.ModelSerializer):
     def get_general_elective(self, plan):
         # 이수 학점 계산하기
         earned_credit = 0
-        planrequirement = PlanRequirement.objects.filter(plan=plan, requirement__requirement_type=5)
+        planrequirement = PlanRequirement.objects.filter(plan=plan,
+                                                         requirement__requirement_type=Requirement.GENERAL_ELECTIVE)
         for pr in planrequirement:
             earned_credit += pr.earned_credit
 
         # 기준 학점 계산하기
         required_credit = 0
-        requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=5)
+        requirement = Requirement.objects.filter(planrequirement__plan=plan,
+                                                 requirement_type=Requirement.GENERAL_ELECTIVE)
         for r in requirement:
             required_credit += r.required_credit
 
