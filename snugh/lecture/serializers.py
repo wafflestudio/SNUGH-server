@@ -4,7 +4,8 @@ from lecture.models import *
 
 class PlanSerializer(serializers.ModelSerializer):
     major = serializers.SerializerMethodField()
-    semesters = serializers.SerializerMethodField() 
+    semesters = serializers.SerializerMethodField()
+
     class Meta:
         model = Plan
         fields = (
@@ -31,6 +32,7 @@ class PlanSerializer(serializers.ModelSerializer):
         return SemesterSerializer(plan.semester, many=True).data # plan_id에 해당하는 모든 semester들 
 
 class SimpleSemesterSerializer(serializers.ModelSerializer):
+
     class Meta: 
         model = Semester 
         fields = '__all__'
@@ -78,7 +80,7 @@ class SemesterSerializer(serializers.ModelSerializer):
             for semesterlecture in semesterlectures:
                 lecture = semesterlecture.lecture 
                 majorlecture = MajorLecture.objects.get(lecture=lecture)
-                if semesterlecture.lecture_type == 2 and majorlecture.major == planmajor.major:
+                if semesterlecture.lecture_type == SemesterLecture.MAJOR_REQUIREMENT and majorlecture.major == planmajor.major:
                     total_credits += semesterlecture.lecture.credit
         return total_credits 
             
@@ -90,7 +92,7 @@ class SemesterSerializer(serializers.ModelSerializer):
             for semesterlecture in semesterlectures:
                 lecture = semesterlecture.lecture 
                 majorlecture = MajorLecture.objects.get(lecture=lecture)
-                if semesterlecture.lecture_type == 3 and majorlecture.major == planmajor.major:
+                if semesterlecture.lecture_type == SemesterLecture.MAJOR_ELECTIVE and majorlecture.major == planmajor.major:
                     total_credits += semesterlecture.lecture.credit
         return total_credits 
 
@@ -102,7 +104,9 @@ class SemesterSerializer(serializers.ModelSerializer):
             for semesterlecture in semesterlectures: 
                 lecture = semesterlecture.lecture 
                 majorlecture = MajorLecture.objects.get(lecture=lecture) 
-                if semesterlecture.lecture_type == 1 or (majorlecture.major != planmajor.major and (semesterlecture.lecture_type == 2 or semesterlecture.lecture_type == 3)):
+                if semesterlecture.lecture_type == SemesterLecture.GENERAL \
+                        or (majorlecture.major != planmajor.major
+                            and (semesterlecture.lecture_type == SemesterLecture.MAJOR_REQUIREMENT or semesterlecture.lecture_type == SemesterLecture.MAJOR_ELECTIVE)):
                     total_credits += semesterlecture.lecture.credit 
         return total_credits 
 
