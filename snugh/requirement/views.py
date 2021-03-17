@@ -16,12 +16,12 @@ class RequirementViewSet(viewsets.GenericViewSet):
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
-        plan_id = request.query_params.get('plan_id')
-        search_type = request.query_params.get('search_type')
+        plan_id = request.query_params.get('plan_id', None)
+        search_type = request.query_params.get('search_type', None)
 
-        if not plan_id:
+        if plan_id is None:
             return Response({"error": "plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)
-        if not search_type:
+        if search_type is None:
             return Response({"error": "search_type missing"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
@@ -78,9 +78,9 @@ class RequirementViewSet(viewsets.GenericViewSet):
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
-        plan_id = request.query_params.get('plan_id')
+        plan_id = request.query_params.get('plan_id', None)
 
-        if not plan_id:
+        if plan_id is None:
             return Response({"error": "plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)
         try:
             plan = Plan.objects.get(pk=plan_id)
