@@ -27,37 +27,40 @@ class RequirementSerializer(serializers.ModelSerializer):
         )
 
     def get_id(self, plan_requirement):
-        return plan_requirement.plan_id
+        requirement = plan_requirement.requirement
+        return requirement.id
 
     def get_description(self, plan_requirement):
-        requirement = Requirement.objects.get(pk=plan_requirement.plan_id)
+        requirement = plan_requirement.requirement
         return requirement.description
 
     def get_is_credit_requirement(self, plan_requirement):
-        requirement = Requirement.objects.get(pk=plan_requirement.plan_id)
+        requirement = plan_requirement.requirement
         return requirement.is_credit_requirement
 
     def get_requirement_type(self, plan_requirement):
-        requirement = Requirement.objects.get(pk=plan_requirement.plan_id)
+        requirement = plan_requirement.requirement
         return requirement.requirement_type
 
     def get_requirement_type_detail(self, plan_requirement):
-        requirement = Requirement.objects.get(pk=plan_requirement.plan_id)
+        requirement = plan_requirement.requirement
         return requirement.requirement_type_detail
 
     def get_requirement_type_detail_detail(self, plan_requirement):
-        requirement = Requirement.objects.get(pk=plan_requirement.plan_id)
+        requirement = plan_requirement.requirement
         return requirement.requirement_type_detail_detail
 
     def get_required_credit(self, plan_requirement):
-        requirement = Requirement.objects.get(pk=plan_requirement.plan_id)
+        requirement = plan_requirement.requirement
         return requirement.required_credit
+
 
 class ProgressSerializer(serializers.ModelSerializer):
     all = serializers.SerializerMethodField()
     major_requirement = serializers.SerializerMethodField()
     major_elective = serializers.SerializerMethodField()
     general = serializers.SerializerMethodField()
+    general_elective = serializers.SerializerMethodField()
 
     class Meta:
         model = Plan
@@ -65,97 +68,126 @@ class ProgressSerializer(serializers.ModelSerializer):
             'all',
             'major_requirement',
             'major_elective',
-            'general'
+            'general',
+            'general_elective',
         )
 
     def get_all(self, plan):
-        data = {}
-
-        planrequirement = PlanRequirement.objects.filter(plan_id=plan.id)
+        # 이수 학점 계산하기
         earned_credit = 0
+        planrequirement = PlanRequirement.objects.filter(plan=plan)
         for pr in planrequirement:
             earned_credit += pr.earned_credit
 
-        requirement = Requirement.objects.filter(planrequirement__plan_id=plan.id)
+        # 기준 학점 계산하기
         required_credit = 0
+        requirement = Requirement.objects.filter(planrequirement__plan=plan)
         for r in requirement:
             required_credit += r.required_credit
 
-        if required_credit != 0:
+        # 이수 비율 계산하기
+        if required_credit:
             progress = earned_credit / required_credit
         else:
             progress = 0.0
 
-        data['required_credit'] = required_credit
-        data['earned_credit'] = earned_credit
-        data['progress'] = progress
+        data = {'required_credit': required_credit, 'earned_credit': earned_credit, 'progress': progress}
         return data
 
     def get_major_requirement(self, plan):
-        data = {}
-
-        planrequirement = PlanRequirement.objects.filter(plan_id=plan.id, requirement__requirement_type=2)
+        # 이수 학점 계산하기
         earned_credit = 0
+        planrequirement = PlanRequirement.objects.filter(plan=plan, requirement__requirement_type=2)
         for pr in planrequirement:
             earned_credit += pr.earned_credit
 
-        requirement = Requirement.objects.filter(planrequirement__plan_id=plan.id, requirement_type=2)
+        # 기준 학점 계산하기
         required_credit = 0
+        requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=2)
         for r in requirement:
             required_credit += r.required_credit
 
-        if required_credit != 0:
+        # 이수 비율 계산하기
+        if required_credit:
             progress = earned_credit / required_credit
         else:
             progress = 0.0
 
-        data['required_credit'] = required_credit
-        data['earned_credit'] = earned_credit
-        data['progress'] = progress
+        data = {'required_credit': required_credit, 'earned_credit': earned_credit, 'progress': progress}
         return data
 
     def get_major_elective(self, plan):
-        data = {}
-
-        planrequirement = PlanRequirement.objects.filter(plan_id=plan.id, requirement__requirement_type=3)
+        # 이수 학점 계산하기
         earned_credit = 0
+        planrequirement = PlanRequirement.objects.filter(plan=plan, requirement__requirement_type=3)
         for pr in planrequirement:
             earned_credit += pr.earned_credit
 
-        requirement = Requirement.objects.filter(planrequirement__plan_id=plan.id, requirement_type=3)
+        # 기준 학점 계산하기
         required_credit = 0
+        requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=3)
         for r in requirement:
             required_credit += r.required_credit
 
-        if required_credit != 0:
+        # (교직을 전선에 포함) 이수 학점 계산하기
+        planrequirement = PlanRequirement.objects.filter(plan=plan, requirement__requirement_type=6)
+        for pr in planrequirement:
+            earned_credit += pr.earned_credit
+
+        # (교직을 전선에 포함) 기준 학점 계산하기
+        requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=6)
+        for r in requirement:
+            required_credit += r.required_credit
+
+        # 이수 비율 계산하기
+        if required_credit:
             progress = earned_credit / required_credit
         else:
             progress = 0.0
 
-        data['required_credit'] = required_credit
-        data['earned_credit'] = earned_credit
-        data['progress'] = progress
+        data = {'required_credit': required_credit, 'earned_credit': earned_credit, 'progress': progress}
         return data
 
     def get_general(self, plan):
-        data = {}
-
-        planrequirement = PlanRequirement.objects.filter(plan_id=plan.id, requirement__requirement_type=4)
+        # 이수 학점 계산하기
         earned_credit = 0
+        planrequirement = PlanRequirement.objects.filter(plan=plan, requirement__requirement_type=4)
         for pr in planrequirement:
             earned_credit += pr.earned_credit
 
-        requirement = Requirement.objects.filter(planrequirement__plan_id=plan.id, requirement_type=4)
+        # 기준 학점 계산하기
         required_credit = 0
+        requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=4)
         for r in requirement:
             required_credit += r.required_credit
 
-        if required_credit != 0:
+        # 이수 비율 계산하기
+        if required_credit:
             progress = earned_credit / required_credit
         else:
             progress = 0.0
 
-        data['required_credit'] = required_credit
-        data['earned_credit'] = earned_credit
-        data['progress'] = progress
+        data = {'required_credit': required_credit, 'earned_credit': earned_credit, 'progress': progress}
+        return data
+
+    def get_general_elective(self, plan):
+        # 이수 학점 계산하기
+        earned_credit = 0
+        planrequirement = PlanRequirement.objects.filter(plan=plan, requirement__requirement_type=5)
+        for pr in planrequirement:
+            earned_credit += pr.earned_credit
+
+        # 기준 학점 계산하기
+        required_credit = 0
+        requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=5)
+        for r in requirement:
+            required_credit += r.required_credit
+
+        # 이수 비율 계산하기
+        if required_credit:
+            progress = earned_credit / required_credit
+        else:
+            progress = 0.0
+
+        data = {'required_credit': required_credit, 'earned_credit': earned_credit, 'progress': progress}
         return data

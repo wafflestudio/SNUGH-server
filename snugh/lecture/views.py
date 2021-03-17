@@ -1,4 +1,3 @@
-from django.shortcuts import render 
 from rest_framework import status, viewsets, filters
 from rest_framework.response import Response 
 from lecture.models import * 
