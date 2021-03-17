@@ -3,7 +3,7 @@ from lecture.models import *
 
 
 class PlanSerializer(serializers.ModelSerializer):
-    major = serializers.SerializerMethodField() 
+    major = serializers.SerializerMethodField()
     semesters = serializers.SerializerMethodField() 
     class Meta:
         model = Plan
