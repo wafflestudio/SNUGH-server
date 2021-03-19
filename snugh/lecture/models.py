@@ -52,6 +52,11 @@ class Semester(models.Model):
     year = models.PositiveIntegerField()
     semester_type = models.CharField(choices=SEMESTER_TYPE)
     is_complete = models.BooleanField(default=False)
+    major_requirement_credit = models.PositiveSmallIntegerField(default=0)
+    major_elective_credit = models.PositiveSmallIntegerField(default=0)
+    general_credit = models.PositiveSmallIntegerField(default=0)
+    general_elective_credit = models.PositiveSmallIntegerField(default=0)
+
 
 
 class PlanMajor(models.Model):
