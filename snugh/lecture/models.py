@@ -76,8 +76,8 @@ class SemesterLecture(models.Model):
     # Lecture Type
     MAJOR_REQUIREMENT = 'major_requirement'  # 전공 필수
     MAJOR_ELECTIVE = 'major_elective'  # 전공 선택
-    GENERAL = 'general'  # 일반 선택
-    GENERAL_ELECTIVE = 'general_elective'  # 교양
+    GENERAL = 'general'  # 교양
+    GENERAL_ELECTIVE = 'general_elective'  # 일반 선택
     TEACHING = 'teaching'  # 교직
 
     # Lecture Type Detail
@@ -149,8 +149,8 @@ class MajorLecture(models.Model):
     # Lecture Type
     MAJOR_REQUIREMENT = 'major_requirement'  # 전공 필수
     MAJOR_ELECTIVE = 'major_elective'  # 전공 선택
-    GENERAL = 'general'  # 일반 선택
-    GENERAL_ELECTIVE = 'general_elective'  # 교양
+    GENERAL = 'general'  # 교양
+    GENERAL_ELECTIVE = 'general_elective'  # 일반 선택
     TEACHING = 'teaching'  # 교직
 
     # Lecture Type Detail

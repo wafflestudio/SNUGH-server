@@ -19,6 +19,7 @@ class UserProfile(models.Model):
 
 
 class Major(models.Model):
+    MAJOR = 'major'
     DOUBLE_MAJOR = 'double_major'
     MINOR = 'minor'
     INTERDISCIPLINARY_MAJOR = 'interdisciplinary_major'
@@ -28,6 +29,7 @@ class Major(models.Model):
     STUDENT_DIRECTED_MAJOR = 'student_directed_major'
 
     MAJOR_TYPE = (
+        (MAJOR, 'major'),
         (DOUBLE_MAJOR, 'double_major'),  # 복수전공
         (MINOR, 'minor'),  # 부전공
         (INTERDISCIPLINARY_MAJOR, 'interdisciplinary_major'),  # 연합전공
