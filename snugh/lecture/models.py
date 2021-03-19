@@ -209,7 +209,7 @@ class MajorLecture(models.Model):
     lecture_type_detail = models.CharField(max_length=50, choices=LECTURE_TYPE_DETAIL, default=NONE)
     lecture_type_detail_detail = models.CharField(max_length=50, choices=LECTURE_TYPE_DETAIL_DETAIL, default=NONE)
 
-    class Meta:
-        unique_together = (
-            ('major', 'lecture')
-        )
+    # class Meta:
+    #     unique_together = (
+    #         ('major', 'lecture')
+    #     )

@@ -231,6 +231,9 @@ class LectureViewSet(viewsets.GenericViewSet):
         plan = get_object_or_404(Plan, pk=pk)
         majors = Major.objects.filter(planmajor__plan=plan)
 
+        if(int(year)<user_entrance_year):
+            return Response({"error": "year must be larger than your entrance_year"}, status=status.HTTP_400_BAD_REQUEST)
+
         if lecture_type == 'MAJOR_REQUIREMENT' or lecture_type == 'MAJOR_ELECTIVE':
             body = []
             for major in majors:
@@ -253,6 +256,28 @@ class LectureViewSet(viewsets.GenericViewSet):
                     data = LectureSerializer(lecture).data
                     data['lecture_type'] = lecture_type
                     ls.append(data)
+
+                # 자기 학번보다 후에 전선/전필 과목이 새롭게 개설되었을 경우
+                if lecture_type =='MAJOR_ELECTIVE':
+                    futureLectures = MajorLecture.objects.filter(
+                        major=major,
+                        start_year__lte=int(year),
+                        start_year__gt= user_entrance_year,
+                        end_year__gte=max(int(year), user_entrance_year),
+                        lecture_type= 'MAJOR_ELECTIVE' or 'MAJOR_REQUIREMENT'
+                    )
+
+                    lectures_future = Lecture.objects.filter(majorlecture__in=futureLectures)
+
+                    for lecture in lectures_future:
+                        # 이 부분이 제대로 필터링을 하는지 테스트해보지 못함
+                        if lecture not in lectures:
+                            data = LectureSerializer(lecture).data
+                            data['lecture_type'] = lecture_type
+                            ls.append(data)
+                        else:
+                            print("babo")
+
 
                 majorLectureList = {
                     "major_name": major.major_name,
@@ -293,14 +318,22 @@ class LectureViewSet(viewsets.GenericViewSet):
                             start_year__lte = user_entrance_year
                         ).first()
                         if(curr_lecture is not None):
-                            data['lecture_type'] = curr_lecture.lecture_type
+                            if (Major.objects.get(id = curr_lecture.major_id) in majors) or curr_lecture.lecture_type == 'GENERAL':
+                                data['lecture_type'] = curr_lecture.lecture_type
+                            else:
+                                data['lecture_type'] = 'GENERAL_ELECTIVE'
                             ls.append(data)
                         else:
                             future_lecture = majorlectures.order_by('start_year').first()
                             if future_lecture is not None and future_lecture.lecture_type != 'MAJOR_REQUIREMENT':
-                                data['lecture_type'] = future_lecture.lecture_type
+                                if (Major.objects.get(id = future_lecture.major_id) ) or future_lecture.lecture_type == 'GENERAL':
+                                    data['lecture_type'] = future_lecture.lecture_type
+                                else:
+                                    data['lecture_type'] = 'GENERAL_ELECTIVE'
                                 ls.append(data)
-
+                            elif future_lecture is not None and future_lecture.lecture_type == 'MAJOR_REQUIREMENT':
+                                data['lecture_type'] = 'MAJOR_ELECTIVE'
+                                ls.append(data)
                 return Response(ls, status = status.HTTP_200_OK)
 
 
