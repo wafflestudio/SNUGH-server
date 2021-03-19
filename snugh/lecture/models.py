@@ -100,7 +100,6 @@ class SemesterLecture(models.Model):
     LIFE_AND_ENVIRONMENT = 'life_and_environment'  # 생명과 환경
 
     LECTURE_TYPE = (
-        (NONE, 'none'),
         (MAJOR_REQUIREMENT, 'major_requirement'),
         (MAJOR_ELECTIVE, 'major_elective'),
         (GENERAL, 'general'),
@@ -173,7 +172,6 @@ class MajorLecture(models.Model):
     LIFE_AND_ENVIRONMENT = 'life_and_environment'  # 생명과 환경
 
     LECTURE_TYPE = (
-        (NONE, 'none'),
         (MAJOR_REQUIREMENT, 'major_requirement'),
         (MAJOR_ELECTIVE, 'major_elective'),
         (GENERAL, 'general'),
