@@ -40,8 +40,8 @@ class Requirement(models.Model):
         (MAJOR_REQUIREMENT, 'major_requirement'),
         (MAJOR_ELECTIVE, 'major_elective'),
         (GENERAL, 'general'),
-        (GENERAL_ELECTIVE, 'general_elective')
-        (TEACHING, 'teaching')
+        (GENERAL_ELECTIVE, 'general_elective'),
+        (TEACHING, 'teaching'),
         (ALL, 'all'),
     )
     REQUIREMENT_TYPE_DETAIL = (
