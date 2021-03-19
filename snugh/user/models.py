@@ -15,7 +15,7 @@ class UserProfile(models.Model):
     )
     user = models.OneToOneField(User, related_name='userprofile', on_delete=models.CASCADE)
     year = models.IntegerField()
-    status = models.CharField(choices=STUDENT_STATUS, default=ACTIVE)
+    status = models.CharField(max_length=50, choices=STUDENT_STATUS, default=ACTIVE)
 
 
 class Major(models.Model):

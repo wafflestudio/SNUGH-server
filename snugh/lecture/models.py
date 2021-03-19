@@ -24,7 +24,7 @@ class Lecture(models.Model):
     lecture_name = models.CharField(max_length=50, db_index=True)
     open_department = models.CharField(max_length=50, null=True)
     open_major = models.CharField(max_length=50, null=True)
-    open_semester = models.CharField(choices=SEMESTER_TYPE, default=UNKNOWN)
+    open_semester = models.CharField(max_length=50, choices=SEMESTER_TYPE, default=UNKNOWN)
     credit = models.PositiveIntegerField(default=0)
     grade = models.PositiveSmallIntegerField(null=True)
     prev_lecture_id = models.CharField(max_length=50, null=True)
@@ -50,7 +50,7 @@ class Semester(models.Model):
     )
     plan = models.ForeignKey(Plan, related_name='semester', on_delete=models.CASCADE)
     year = models.PositiveIntegerField()
-    semester_type = models.CharField(choices=SEMESTER_TYPE)
+    semester_type = models.CharField(max_length=50, choices=SEMESTER_TYPE)
     is_complete = models.BooleanField(default=False)
     major_requirement_credit = models.PositiveSmallIntegerField(default=0)
     major_elective_credit = models.PositiveSmallIntegerField(default=0)
@@ -130,9 +130,9 @@ class SemesterLecture(models.Model):
     )
     semester = models.ForeignKey(Semester, related_name='semesterlecture', on_delete=models.CASCADE)
     lecture = models.ForeignKey(Lecture, related_name='semesterlecture', on_delete=models.CASCADE)
-    lecture_type = models.CharField(choices=LECTURE_TYPE)
-    lecture_type_detail = models.CharField(choices=LECTURE_TYPE_DETAIL, default=NONE)
-    lecture_type_detail_detail = models.CharField(choices=LECTURE_TYPE_DETAIL_DETAIL, default=NONE)
+    lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE)
+    lecture_type_detail = models.CharField(max_length=50, choices=LECTURE_TYPE_DETAIL, default=NONE)
+    lecture_type_detail_detail = models.CharField(max_length=50, choices=LECTURE_TYPE_DETAIL_DETAIL, default=NONE)
     recent_sequence = models.PositiveSmallIntegerField()
 
     class Meta:
@@ -205,9 +205,9 @@ class MajorLecture(models.Model):
     start_year = models.PositiveSmallIntegerField()
     end_year = models.PositiveSmallIntegerField()
     is_required = models.BooleanField(default=False)
-    lecture_type = models.CharField(choices=LECTURE_TYPE)
-    lecture_type_detail = models.CharField(choices=LECTURE_TYPE_DETAIL, default=NONE)
-    lecture_type_detail_detail = models.CharField(choices=LECTURE_TYPE_DETAIL_DETAIL, default=NONE)
+    lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE)
+    lecture_type_detail = models.CharField(max_length=50, choices=LECTURE_TYPE_DETAIL, default=NONE)
+    lecture_type_detail_detail = models.CharField(max_length=50, choices=LECTURE_TYPE_DETAIL_DETAIL, default=NONE)
 
     class Meta:
         unique_together = (

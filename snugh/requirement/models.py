@@ -71,9 +71,9 @@ class Requirement(models.Model):
     description = models.CharField(max_length=500, blank=True)
     is_credit_requirement = models.BooleanField()
     required_credit = models.PositiveSmallIntegerField(default=0)
-    requirement_type = models.CharField(choices=REQUIREMENT_TYPE)
-    requirement_type_detail = models.CharField(choices=REQUIREMENT_TYPE_DETAIL, default=NONE)
-    requirement_type_detail_detail = models.CharField(choices=REQUIREMENT_TYPE_DETAIL_DETAIL, default=NONE)
+    requirement_type = models.CharField(max_length=50, choices=REQUIREMENT_TYPE)
+    requirement_type_detail = models.CharField(max_length=50, choices=REQUIREMENT_TYPE_DETAIL, default=NONE)
+    requirement_type_detail_detail = models.CharField(max_length=50, choices=REQUIREMENT_TYPE_DETAIL_DETAIL, default=NONE)
 
     class Meta:
         ordering = ['-end_year', '-start_year']  # 최신순
