@@ -293,7 +293,6 @@ class LectureViewSet(viewsets.GenericViewSet):
                             start_year__lte = user_entrance_year
                         ).first()
                         if(curr_lecture is not None):
-                            if majors.
                             data['lecture_type'] = curr_lecture.lecture_type
                             ls.append(data)
                         else:
