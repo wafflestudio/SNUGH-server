@@ -121,12 +121,16 @@ class SemesterViewSet(viewsets.GenericViewSet):
         user = request.user
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
+        
+        if Semester.objects.filter(plan=request.data.get('plan'), year=request.data.get('year'), semester_type=request.data.get('semester_type')).exists():
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        
         data = request.data.copy()
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
+
     # PUT /semester/(int)
     def update(self, request, pk=None):
         user = request.user
