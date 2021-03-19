@@ -69,7 +69,7 @@ class UserViewSet(viewsets.GenericViewSet):
 
         #err response 2
         ls1=[email, password, year, full_name, student_status]
-        ls2=["str", "str", "int", "str", "int"]
+        ls2=["str", "str", "int", "str", "str"]
         ls3=["email", "password", "year", "full_name", "status"]
         errorls=[]
         for i in range(0, len(ls1)):

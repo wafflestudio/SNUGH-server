@@ -4,7 +4,7 @@ from lecture.models import *
 from lecture.serializers import *
 from user.models import *
 from rest_framework.decorators import action
-
+from django.shortcuts import get_object_or_404
 
 class PlanViewSet(viewsets.GenericViewSet):
     queryset = Plan.objects.all()
@@ -157,6 +157,7 @@ class SemesterViewSet(viewsets.GenericViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK) 
 
 class LectureViewSet(viewsets.GenericViewSet):
+    # 수정전
     queryset = SemesterLecture.objects.all()
     search_fields = ['lecture_name']
     filter_backends = (filters.SearchFilter, )
@@ -217,28 +218,118 @@ class LectureViewSet(viewsets.GenericViewSet):
         self.get_object().delete()
         return Response(status=status.HTTP_200_OK) 
 
-    # GET /lecture/?lecture_type=(int)&search_keyword=(string)
-    def list(self, request): 
-        queryset = self.get_queryset() 
-        lecture_type = request.query_params.get("lecture_type", None)
-        search_keyword = request.query_params.get("search_keyword", None)
-        if lecture_type is not None:
-            queryset = queryset.filter(lecture_type=lecture_type)
-        filter_backends = self.filter_queryset(queryset) 
+    # GET /lecture/{plan_id}?lecture_type=(string)&search_keyword=(string)&year=(int)&semester=(string)
+    @action(detail=True, methods =['GET'])
+    def searchLecture(self, request, pk=None):
 
-        lectures = set() 
-        for semesterlecture in filter_backends:
-            lecture = Lecture.objects.get(semesterlecture=semesterlecture)
-            if search_keyword is None:
-                lectures.add(lecture)
-            elif search_keyword in lecture.lecture_name:
-                lectures.add(lecture) 
-        ls = [] 
-        for lecture in lectures:
-            ls.append(LectureSerializer(lecture).data)
-        body = {
-            "lectures": ls,
-        }
-        # page = self.paginate_queryset(filter_backends)
-        # return self.get_paginated_response(serializer.data) 
-        return Response(body, status=status.HTTP_200_OK) 
+        lecture_type = request.query_params.get("lecture_type", None)
+        year = request.query_params.get("year", None)
+        user_id = request.query_params.get("user_id", None)
+        user = get_object_or_404(User, id=user_id)
+        user_entrance_year = user.userprofile.year
+
+        plan = get_object_or_404(Plan, pk=pk)
+        majors = Major.objects.filter(planmajor__plan=plan)
+
+        if lecture_type == 'MAJOR_REQUIREMENT' or lecture_type == 'MAJOR_ELECTIVE':
+            body = []
+            for major in majors:
+                majorLectures = MajorLecture.objects.filter(
+                    major=major,
+                    start_year__lte = min(int(year), user_entrance_year),
+                    end_year__gte=max(int(year), user_entrance_year),
+                    lecture_type = lecture_type
+                )
+
+                lectures = Lecture.objects.filter(majorlecture__in=majorLectures)
+
+                # lectures = set()
+                # for majorLecture in majorLectures:
+                #     lecture = majorLecture.lecture
+                #     lectures.add(lecture)
+
+                ls = []
+                for lecture in lectures:
+                    data = LectureSerializer(lecture).data
+                    data['lecture_type'] = lecture_type
+                    ls.append(data)
+
+                majorLectureList = {
+                    "major_name": major.major_name,
+                    "lectures": ls,
+                }
+                body.append(majorLectureList)
+            return Response(body, status=status.HTTP_200_OK)
+        elif lecture_type == 'GENERAL':
+            ls = []
+            general_lectures = MajorLecture.objects.filter(
+                lecture_type = lecture_type,
+                start_year__lte = int(year),
+                end_year__gte = int(year)
+            )
+            lectures = Lecture.objects.filter(majorlecture__in=general_lectures)
+
+            for lecture in lectures:
+                data = LectureSerializer(lecture).data
+                data['lecture_type'] = lecture_type
+                ls.append(data)
+
+            return Response(ls, status= status.HTTP_200_OK)
+        else:
+            search_keyword = request.query_params.get("search_keyword", None)
+            if search_keyword:  # 만약 검색어가 존재하면
+                lectures = Lecture.objects.filter(lecture_name__icontains=search_keyword)  # 해당 검색어를 포함한 queryset 가져오기
+                ls = []
+                for lecture in lectures:
+                    data = LectureSerializer(lecture).data
+                    majorlectures = MajorLecture.objects.filter(
+                        lecture = lecture,
+                        start_year__lte=int(year),
+                        end_year__gte= max(int(year), user_entrance_year)
+                    )
+                    if(majorlectures is not None):
+                        data = LectureSerializer(lecture).data
+                        curr_lecture = majorlectures.filter(
+                            start_year__lte = user_entrance_year
+                        ).first()
+                        if(curr_lecture is not None):
+                            if majors.
+                            data['lecture_type'] = curr_lecture.lecture_type
+                            ls.append(data)
+                        else:
+                            future_lecture = majorlectures.order_by('start_year').first()
+                            if future_lecture is not None and future_lecture.lecture_type != 'MAJOR_REQUIREMENT':
+                                data['lecture_type'] = future_lecture.lecture_type
+                                ls.append(data)
+
+                return Response(ls, status = status.HTTP_200_OK)
+
+
+
+
+
+    # # GET /lecture/?lecture_type=(int)&search_keyword=(string)
+    # def list(self, request):
+    #     queryset = self.get_queryset()
+    #     lecture_type = request.query_params.get("lecture_type", None)
+    #     search_keyword = request.query_params.get("search_keyword", None)
+    #     if lecture_type is not None:
+    #         queryset = queryset.filter(lecture_type=lecture_type)
+    #     filter_backends = self.filter_queryset(queryset)
+    #
+    #     lectures = set()
+    #     for semesterlecture in filter_backends:
+    #         lecture = Lecture.objects.get(semesterlecture=semesterlecture)
+    #         if search_keyword is None:
+    #             lectures.add(lecture)
+    #         elif search_keyword in lecture.lecture_name:
+    #             lectures.add(lecture)
+    #     ls = []
+    #     for lecture in lectures:
+    #         ls.append(LectureSerializer(lecture).data)
+    #     body = {
+    #         "lectures": ls,
+    #     }
+    #     # page = self.paginate_queryset(filter_backends)
+    #     # return self.get_paginated_response(serializer.data)
+    #     return Response(body, status=status.HTTP_200_OK)
