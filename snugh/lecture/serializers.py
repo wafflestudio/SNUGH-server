@@ -21,12 +21,13 @@ class PlanSerializer(serializers.ModelSerializer):
         for planmajor in planmajors:
             ls.append({
                 "id": planmajor.major.id, 
-                "name": planmajor.major.major_name,
-                "type": planmajor.major.major_type, 
+                "major_name": planmajor.major.major_name,
+                "major_type": planmajor.major.major_type, 
             })
         return ls 
 
     def get_semesters(self, plan):
+        print(plan.semester)
         return SemesterSerializer(plan.semester, many=True).data # plan_id에 해당하는 모든 semester들 
 
 class SimpleSemesterSerializer(serializers.ModelSerializer):
