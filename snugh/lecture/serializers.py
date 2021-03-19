@@ -27,8 +27,8 @@ class PlanSerializer(serializers.ModelSerializer):
         return ls 
 
     def get_semesters(self, plan):
-        print(plan.semester)
-        return SemesterSerializer(plan.semester, many=True).data # plan_id에 해당하는 모든 semester들 
+        semesters = plan.semester.all().order_by('year', 'semester_type')
+        return SemesterSerializer(semesters, many=True).data # plan_id에 해당하는 모든 semester들 
 
 class SimpleSemesterSerializer(serializers.ModelSerializer):
     class Meta: 
