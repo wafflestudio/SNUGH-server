@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from requirement.models import Requirement, PlanRequirement
 from requirement.serializers import RequirementSerializer, ProgressSerializer
+from user.models import Major
 from lecture.models import Plan
 
 
@@ -29,17 +30,39 @@ class RequirementViewSet(viewsets.GenericViewSet):
         except Plan.DoesNotExist:
             return Response({"error": "plan_id not_exist"}, status=status.HTTP_404_NOT_FOUND)
 
+        majors = Major.objects.filter(planmajor__plan=plan)
+
+        result_list = []
         if search_type == "all":
-            plan_requirements = PlanRequirement.objects.filter(plan=plan)
+            for major in list(majors):
+                plan_requirements = PlanRequirement.objects.filter(plan=plan, requirement__major=major)
+                serializer = self.get_serializer(plan_requirements, many=True)
+                requirements = serializer.data
+                result_list.append({"major_name": major.major_name,
+                                    "major_type": major.major_type,
+                                    "requirements": requirements})
         elif search_type == "credit":
-            plan_requirements = PlanRequirement.objects.filter(plan=plan, requirement__is_credit_requirement=True)
+            for major in list(majors):
+                plan_requirements = PlanRequirement.objects.filter(plan=plan, requirement__major=major,
+                                                                   requirement__is_credit_requirement=True)
+                serializer = self.get_serializer(plan_requirements, many=True)
+                requirements = serializer.data
+                result_list.append({"major_name": major.major_name,
+                                    "major_type": major.major_type,
+                                    "requirements": requirements})
         elif search_type == "etc":
-            plan_requirements = PlanRequirement.objects.filter(plan=plan, requirement__is_credit_requirement=False)
+            for major in list(majors):
+                plan_requirements = PlanRequirement.objects.filter(plan=plan, requirement__major=major,
+                                                                   requirement__is_credit_requirement=False)
+                serializer = self.get_serializer(plan_requirements, many=True)
+                requirements = serializer.data
+                result_list.append({"major_name": major.major_name,
+                                    "major_type": major.major_type,
+                                    "requirements": requirements})
         else:
             return Response({"error": "search_type not_allowed"}, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = self.get_serializer(plan_requirements, many=True)
-        data = serializer.data
+        data = {"majors": result_list}
         return Response(data, status=status.HTTP_200_OK)
 
     # PUT /requirement/
@@ -66,9 +89,18 @@ class RequirementViewSet(viewsets.GenericViewSet):
             planrequirement = PlanRequirement.objects.filter(plan=plan, requirement=requirement)
             planrequirement.update(is_fulfilled=is_fulfilled)
 
-        planrequirement = PlanRequirement.objects.filter(plan=plan)
-        serializer = RequirementSerializer(planrequirement, many=True)
-        data = serializer.data
+        majors = Major.objects.filter(planmajor__plan=plan)
+
+        result_list = []
+        for major in list(majors):
+            planrequirement = PlanRequirement.objects.filter(plan=plan, requirement__major=major)
+            serializer = RequirementSerializer(planrequirement, many=True)
+            requirements = serializer.data
+            result_list.append({"major_name": major.major_name,
+                                "major_type": major.major_type,
+                                "requirements": requirements})
+
+        data = {"majors": result_list}
         return Response(data, status=status.HTTP_200_OK)
 
     # GET /requirement/progress/
@@ -87,6 +119,13 @@ class RequirementViewSet(viewsets.GenericViewSet):
         except Plan.DoesNotExist:
             return Response({"error": "plan_id not_exist"}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = ProgressSerializer(plan)
-        data = serializer.data
+        majors = Major.objects.filter(planmajor__plan=plan)
+
+        result_list = []
+        for major in list(majors):
+            serializer = ProgressSerializer(plan, major)
+            progress = serializer.data
+            result_list.append(progress)
+
+        data = {"majors": result_list}
         return Response(data, status=status.HTTP_200_OK)
