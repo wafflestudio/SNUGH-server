@@ -11,7 +11,7 @@ from rest_framework.decorators import action
 class MajorViewSet(viewsets.GenericViewSet):
     queryset=Major.objects.all()
 
-    def list(self, request):   
+    def list(self, request):
         user=request.user
 
         #GET all majors
@@ -20,14 +20,14 @@ class MajorViewSet(viewsets.GenericViewSet):
 
         if name:
             majors=Major.objects.filter(major_name__contains=name)
-        else: 
+        else:
             majors=Major.objects.all()
 
         for major in majors:
             if major.major_name not in ls:
                 ls.append(major.major_name)
         body={"major":ls}
-        return Response(body, status=status.HTTP_200_OK)        
+        return Response(body, status=status.HTTP_200_OK)
 
 
 class UserViewSet(viewsets.GenericViewSet):
@@ -66,10 +66,10 @@ class UserViewSet(viewsets.GenericViewSet):
                 text=text+", "
             text=text[:-2]+" missing"
             return Response({"error":text}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         #err response 2
         ls1=[email, password, year, full_name, student_status]
-        ls2=["str", "str", "int", "str", "int"]
+        ls2=["str", "str", "int", "str", "str"]
         ls3=["email", "password", "year", "full_name", "status"]
         errorls=[]
         for i in range(0, len(ls1)):
@@ -78,8 +78,8 @@ class UserViewSet(viewsets.GenericViewSet):
             elif ls2[i]=="int":
                 a=isinstance(ls1[i], int)
             if not a:
-                errorls.append(ls3[i])        
- 
+                errorls.append(ls3[i])
+
         if len(errorls)>0:
             text=""
             for j in errorls:
@@ -99,14 +99,13 @@ class UserViewSet(viewsets.GenericViewSet):
 
 
         #err response 3
-        try: 
+        try:
             User.objects.get(username=email)
             return Response({"error":"user already_exist"}, status=status.HTTP_400_BAD_REQUEST)
         except User.DoesNotExist:
             pass
 
-
-        Major.objects.create(major_name="ammonite science", major_type=1)
+        Major.objects.create(major_name="ammonite science", major_type=Major.DOUBLE_MAJOR)
         #create user
         user=User.objects.create_user(username=email, email=email, password=password, first_name=full_name)
         UserProfile.objects.create(user=user, year=year, status=student_status)
@@ -114,7 +113,7 @@ class UserViewSet(viewsets.GenericViewSet):
             UserMajor.objects.create(user=user, major=Major.objects.get(id=major))
         login(request, user)
 
-        #main response 
+        #main response
         serializer=self.get_serializer(user)
         data=serializer.data
         token, created= Token.objects.get_or_create(user=user)
@@ -159,9 +158,11 @@ class UserViewSet(viewsets.GenericViewSet):
         user = request.user
 
         #err response 1
+
         if not request.user.is_authenticated:
             return Response({"error":"no_token"}, status=status.HTTP_401_UNAUTHORIZED)
         #err response 2        
+
         if pk != 'me':
             return Response( {"error": "pk≠me"}, status=status.HTTP_403_FORBIDDEN)
 
@@ -188,9 +189,11 @@ class UserViewSet(viewsets.GenericViewSet):
         if "student_id" in data:
             userprofile.student_id=data.get("student_id")
         if "status" in data:
+
             userprofile.status=data.get("status")        
         if "full_name" in data:
             user.first_name=data.get("full_name")
+
         serializer = self.get_serializer(user, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -203,7 +206,7 @@ class UserViewSet(viewsets.GenericViewSet):
     def delete(self, request, pk=None):
         user=request.user
 
-        #err response 1        
+        #err response 1
         if pk != 'me':
             return Response( {"error": "pk≠me"}, status=status.HTTP_403_FORBIDDEN)
         #err response 2
@@ -221,8 +224,8 @@ class UserViewSet(viewsets.GenericViewSet):
         #main response
         return Response(status=status.HTTP_200_OK)
 
-    #POST/DELETE/GET /user/major/  
-    @action(detail=False, methods=['POST', 'DELETE'])    
+    #POST/DELETE/GET /user/major/
+    @action(detail=False, methods=['POST', 'DELETE'])
     def major(self, request):
         user=request.user
 
@@ -231,24 +234,27 @@ class UserViewSet(viewsets.GenericViewSet):
             return Response({"error":"no_token"}, status=status.HTTP_401_UNAUTHORIZED)
 
         if self.request.method == 'POST':
-            major_name=request.data.get('major_name') 
-            major_type=request.data.get('major_type') 
+            major_name=request.data.get('major_name')
+            major_type=request.data.get('major_type')
             try:
                 majorsearch=Major.objects.get(major_name=major_name, major_type=major_type)
                 major_id=majorsearch.id
             except Major.DoesNotExist:
                 return Response({"error":"major not_exist"})
         elif self.request.method == 'DELETE':              
+
             major_id=request.body.get("major_id")
 
         #err response 2
         if not bool(major_id):
-            return Response({"error":"major_id missing"}, status=status.HTTP_400_BAD_REQUEST)    
+            return Response({"error":"major_id missing"}, status=status.HTTP_400_BAD_REQUEST)
         #err response 3
         try:
             major=Major.objects.get(id=major_id)
         except Major.DoesNotExist:
+
             return Response({"error":"major not_exist"}, status=status.HTTP_404_NOT_FOUND)    
+
 
         #POST usermajor
         if self.request.method == 'POST':
@@ -273,4 +279,4 @@ class UserViewSet(viewsets.GenericViewSet):
             return Response(body, status=status.HTTP_201_CREATED)
         else:
             return Response(body, status=status.HTTP_200_OK)
-    
+

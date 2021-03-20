@@ -4,12 +4,12 @@ from rest_framework.authtoken.models import Token
 from user.models import *
 
 class UserSerializer(serializers.ModelSerializer):
-    id= serializers.IntegerField()
-    email= serializers.CharField()
-    full_name= serializers.SerializerMethodField()
-    year= serializers.SerializerMethodField()
-    major=serializers.SerializerMethodField()
-    status=serializers.SerializerMethodField()
+    id = serializers.IntegerField()
+    email = serializers.CharField()
+    full_name = serializers.SerializerMethodField()
+    year = serializers.SerializerMethodField()
+    major = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
     class Meta:
         model=User
         fields=(
