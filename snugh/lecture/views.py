@@ -158,11 +158,11 @@ class SemesterViewSet(viewsets.GenericViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK) 
 
 class LectureViewSet(viewsets.GenericViewSet):
-    # 수정전
-    queryset = SemesterLecture.objects.all()
-    search_fields = ['lecture_name']
-    filter_backends = (filters.SearchFilter, )
-    serializer_class = SemesterLectureSerializer 
+    # # 수정전
+    # queryset = SemesterLecture.objects.all()
+    # search_fields = ['lecture_name']
+    # filter_backends = (filters.SearchFilter, )
+    # serializer_class = SemesterLectureSerializer
 
     def lecture_type_to_int(self, semesterlecture):
         switcher ={
@@ -172,7 +172,39 @@ class LectureViewSet(viewsets.GenericViewSet):
             SemesterLecture.GENERAL : 4,
             SemesterLecture.GENERAL_ELECTIVE : 5
         }
-        return swticher.get(i, -1) # -1은 에러
+        return switcher.get(semesterlecture, -1) # -1은 에러
+
+    def add_credits(self, semesterlecture):
+        semester = semesterlecture.semester
+        if(semesterlecture.lecture_type == SemesterLecture.MAJOR_REQUIREMENT):
+            semester.major_requirement_credit += semesterlecture.lecture.credit
+            semester.save()
+        elif(semesterlecture.lecture_type == SemesterLecture.MAJOR_ELECTIVE or semesterlecture.lecture_type == SemesterLecture.TEACHING ):
+            semester.major_elective_credit += semesterlecture.lecture.credit
+            semester.save()
+        elif(semesterlecture.lecture_type == SemesterLecture.GENERAL):
+            semester.general_credit += semesterlecture.lecture.credit
+            semester.save()
+        elif(semesterlecture.lecture_type == SemesterLecture.GENERAL_ELECTIVE):
+            semester.general_elective_credit += semesterlecture.lecture.credit
+            semester.save()
+        return
+
+    def subtract_credits(self, semesterlecture):
+        semester = semesterlecture.semester
+        if (semesterlecture.lecture_type == SemesterLecture.MAJOR_REQUIREMENT):
+            semester.major_requirement_credit -= semesterlecture.lecture.credit
+            semester.save()
+        elif (semesterlecture.lecture_type == SemesterLecture.MAJOR_ELECTIVE or semesterlecture.lecture_type == SemesterLecture.TEACHING):
+            semester.major_elective_credit -= semesterlecture.lecture.credit
+            semester.save()
+        elif (semesterlecture.lecture_type == SemesterLecture.GENERAL):
+            semester.general_credit -= semesterlecture.lecture.credit
+            semester.save()
+        elif (semesterlecture.lecture_type == SemesterLecture.GENERAL_ELECTIVE):
+            semester.general_elective_credit -= semesterlecture.lecture.credit
+            semester.save()
+        return
 
     # POST /lecture
     # 에러 처리: 이미 있는 lecture 추가시 IntegrityError 500 -> BadRequest
@@ -252,19 +284,52 @@ class LectureViewSet(viewsets.GenericViewSet):
         user = request.user
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
-        semesterlecture = self.get_object()
-        data = request.data.copy() 
-        serializer = self.get_serializer(semesterlecture, data=data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.update(semesterlecture, serializer.validated_data) 
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        lecture = get_object_or_404(Lecture, pk=pk)
+        semester_from_id = request.data.get('semester_from_id')
+        semester_to_id = request.data.get('semester_to_id')
+        semester_from_list = request.data.get('semester_from')
+        semester_to_list = request.data.get('semester_to')
+
+        semester_to = Semester.objects.get(id = semester_to_id)
+        semester_from = Semester.objects.get(id = semester_from_id)
+
+        # credit 처리 및 semesterlecture의 semester 변경(?)
+        semesterlecture = SemesterLecture.objects.get(semester_id=semester_from_id, lecture_id=lecture.id)
+        self.subtract_credits(semesterlecture)
+
+        semesterlecture.semester = semester_to
+        semesterlecture.save()
+        self.add_credits(semesterlecture)
+
+        # recent sequence 저장
+        for i in range(len(semester_from_list)):
+            semester_lecture = SemesterLecture.objects.get(semester_id=semester_from_id, lecture_id = semester_from_list[i])
+            semester_lecture.recent_sequence = i
+            semester_lecture.save()
+
+        for i in range(len(semester_to_list)):
+            semester_lecture2 = SemesterLecture.objects.get(semester_id=semester_to_id, lecture_id = semester_to_list[i])
+            semester_lecture2.recent_sequence = i
+            semester_lecture2.save()
+
+
+        serializer = SemesterSerializer([semester_to,semester_from], many=True)
+        data = serializer.data
+
+        return Response(data, status=status.HTTP_200_OK)
 
     # DEL /lecture/(int) 
     def destroy(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
-        self.get_object().delete()
+
+        semesterlecture = SemesterLecture.objects.get(pk=pk)
+        self.subtract_credits(semesterlecture)
+
+        semesterlecture.delete()
+#        self.get_object().delete()
         return Response(status=status.HTTP_200_OK) 
 
     # GET /lecture/{plan_id}?lecture_type=(string)&search_keyword=(string)&year=(int)&semester=(string)
@@ -375,7 +440,7 @@ class LectureViewSet(viewsets.GenericViewSet):
                             print(pivot_lecture)
                             if pivot_lecture is not None:
                                 data['lecture_type'] = pivot_lecture.lecture_type
-                            elif curr_lecture.first().lecture_type == ('GENERAL' or 'TEACHING'):
+                            elif (curr_lecture.first().lecture_type == 'GENERAL' or curr_lecture.first().lecture_type =='TEACHING'):
                                 data['lecture_type'] = curr_lecture.first().lecture_type
                             else:
                                 data['lecture_type'] = 'GENERAL_ELECTIVE'
@@ -386,7 +451,7 @@ class LectureViewSet(viewsets.GenericViewSet):
                                 data['lecture_type'] = future_lecture.lecture_type
                             elif future_lecture is not None and future_lecture.lecture_type == 'MAJOR_REQUIREMENT':
                                 data['lecture_type'] = 'MAJOR_ELECTIVE'
-                            elif future_lecture is None and majorlectures.first().lecture_type == ('GENERAL' or 'TEACHING'):
+                            elif future_lecture is None and (majorlectures.first().lecture_type == 'GENERAL' or majorlectures.first().lecture_type == 'TEACHING'):
                                 data['lecture_type'] = majorlectures.first().lecture_type
                             else:
                                 data['lecture_type'] = 'GENERAL_ELECTIVE'
