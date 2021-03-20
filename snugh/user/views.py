@@ -219,7 +219,7 @@ class UserViewSet(viewsets.GenericViewSet):
         # main response
         return Response(status=status.HTTP_200_OK)
 
-    # POST DEL /user/major/
+    # POST/DELETE /user/major/
     @action(detail=False, methods=['POST', 'DELETE'])
     def major(self, request):
         user = request.user

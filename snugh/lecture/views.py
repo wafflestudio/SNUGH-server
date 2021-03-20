@@ -1,118 +1,272 @@
+from django.shortcuts import get_object_or_404
+from django.db.models import Q
 from rest_framework import status, viewsets, filters
-from rest_framework.response import Response 
+from rest_framework.response import Response
+from rest_framework.decorators import action
 from lecture.models import * 
 from lecture.serializers import *
 from user.models import *
-from rest_framework.decorators import action
-from django.shortcuts import get_object_or_404
-from django.db.models import Q
+from requirement.models import *
+
 
 class PlanViewSet(viewsets.GenericViewSet):
     queryset = Plan.objects.all()
     serializer_class = PlanSerializer 
 
-    # POST /plan
+    # POST /plan/
     def create(self, request):
-        major_id = request.query_params.get("major_id", None)
-        #err response 1
-        if major_id is None:
-            return Response({"error":"major_id missing"}, status=status.HTTP_400_BAD_REQUEST)    
-        #err response 2
-        try:
-            major = Major.objects.get(id=major_id)
-        except Major.DoesNotExist:
-            return Response({"error":"major_id not_exist"}, status=status.HTTP_404_NOT_FOUND)
-        data = request.data.copy() 
-        serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save() 
-        plan_id = serializer.data["id"]
-        plan = Plan.objects.get(id=plan_id)
-        PlanMajor.objects.create(plan=plan, major=major)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
-    # PUT /plan/(int)
-    def update(self, request, pk=None):
         user = request.user
+
+        # err response
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
-        plan = self.get_object() 
-        data = request.data.copy() 
+
+        data = request.data.copy()
+        plan_name = data.get("plan_id", None)
+        major_ids = data.get("majors", None)
+
+        # err response
+        if major_ids is None:
+            return Response({"error": "majors missing"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            for major_id in major_ids:
+                major = Major.objects.get(id=major_id)
+        except Major.DoesNotExist:
+            return Response({"error": "major_id not_exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        plan = Plan.objects.create(user=user, plan_name=plan_name)
+        for major_id in major_ids:
+            major = Major.objects.get(id=major_id)
+            PlanMajor.objects.create(plan=plan, major=major)
+
+        serializer = self.get_serializer(plan)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    # PUT /plan/(int)/
+    def update(self, request, pk=None):
+        user = request.user
+
+        # err response
+        if not user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+        data = request.data.copy()
+        plan = Plan.objects.get(pk=pk)
         serializer = self.get_serializer(plan, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.update(plan, serializer.validated_data)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
-    # DEL /plan/(int)
+    # DEL /plan/(int)/
     def destroy(self, request, pk=None):
         user = request.user
+
+        # err response
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
-        self.get_object().delete()
+
+        plan = Plan.objects.get(pk=pk)
+        plan.delete()
         return Response(status=status.HTTP_200_OK)
     
-    # GET /plan/(int)
+    # GET /plan/(int)/
     def retrieve(self, request, pk=None):
         user = request.user
+
+        # err response
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
-        plan = self.get_object() 
+
+        plan = Plan.objects.get(pk=pk)
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # GET /plan
+    # GET /plan/
     def list(self, request):
         user = request.user
+
+        # err response
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
+
         plans = Plan.objects.filter(user=user)
         return Response(self.get_serializer(plans, many=True).data, status=status.HTTP_200_OK)
 
-    # POST/GET/DELETE /plan/major
-    @action(detail=False, methods=['POST', 'DELETE', 'GET'])
-    def major(self, request, pk=None):    
+    # GET/PUT /plan/major/
+    @action(detail=True, methods=['GET', 'PUT'])
+    def major(self, request, pk=None):
+        user = request.user
+
+        # err response
+        if not user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+
         plan_id = request.query_params.get("plan_id")
-        plan = Plan.objects.get(id=plan_id)
 
-        #err response 1
+        # err response
         if not bool(plan_id):
-            return Response({"error":"plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)    
+            return Response({"error": "plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            plan = Plan.objects.get(id=plan_id)
+        except Plan.DoesNotExist:
+            return Response({"error": "plan not_exist"}, status=status.HTTP_404_NOT_FOUND)
 
-        #GET planmajor
+        # GET /plan/major/
         if self.request.method == 'GET':
             planmajor = PlanMajor.objects.filter(plan=plan)
         else:
-            major_id=request.query_params.get("major_id")
+            post_list = request.data.get("post_list", None)
+            delete_list = request.data.get("delete_list", None)
 
-            #err response 2
-            if not bool(major_id):
-                return Response({"error":"major_id missing"}, status=status.HTTP_400_BAD_REQUEST)    
-            #err response 3
+            # err response
+            if post_list is None:
+                return Response({"error": "post_list missing"}, status=status.HTTP_400_BAD_REQUEST)
+            if delete_list is None:
+                return Response({"error": "delete_list missing"}, status=status.HTTP_400_BAD_REQUEST)
+            # err response
             try:
-                major = Major.objects.get(id=major_id)
+                for major_id in post_list:
+                    major = Major.objects.get(id=major_id)
+                for major_id in delete_list:
+                    major = Major.objects.get(id=major_id)
             except Major.DoesNotExist:
-                return Response({"error":"major not_exist"}, status=status.HTTP_404_NOT_FOUND)
-              
-            #POST planmajor 중복된 major 에러처리
-            if self.request.method == 'POST':
-                PlanMajor.objects.create(plan=plan, major=major)
-            #DELETE planmajor
-            elif self.request.method == 'DELETE':
+                return Response({"error": "major not_exist"}, status=status.HTTP_404_NOT_FOUND)
+            try:
+                for major_id in delete_list:
+                    major = Major.objects.get(id=major_id)
+                    planmajor = PlanMajor.get(plan=plan, major=major)
+            except PlanMajor.DoesNotExist:
+                return Response({"error": "planmajor not_exist"}, status=status.HTTP_404_NOT_FOUND)
+
+            for major_id in delete_list:
+                major = Major.objects.get(pk=major_id)
                 planmajor = PlanMajor.objects.get(plan=plan, major=major)
-                planmajor.delete()            
+                planmajor.delete()
 
-            planmajor = PlanMajor.objects.filter(plan=plan)
+            for major_id in post_list:
+                major = Major.objects.get(pk=major_id)
+                PlanMajor.objects.create(plan=plan, major=major)
 
-        #main response
-        majors = Major.objects.filter(planmajor__in=planmajor)
+            self.update_plan_info(plan)
+
+        # main response
         ls = []
-        for major in list(majors):
-            ls.append({"id":major.id, "name":major.major_name, "type":major.major_type})        
-        body={"plan_id":plan.id, "major":ls}
+        planmajor = PlanMajor.objects.filter(plan=plan)
+        for major in planmajor.major.all():
+            ls.append({"id": major.id, "name": major.major_name, "type": major.major_type})
+        body = {"plan_id": plan.id, "major": ls}
+
         if self.request.method == 'POST':
             return Response(body, status=status.HTTP_201_CREATED)
         else:
             return Response(body, status=status.HTTP_200_OK)
+
+    def update_plan_info(self, plan):
+        # SemesterLecture 모델의 lecture_type 관련 값 업데이트
+        majors = Major.objects.filter(planmajor__plan=plan)
+        semester_lectures = SemesterLecture.objects.filter(semester__plan=plan)
+        for semester_lecture in semester_lectures:
+            semester_lecture.lecture
+
+        # Semester 모델의 credit 관련 값 업데이트
+        semesters = Semester.objects.filter(plan=plan)
+        for semester in list(semesters):
+            mr_lectures = Lecture.objects.filter(semesterlecture__semester=semester,
+                                                 semesterlecture__lecture_type=SemesterLecture.MAJOR_REQUIREMENT)
+            me_lectures = Lecture.objects.filter(semesterlecture__semester=semester,
+                                                 semesterlecture__lecture_type=SemesterLecture.MAJOR_ELECTIVE)
+            t_lectures = Lecture.objects.filter(semesterlecture__semester=semester,
+                                                semesterlecture__lecture_type=SemesterLecture.TEACHING)
+            g_lectures = Lecture.objects.filter(semesterlecture__semester=semester,
+                                                semesterlecture__lecture_type=SemesterLecture.GENERAL)
+            ge_lectures = Lecture.objects.filter(semesterlecture__semester=semester,
+                                                 semesterlecture__lecture_type=SemesterLecture.GENERAL_ELECTIVE)
+            mr_credit = 0
+            me_credit = 0
+            g_credit = 0
+            ge_credit = 0
+
+            for lecture in list(mr_lectures):
+                mr_credit += lecture.credit
+            for lecture in list(me_lectures):
+                me_credit += lecture.credit
+            for lecture in list(t_lectures):
+                me_credit += lecture.credit
+            for lecture in list(g_lectures):
+                g_credit += lecture.credit
+            for lecture in list(ge_lectures):
+                ge_credit += lecture.credit
+
+            semester.major_requirement_credit = mr_credit
+            semester.major_elective_credit = me_credit
+            semester.general_credit = g_credit
+            semester.general_elective_credit = ge_credit
+            semester.save()
+
+        # PlanRequirement 모델의 earned_credit, is_fulfilled 업데이트
+        majors = Major.objects.filter(planmajor__plan=plan)
+        for major in list(majors):
+            mr_r = Requirement.objects.get(major=major, requirement_type=Requirement.MAJOR_REQUIREMENT)
+            me_r = Requirement.objects.get(major=major, requirement_type=Requirement.MAJOR_ELECTIVE)
+            g_r = Requirement.objects.get(major=major, requirement_type=Requirement.GENERAL)
+            ge_r = Requirement.objects.get(major=major, requirement_type=Requirement.GENERAL_ELECTIVE)
+
+            mr_pr = PlanRequirement.objects.get(plan=plan, requirement__major=major,
+                                                requirement__requirement_type=Requirement.MAJOR_REQUIREMENT)
+            me_pr = PlanRequirement.objects.get(plan=plan, requirement__major=major,
+                                                requirement__requirement_type=Requirement.MAJOR_ELECTIVE)
+            g_pr = PlanRequirement.objects.get(plan=plan, requirement__major=major,
+                                               requirement__requirement_type=Requirement.GENERAL)
+            ge_pr = PlanRequirement.objects.get(plan=plan, requirement__major=major,
+                                                requirement__requirement_type=Requirement.GENERAL_ELECTIVE)
+            mr_credit = 0
+            me_credit = 0
+            g_credit = 0
+            ge_credit = 0
+            for semester in list(semesters):
+                mr_lectures = Lecture.objects.filter(semesterlecture__semester=semester,
+                                                     semesterlecture__pivot_major=major,
+                                                     semesterlecture__lecture_type=SemesterLecture.MAJOR_REQUIREMENT)
+                me_lectures = Lecture.objects.filter(semesterlecture__semester=semester,
+                                                     semesterlecture__pivot_major=major,
+                                                     semesterlecture__lecture_type=SemesterLecture.MAJOR_ELECTIVE)
+                g_lectures = Lecture.objects.filter(semesterlecture__semester=semester,
+                                                    semesterlecture__pivot_major=major,
+                                                    semesterlecture__lecture_type=SemesterLecture.GENERAL)
+                ge_lectures = Lecture.objects.filter(semesterlecture__semester=semester,
+                                                     semesterlecture__pivot_major=major,
+                                                     semesterlecture__lecture_type=SemesterLecture.GENERAL_ELECTIVE)
+                for lecture in list(mr_lectures):
+                    mr_credit += lecture.credit
+                for lecture in list(me_lectures):
+                    me_credit += lecture.credit
+                for lecture in list(g_lectures):
+                    g_credit += lecture.credit
+                for lecture in list(ge_lectures):
+                    ge_credit += lecture.credit
+
+            mr_pr.earned_credit = mr_credit
+            mr_pr.save()
+            me_pr.earned_credit = me_credit
+            me_pr.save()
+            g_pr.earned_credit = g_credit
+            g_pr.save()
+            ge_pr.earned_credit = ge_credit
+            ge_pr.save()
+
+            if mr_r.required_credit <= mr_pr.earned_credit:
+                mr_pr.is_fulfilled = True
+                mr_pr.save()
+            if me_r.required_credit <= me_pr.earned_credit:
+                me_pr.is_fulfilled = True
+                me_pr.save()
+            if g_r.required_credit <= g_pr.earned_credit:
+                g_pr.is_fulfilled = True
+                g_pr.save()
+            if ge_r.required_credit <= ge_pr.earned_credit:
+                ge_pr.is_fulfilled = True
+                ge_pr.save()
+
 
 class SemesterViewSet(viewsets.GenericViewSet):
     queryset = Semester.objects.all()

@@ -3,34 +3,33 @@ from lecture.models import *
 
 
 class PlanSerializer(serializers.ModelSerializer):
-    major = serializers.SerializerMethodField()
+    majors = serializers.SerializerMethodField()
     semesters = serializers.SerializerMethodField()
 
     class Meta:
         model = Plan
         fields = (
-            'id', 
-            'user', 
-            'major',
+            'id',
             'plan_name',
             'recent_scroll',
+            'majors',
             'semesters',
         )
     
-    def get_major(self, plan):
+    def get_majors(self, plan):
         planmajors = PlanMajor.objects.filter(plan=plan)
         ls = [] 
         for planmajor in planmajors:
             ls.append({
                 "id": planmajor.major.id, 
                 "major_name": planmajor.major.major_name,
-                "major_type": planmajor.major.major_type, 
+                "major_type": planmajor.major.major_type,
             })
         return ls 
 
     def get_semesters(self, plan):
         semesters = plan.semester.all().order_by('year', 'semester_type')
-        return SemesterSerializer(semesters, many=True).data # plan_id에 해당하는 모든 semester들 
+        return SemesterSerializer(semesters, many=True).data # plan_id에 해당하는 모든 semester들
 
 class SimpleSemesterSerializer(serializers.ModelSerializer):
 
