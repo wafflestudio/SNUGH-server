@@ -90,7 +90,7 @@ class PlanViewSet(viewsets.GenericViewSet):
             try:
                 major=Major.objects.get(id=major_id)
             except Major.DoesNotExist:
-                return Response({"error":"No major matching the given major_id and plan id"}, status=status.HTTP_404_NOT_FOUND)
+                return Response({"error":"major not_exist"}, status=status.HTTP_404_NOT_FOUND)
 
             #POST planmajor
             if self.request.method == 'POST':
