@@ -5,6 +5,7 @@ from lecture.serializers import *
 from user.models import *
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
 
 class PlanViewSet(viewsets.GenericViewSet):
     queryset = Plan.objects.all()
@@ -349,7 +350,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         plan = get_object_or_404(Plan, pk=pk)
         majors = Major.objects.filter(planmajor__plan=plan)
 
-        already_in_semester = Lecture.objects.filter(semesterlecture__semester__plan__user = user.id)
+        already_in_semester = Lecture.objects.filter(semesterlecture__semester__plan= plan)
 
         if(int(year)<user_entrance_year):
             return Response({"error": "year must be larger than your entrance_year"}, status=status.HTTP_400_BAD_REQUEST)
@@ -380,11 +381,11 @@ class LectureViewSet(viewsets.GenericViewSet):
                 # 자기 학번보다 후에 전선/전필 과목이 새롭게 개설되었을 경우
                 if lecture_type =='MAJOR_ELECTIVE':
                     futureLectures = MajorLecture.objects.filter(
-                        major=major,
-                        start_year__lte=int(year),
-                        start_year__gt= user_entrance_year,
-                        end_year__gte=max(int(year), user_entrance_year),
-                        lecture_type= ('MAJOR_ELECTIVE' or 'MAJOR_REQUIREMENT')
+                        Q(major=major)&
+                        Q(start_year__lte=int(year)) &
+                        Q(start_year__gt= user_entrance_year) &
+                        Q(end_year__gte=max(int(year), user_entrance_year)) &
+                        (Q(lecture_type= 'MAJOR_ELECTIVE') | Q(lecture_type = 'MAJOR_REQUIREMENT'))
                     )
 
                     lectures_future = Lecture.objects.filter(majorlecture__in=futureLectures)
