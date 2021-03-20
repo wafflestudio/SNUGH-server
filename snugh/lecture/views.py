@@ -164,9 +164,14 @@ class PlanViewSet(viewsets.GenericViewSet):
     def update_plan_info(self, plan):
         # SemesterLecture 모델의 lecture_type 관련 값 업데이트
         majors = Major.objects.filter(planmajor__plan=plan)
+        entrance_year = plan.user.year
         semester_lectures = SemesterLecture.objects.filter(semester__plan=plan)
-        for semester_lecture in semester_lectures:
-            semester_lecture.lecture
+        for semester_lecture in list(semester_lectures):
+            lecture = semester_lecture.lecture
+            pivot_major, lecture_type = self.cal_lecture_type(lecture, majors, entrance_year)
+            semester_lecture.pivot_major = pivot_major
+            semester_lecture.lecture = lecture_type
+            semester_lecture.save()
 
         # Semester 모델의 credit 관련 값 업데이트
         semesters = Semester.objects.filter(plan=plan)
@@ -266,6 +271,32 @@ class PlanViewSet(viewsets.GenericViewSet):
             if ge_r.required_credit <= ge_pr.earned_credit:
                 ge_pr.is_fulfilled = True
                 ge_pr.save()
+
+    def cal_lecture_type(self, lecture, majors, entrance_year):
+        result_major = None
+        result_lecture_type = None
+        for major in list(majors):
+            try:
+                majorlecture = MajorLecture.objects.get(major=major,
+                                                        lecture=lecture,
+                                                        start_year__lte=entrance_year,
+                                                        end_year__gte=entrance_year)
+                if self.cal_priority_lt(majorlecture.lecture_type) > self.cal_priority_lt(result_lecture_type):
+                    result_major = majorlecture.major
+                    result_lecture_type = majorlecture.lecture_type
+            except MajorLecture.DoesNotExist:
+                pass
+        return result_major, result_lecture_type
+
+    def cal_priority_lt(self, lecture_type):
+        switcher = {
+            SemesterLecture.MAJOR_REQUIREMENT: 4,
+            SemesterLecture.MAJOR_ELECTIVE: 3,
+            SemesterLecture.TEACHING: 3,
+            SemesterLecture.GENERAL: 2,
+            SemesterLecture.GENERAL_ELECTIVE: 1
+        }
+        return switcher.get(lecture_type, -1)
 
 
 class SemesterViewSet(viewsets.GenericViewSet):
