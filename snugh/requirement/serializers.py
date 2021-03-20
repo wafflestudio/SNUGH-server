@@ -60,7 +60,6 @@ class ProgressSerializer(serializers.ModelSerializer):
     major_requirement = serializers.SerializerMethodField()
     major_elective = serializers.SerializerMethodField()
     general = serializers.SerializerMethodField()
-    general_elective = serializers.SerializerMethodField()
 
     class Meta:
         model = Plan
@@ -69,7 +68,6 @@ class ProgressSerializer(serializers.ModelSerializer):
             'major_requirement',
             'major_elective',
             'general',
-            'general_elective',
         )
 
     def get_all(self, plan):
@@ -163,30 +161,6 @@ class ProgressSerializer(serializers.ModelSerializer):
         # 기준 학점 계산하기
         required_credit = 0
         requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=Requirement.GENERAL)
-        for r in requirement:
-            required_credit += r.required_credit
-
-        # 이수 비율 계산하기
-        if required_credit:
-            progress = earned_credit / required_credit
-        else:
-            progress = 0.0
-
-        data = {'required_credit': required_credit, 'earned_credit': earned_credit, 'progress': progress}
-        return data
-
-    def get_general_elective(self, plan):
-        # 이수 학점 계산하기
-        earned_credit = 0
-        planrequirement = PlanRequirement.objects.filter(plan=plan,
-                                                         requirement__requirement_type=Requirement.GENERAL_ELECTIVE)
-        for pr in planrequirement:
-            earned_credit += pr.earned_credit
-
-        # 기준 학점 계산하기
-        required_credit = 0
-        requirement = Requirement.objects.filter(planrequirement__plan=plan,
-                                                 requirement_type=Requirement.GENERAL_ELECTIVE)
         for r in requirement:
             required_credit += r.required_credit
 

@@ -1,4 +1,3 @@
-from django.shortcuts import render
 from rest_framework import status, viewsets
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
@@ -8,36 +7,36 @@ from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.decorators import action
 
+
 class MajorViewSet(viewsets.GenericViewSet):
-    queryset=Major.objects.all()
+    queryset = Major.objects.all()
 
+    # GET /major/
     def list(self, request):
-        user=request.user
+        user = request.user
 
-        #GET all majors
-        name=request.query_params.get('name')
-        ls=[]
-
+        name = request.query_params.get('name')
         if name:
-            majors=Major.objects.filter(major_name__contains=name)
+            majors = Major.objects.filter(major_name__contains=name)
         else:
-            majors=Major.objects.all()
+            majors = Major.objects.all()
 
+        ls = []
         for major in majors:
             if major.major_name not in ls:
                 ls.append(major.major_name)
-        body={"major":ls}
+        body = {"majors": ls}
         return Response(body, status=status.HTTP_200_OK)
 
 
 class UserViewSet(viewsets.GenericViewSet):
-    queryset=User.objects.all()
-    serializer_class=UserSerializer
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
 
     # POST /user/    
     def create(self, request):
-        body=request.data
-        errorls=[]
+        body = request.data
+        errorls = []
 
         email=body.get('email')
         if not email:
@@ -105,7 +104,6 @@ class UserViewSet(viewsets.GenericViewSet):
         except User.DoesNotExist:
             pass
 
-        Major.objects.create(major_name="ammonite science", major_type=Major.DOUBLE_MAJOR)
         #create user
         user=User.objects.create_user(username=email, email=email, password=password, first_name=full_name)
         UserProfile.objects.create(user=user, year=year, status=student_status)
@@ -120,7 +118,7 @@ class UserViewSet(viewsets.GenericViewSet):
         data["token"]=token.key
         return Response(data, status=status.HTTP_201_CREATED)
 
-    #GET /user/logout
+    # GET /user/logout/
     @action(detail=False, methods=['GET'])
     def logout(self, request):
         if not request.user.is_authenticated:
@@ -128,152 +126,147 @@ class UserViewSet(viewsets.GenericViewSet):
         logout(request)
         return Response(status=status.HTTP_200_OK)
 
-
-    #PUT /user/
+    # PUT /user/
     @action(detail=False, methods=['PUT'])
     def login(self, request):
-        username=request.data.get('email') #email을 username으로 로그인
-        password=request.data.get('password')
+        username = request.data.get('email')  # email을 username으로 사용하여 로그인
+        password = request.data.get('password')
 
-        #err response 1
+        # err response 1
         if not bool(username):
-            return Response({"error":"username missing"}, status=status.HTTP_400_BAD_REQUEST)
-        #err response 2
+            return Response({"error": "username missing"}, status=status.HTTP_400_BAD_REQUEST)
+        # err response 2
         if not bool(password):
-            return Response({"error":"password missing"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "password missing"}, status=status.HTTP_400_BAD_REQUEST)
 
-        #login
+        # login
         user = authenticate(request, username=username, password=password)
         if user:
             login(request, user)
-            #main response
+            # main response
             data = self.get_serializer(user).data
             token, created = Token.objects.get_or_create(user=user)
             data['token'] = token.key
             return Response(data, status=status.HTTP_200_OK)
         return Response({"error": "username or password wrong"}, status=status.HTTP_403_FORBIDDEN)
 
-    #GET /user/me/
+    # GET /user/me/
     def retrieve(self, request, pk=None):
         user = request.user
 
         #err response 1
-
         if not request.user.is_authenticated:
             return Response({"error":"no_token"}, status=status.HTTP_401_UNAUTHORIZED)
-        #err response 2        
-
+        #err response 2
         if pk != 'me':
             return Response( {"error": "pk≠me"}, status=status.HTTP_403_FORBIDDEN)
 
-        #main response
-        serializer=self.get_serializer(user)
-        data=serializer.data
+        # main response
+        serializer = self.get_serializer(user)
+        data = serializer.data
         return Response(data, status=status.HTTP_200_OK)
 
-    #PUT /user/me/
+    # PUT /user/me/
     def update(self, request, pk=None):
         user = request.user
-        userprofile=user.userprofile
+        userprofile = user.userprofile
 
-        #err response 1
+        # err response 1
         if pk != 'me':
             return Response( {"error": "pk≠me"}, status=status.HTTP_403_FORBIDDEN)
         #err response 2
         if not request.user.is_authenticated:
             return Response({"error":"no_token"}, status=status.HTTP_401_UNAUTHORIZED)
 
-
-        #edit user
-        data=request.data
-        if "student_id" in data:
-            userprofile.student_id=data.get("student_id")
+        # edit user
+        data = request.data
+        if "year" in data:
+            userprofile.year = data.get("year")
+            #####
+            # (TBD) 사용자의 입학년도 변경에 따른 강의구분 및 졸업요건 재계산이 필요합니다.
+            #####
         if "status" in data:
-
             userprofile.status=data.get("status")        
         if "full_name" in data:
             user.first_name=data.get("full_name")
-
         serializer = self.get_serializer(user, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        #main response
-        data=serializer.data
+        # main response
+        data = serializer.data
         return Response(data, status=status.HTTP_200_OK)
 
-    #DEL /user/me/
+    # DEL /user/me/
     def delete(self, request, pk=None):
-        user=request.user
+        user = request.user
 
-        #err response 1
+        # err response 1
         if pk != 'me':
             return Response( {"error": "pk≠me"}, status=status.HTTP_403_FORBIDDEN)
         #err response 2
         if not request.user.is_authenticated:
             return Response({"error":"no_token"}, status=status.HTTP_401_UNAUTHORIZED)
 
-        #delete user&logout
-        userprofile=request.user.userprofile
-        token, created= Token.objects.get_or_create(user=user)
+        # delete user & logout
+        userprofile = request.user.userprofile
+        token, created = Token.objects.get_or_create(user=user)
         logout(request)
         user.delete()
         userprofile.delete()
         token.delete()
 
-        #main response
+        # main response
         return Response(status=status.HTTP_200_OK)
 
-    #POST/DELETE/GET /user/major/
+    # POST DEL /user/major/
     @action(detail=False, methods=['POST', 'DELETE'])
     def major(self, request):
-        user=request.user
+        user = request.user
 
         #err response 1
         if not request.user.is_authenticated:
             return Response({"error":"no_token"}, status=status.HTTP_401_UNAUTHORIZED)
 
+        # get query params
         if self.request.method == 'POST':
-            major_name=request.data.get('major_name')
-            major_type=request.data.get('major_type')
+            major_name = request.data.get('major_name')
+            major_type = request.data.get('major_type')
             try:
-                majorsearch=Major.objects.get(major_name=major_name, major_type=major_type)
-                major_id=majorsearch.id
+                searched_major = Major.objects.get(major_name=major_name, major_type=major_type)
+                major_id = searched_major.id
             except Major.DoesNotExist:
                 return Response({"error":"major not_exist"})
-        elif self.request.method == 'DELETE':              
-
+        elif self.request.method == 'DELETE':
             major_id=request.body.get("major_id")
 
-        #err response 2
+        # err response 2
         if not bool(major_id):
-            return Response({"error":"major_id missing"}, status=status.HTTP_400_BAD_REQUEST)
-        #err response 3
+            return Response({"error": "major_id missing"}, status=status.HTTP_400_BAD_REQUEST)
+        # err response 3
         try:
-            major=Major.objects.get(id=major_id)
+            major = Major.objects.get(id=major_id)
         except Major.DoesNotExist:
+            return Response({"error":"major not_exist"}, status=status.HTTP_404_NOT_FOUND)
 
-            return Response({"error":"major not_exist"}, status=status.HTTP_404_NOT_FOUND)    
-
-
-        #POST usermajor
+        # POST /user/major/
         if self.request.method == 'POST':
             UserMajor.objects.create(user=user, major=major)
-        #DEL usermajor
+        # DEL /user/major/
         elif self.request.method == 'DELETE':
             try:
-                usermajor=UserMajor.objects.get(user=user, major=major)
-            #err response 4
+                usermajor = UserMajor.objects.get(user=user, major=major)
+            # err response 4
             except UserMajor.DoesNotExist:
                 return Response({"error":"major not_exist"}, status=status.HTTP_400_BAD_REQUEST)
             usermajor.delete()
 
-        #main response
-        ls=[]
+        # main response
+        ls = []
         for usermajor in user.usermajor.all():
-            major=usermajor.major
-            ls.append({"id":major.id, "major_name":major.major_name, "major_type":major.major_type})
-        body={"major":ls}
+            major = usermajor.major
+            ls.append({"id": major.id, "major_name": major.major_name, "major_type": major.major_type})
+        body = {"major": ls}
 
         if self.request.method == 'POST':
             return Response(body, status=status.HTTP_201_CREATED)
