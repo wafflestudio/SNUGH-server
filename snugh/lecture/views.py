@@ -23,20 +23,20 @@ class PlanViewSet(viewsets.GenericViewSet):
 
         data = request.data.copy()
         plan_name = data.get("plan_id", None)
-        major_ids = data.get("majors", None)
+        majors = data.get("majors", None)
 
         # err response
-        if major_ids is None:
+        if majors is None:
             return Response({"error": "majors missing"}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            for major_id in major_ids:
-                major = Major.objects.get(id=major_id)
+            for major in majors:
+                major = Major.objects.get(major_name=major.major_name, major_type=major.major_type)
         except Major.DoesNotExist:
             return Response({"error": "major_id not_exist"}, status=status.HTTP_404_NOT_FOUND)
 
         plan = Plan.objects.create(user=user, plan_name=plan_name)
-        for major_id in major_ids:
-            major = Major.objects.get(id=major_id)
+        for major in majors:
+            major = Major.objects.get(major_name=major.major_name, major_type=major.major_type)
             PlanMajor.objects.create(plan=plan, major=major)
 
         serializer = self.get_serializer(plan)

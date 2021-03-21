@@ -50,9 +50,9 @@ class UserViewSet(viewsets.GenericViewSet):
         full_name=body.get('full_name')
         if not full_name:
             errorls.append('full_name')
-        major_list=body.get('major_id')
+        major_list=body.get('majors')
         if not major_list:
-            errorls.append('major_id')
+            errorls.append('majors')
         student_status=body.get('status')
         if not student_status:
             errorls.append('status')
@@ -108,7 +108,11 @@ class UserViewSet(viewsets.GenericViewSet):
         user=User.objects.create_user(username=email, email=email, password=password, first_name=full_name)
         UserProfile.objects.create(user=user, year=year, status=student_status)
         for major in major_list:
-            UserMajor.objects.create(user=user, major=Major.objects.get(id=major))
+            try:
+                searched_major = Major.objects.get(major_name=major.major_name, major_type=major.major_type)
+            except Major.DoesNotExist:
+                return Response({"error": "major not_exist"}, status=status.HTTP_404_NOT_FOUND)
+            UserMajor.objects.create(user=user, major=searched_major)
         login(request, user)
 
         #main response
@@ -228,17 +232,13 @@ class UserViewSet(viewsets.GenericViewSet):
         if not request.user.is_authenticated:
             return Response({"error":"no_token"}, status=status.HTTP_401_UNAUTHORIZED)
 
-        # get query params
-        if self.request.method == 'POST':
-            major_name = request.data.get('major_name')
-            major_type = request.data.get('major_type')
-            try:
-                searched_major = Major.objects.get(major_name=major_name, major_type=major_type)
-                major_id = searched_major.id
-            except Major.DoesNotExist:
-                return Response({"error":"major not_exist"})
-        elif self.request.method == 'DELETE':
-            major_id=request.body.get("major_id")
+        major_name = request.data.get('major_name')
+        major_type = request.data.get('major_type')
+        try:
+            searched_major = Major.objects.get(major_name=major_name, major_type=major_type)
+            major_id = searched_major.id
+        except Major.DoesNotExist:
+            return Response({"error": "major not_exist"})
 
         # err response 2
         if not bool(major_id):
