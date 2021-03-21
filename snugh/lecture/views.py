@@ -303,13 +303,16 @@ class SemesterViewSet(viewsets.GenericViewSet):
     queryset = Semester.objects.all()
     serializer_class = SimpleSemesterSerializer 
 
-    # POST /semester
+    # POST /semester/
     def create(self, request): 
         user = request.user
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
-        
-        if Semester.objects.filter(plan=request.data.get('plan'), year=request.data.get('year'), semester_type=request.data.get('semester_type')).exists():
+
+        plan = request.data.get('plan')
+        year = request.data.get('year')
+        semester_type = request.data.get('semester_type')
+        if Semester.objects.filter(plan=plan, year=year, semester_type=semester_type).exists():
             return Response(status=status.HTTP_403_FORBIDDEN)
         
         data = request.data.copy()
@@ -318,7 +321,7 @@ class SemesterViewSet(viewsets.GenericViewSet):
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    # PUT /semester/(int)
+    # PUT /semester/(int)/
     def update(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
@@ -330,15 +333,18 @@ class SemesterViewSet(viewsets.GenericViewSet):
         serializer.update(semester, serializer.validated_data)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
-    # DEL /semester/(int)
+    # DEL /semester/(int)/
     def destroy(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
-        self.get_object().delete() 
+        semester = self.get_object()
+        plan = semester.plan
+        semester.delete()
+        PlanViewSet.update_plan_info(plan=plan)
         return Response(status=status.HTTP_200_OK)
     
-    # GET /semester/(int)
+    # GET /semester/(int)/
     def retrieve(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
