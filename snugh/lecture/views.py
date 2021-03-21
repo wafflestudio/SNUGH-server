@@ -30,14 +30,14 @@ class PlanViewSet(viewsets.GenericViewSet):
             return Response({"error": "majors missing"}, status=status.HTTP_400_BAD_REQUEST)
         try:
             for major in majors:
-                major = Major.objects.get(major_name=major.major_name, major_type=major.major_type)
+                searched_major = Major.objects.get(major_name=major.major_name, major_type=major.major_type)
         except Major.DoesNotExist:
             return Response({"error": "major_id not_exist"}, status=status.HTTP_404_NOT_FOUND)
 
         plan = Plan.objects.create(user=user, plan_name=plan_name)
         for major in majors:
-            major = Major.objects.get(major_name=major.major_name, major_type=major.major_type)
-            PlanMajor.objects.create(plan=plan, major=major)
+            searched_major = Major.objects.get(major_name=major.major_name, major_type=major.major_type)
+            PlanMajor.objects.create(plan=plan, major=searched_major)
 
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -125,27 +125,27 @@ class PlanViewSet(viewsets.GenericViewSet):
                 return Response({"error": "delete_list missing"}, status=status.HTTP_400_BAD_REQUEST)
             # err response
             try:
-                for major_id in post_list:
-                    major = Major.objects.get(id=major_id)
-                for major_id in delete_list:
-                    major = Major.objects.get(id=major_id)
+                for major in post_list:
+                    searched_major = Major.objects.get(major_name=major.major_name, major_type=major.major_type)
+                for major in delete_list:
+                    searched_major = Major.objects.get(major_name=major.major_name, major_type=major.major_type)
             except Major.DoesNotExist:
                 return Response({"error": "major not_exist"}, status=status.HTTP_404_NOT_FOUND)
             try:
-                for major_id in delete_list:
-                    major = Major.objects.get(id=major_id)
-                    planmajor = PlanMajor.get(plan=plan, major=major)
+                for major in delete_list:
+                    searched_major = Major.objects.get(major_name=major.major_name, major_type=major.major_type)
+                    searched_planmajor = PlanMajor.get(plan=plan, major=searched_major)
             except PlanMajor.DoesNotExist:
                 return Response({"error": "planmajor not_exist"}, status=status.HTTP_404_NOT_FOUND)
 
-            for major_id in delete_list:
-                major = Major.objects.get(pk=major_id)
-                planmajor = PlanMajor.objects.get(plan=plan, major=major)
-                planmajor.delete()
+            for major in delete_list:
+                searched_major = Major.objects.get(major_name=major.major_name, major_type=major.major_type)
+                searched_planmajor = PlanMajor.objects.get(plan=plan, major=searched_major)
+                searched_planmajor.delete()
 
-            for major_id in post_list:
-                major = Major.objects.get(pk=major_id)
-                PlanMajor.objects.create(plan=plan, major=major)
+            for major in post_list:
+                searched_major = Major.objects.get(major_name=major.major_name, major_type=major.major_type)
+                PlanMajor.objects.create(plan=plan, major=searched_major)
 
             self.update_plan_info(plan)
 
