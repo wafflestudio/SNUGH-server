@@ -129,7 +129,6 @@ class SemesterLecture(models.Model):
     recognized_major = models.ForeignKey(Major, related_name='semesterlecture', on_delete=models.CASCADE)
     semester = models.ForeignKey(Semester, related_name='semesterlecture', on_delete=models.CASCADE)
     lecture = models.ForeignKey(Lecture, related_name='semesterlecture', on_delete=models.CASCADE)
-    pivot_major = models.ForeignKey(Major, related_name='semesterlecture', on_delete=models.CASCADE)
     lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE)
     lecture_type_detail = models.CharField(max_length=50, choices=LECTURE_TYPE_DETAIL, default=NONE)
     lecture_type_detail_detail = models.CharField(max_length=50, choices=LECTURE_TYPE_DETAIL_DETAIL, default=NONE)

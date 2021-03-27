@@ -124,6 +124,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
         result_list = []
         for major in list(majors):
             serializer = ProgressSerializer(plan, major)
+            serializer.is_valid()
             progress = serializer.data
             result_list.append(progress)
 

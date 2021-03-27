@@ -31,11 +31,6 @@ class PlanSerializer(serializers.ModelSerializer):
         semesters = plan.semester.all().order_by('year', 'semester_type')
         return SemesterSerializer(semesters, many=True).data # plan_id에 해당하는 모든 semester들
 
-class SimpleSemesterSerializer(serializers.ModelSerializer):
-
-    class Meta: 
-        model = Semester 
-        fields = '__all__'
 
 class SemesterSerializer(serializers.ModelSerializer):
     lectures = serializers.SerializerMethodField()
