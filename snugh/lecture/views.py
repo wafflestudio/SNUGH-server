@@ -1,5 +1,6 @@
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
+from django.db import transaction
 from rest_framework import status, viewsets, filters
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -14,6 +15,7 @@ class PlanViewSet(viewsets.GenericViewSet):
     serializer_class = PlanSerializer 
 
     # POST /plan/
+    @transaction.atomic
     def create(self, request):
         user = request.user
 
@@ -35,14 +37,19 @@ class PlanViewSet(viewsets.GenericViewSet):
             return Response({"error": "major not_exist"}, status=status.HTTP_404_NOT_FOUND)
 
         plan = Plan.objects.create(user=user, plan_name=plan_name)
-        for major in majors:
-            searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
+        if len(majors) == 1 and majors[0]['major_type'] == Major.MAJOR:
+            searched_major = Major.objects.get(major_name=majors[0]['major_name'], major_type=Major.SINGLE_MAJOR)
             PlanMajor.objects.create(plan=plan, major=searched_major)
+        else:
+            for major in majors:
+                searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
+                PlanMajor.objects.create(plan=plan, major=searched_major)
 
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     # PUT /plan/(int)/
+    @transaction.atomic
     def update(self, request, pk=None):
         user = request.user
 
@@ -58,6 +65,7 @@ class PlanViewSet(viewsets.GenericViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     # DEL /plan/(int)/
+    @transaction.atomic
     def destroy(self, request, pk=None):
         user = request.user
 
@@ -70,6 +78,7 @@ class PlanViewSet(viewsets.GenericViewSet):
         return Response(status=status.HTTP_200_OK)
 
     # GET /plan/(int)/
+    @transaction.atomic
     def retrieve(self, request, pk=None):
         user = request.user
 
@@ -82,6 +91,7 @@ class PlanViewSet(viewsets.GenericViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     # GET /plan/
+    @transaction.atomic
     def list(self, request):
         user = request.user
 
@@ -94,6 +104,7 @@ class PlanViewSet(viewsets.GenericViewSet):
 
     # GET/PUT /plan/major/
     @action(detail=False, methods=['GET', 'PUT'])
+    @transaction.atomic
     def major(self, request):
         user = request.user
 
@@ -186,6 +197,7 @@ class SemesterViewSet(viewsets.GenericViewSet):
     serializer_class = SemesterSerializer
 
     # POST /semester/
+    @transaction.atomic
     def create(self, request): 
         user = request.user
         if not user.is_authenticated:
@@ -212,6 +224,7 @@ class SemesterViewSet(viewsets.GenericViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     # PUT /semester/(int)/
+    @transaction.atomic
     def update(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
@@ -224,6 +237,7 @@ class SemesterViewSet(viewsets.GenericViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     # DEL /semester/(int)/
+    @transaction.atomic
     def destroy(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
@@ -236,6 +250,7 @@ class SemesterViewSet(viewsets.GenericViewSet):
         return Response(status=status.HTTP_200_OK)
     
     # GET /semester/(int)/
+    @transaction.atomic
     def retrieve(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
@@ -252,6 +267,7 @@ class LectureViewSet(viewsets.GenericViewSet):
     # POST /lecture
     # 에러 처리: 이미 있는 lecture 추가시 IntegrityError 500 -> BadRequest
     # 에러 처리: 똑같은 Lecture가 body에 두번 있으면 -> for문 들어가기도 전에 에러처리해야.
+    @transaction.atomic
     def create(self, request): 
         user = request.user
         if not user.is_authenticated:
@@ -273,7 +289,7 @@ class LectureViewSet(viewsets.GenericViewSet):
             recognized_major = Major.objects.get(id=recognized_major_id)
 
             SemesterLecture.objects.create(recognized_major=recognized_major, semester=semester, lecture=lecture, lecture_type=lecture_type, recent_sequence = 20)
-            semlecture = SemesterLecture.objects.get(lecture=lecture)
+            semlecture = SemesterLecture.objects.get(semester=semester, lecture=lecture)
             semlecture.recent_sequence = semlecture.id
             semlecture.save()
 
@@ -328,6 +344,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         return Response(data, status=status.HTTP_201_CREATED)
     
     # PUT /lecture/(int)
+    @transaction.atomic
     def update(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
@@ -366,7 +383,8 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
 
-    # DEL /lecture/(int) 
+    # DEL /lecture/(int)
+    @transaction.atomic
     def destroy(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
@@ -379,6 +397,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         return Response(status=status.HTTP_200_OK) 
 
     # GET /lecture/?plan_id=(int)&lecture_type=(string)&search_keyword=(string)&year=(int)&semester=(string)
+    @transaction.atomic
     def list(self, request):
         lecture_type = request.query_params.get("lecture_type", None)
         year = request.query_params.get("year", None)

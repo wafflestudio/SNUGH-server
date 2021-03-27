@@ -4,7 +4,7 @@ from rest_framework.decorators import action
 from requirement.models import Requirement, PlanRequirement
 from requirement.serializers import RequirementSerializer, ProgressSerializer
 from user.models import Major
-from lecture.models import Plan
+from lecture.models import Plan, PlanMajor
 
 
 class RequirementViewSet(viewsets.GenericViewSet):
@@ -117,14 +117,13 @@ class RequirementViewSet(viewsets.GenericViewSet):
         try:
             plan = Plan.objects.get(pk=plan_id)
         except Plan.DoesNotExist:
-            return Response({"error": "plan_id not_exist"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "plan not_exist"}, status=status.HTTP_404_NOT_FOUND)
 
-        majors = Major.objects.filter(planmajor__plan=plan)
+        planmajors = PlanMajor.objects.filter(plan=plan)
 
         result_list = []
-        for major in list(majors):
-            serializer = ProgressSerializer(plan, major)
-            serializer.is_valid()
+        for planmajor in list(planmajors):
+            serializer = ProgressSerializer(planmajor)
             progress = serializer.data
             result_list.append(progress)
 
