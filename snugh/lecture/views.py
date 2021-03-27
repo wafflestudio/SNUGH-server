@@ -117,14 +117,15 @@ class PlanViewSet(viewsets.GenericViewSet):
         # err response
         if not bool(plan_id):
             return Response({"error": "plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)
-        try:
+        if Plan.objects.filter(id=plan_id).exists():
             plan = Plan.objects.get(id=plan_id)
-        except Plan.DoesNotExist:
+        else:
             return Response({"error": "plan not_exist"}, status=status.HTTP_404_NOT_FOUND)
 
         # GET /plan/major/
         if self.request.method == 'GET':
             planmajor = PlanMajor.objects.filter(plan=plan)
+
         elif self.request.method == 'PUT':
             post_list = request.data.get("post_list", None)
             delete_list = request.data.get("delete_list", None)
@@ -134,54 +135,21 @@ class PlanViewSet(viewsets.GenericViewSet):
                 return Response({"error": "post_list missing"}, status=status.HTTP_400_BAD_REQUEST)
             if delete_list is None:
                 return Response({"error": "delete_list missing"}, status=status.HTTP_400_BAD_REQUEST)
-            # err response
-            try:
-                for major in post_list:
-                    try:
-                        UserMajor.objects.filter(user=user, major__major_name=major['major_name'])
-                        return Response({"error": "major_name not_allowed same_major_already_exist_in_user_major"},
-                                        status=status.HTTP_400_BAD_REQUEST)
-                    except UserMajor.DoesNotExist:
-                        pass
-                    searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-                for major in delete_list:
-                    searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-            except Major.DoesNotExist:
-                return Response({"error": "major not_exist"}, status=status.HTTP_404_NOT_FOUND)
-            try:
-                for major in delete_list:
-                    searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-                    searched_planmajor = PlanMajor.get(plan=plan, major=searched_major)
-            except PlanMajor.DoesNotExist:
-                return Response({"error": "planmajor not_exist"}, status=status.HTTP_404_NOT_FOUND)
 
             for major in delete_list:
-                searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-                searched_planmajor = PlanMajor.objects.get(plan=plan, major=searched_major)
-                searched_planmajor.delete()
+                major_name = major['major_name']
+                major_type = major['major_type']
+                selected_major = Major.objects.get(major_name=major_name, major_type=major_type)
+                selected_planmajor = PlanMajor.objects.get(plan=plan, major=selected_major)
+                selected_major.delete()
 
             for major in post_list:
-                searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-                PlanMajor.objects.create(plan=plan, major=searched_major)
+                major_name = major['major_name']
+                major_type = major['major_type']
+                selected_major = Major.objects.get(major_name=major_name, major_type=major_type)
+                PlanMajor.objects.create(plan=plan, major=selected_major)
 
-            try:
-                changed_usermajor = UserMajor.objects.filter(user=user)
-                if changed_usermajor.count() == 1:
-                    only_major = changed_usermajor.get(0)
-                    if only_major.major_type == Major.MAJOR:
-                        only_major.major_type = Major.SINGLE_MAJOR
-                        only_major.save()
-                else:
-                    try:
-                        not_only_major = changed_usermajor.get(major__major_type=Major.SINGLE_MAJOR)
-                        not_only_major.major_type = Major.MAJOR
-                        not_only_major.save()
-                    except UserMajor.DoesNotExist:
-                        pass
-            except UserMajor.DoesNotExist:
-                pass
-
-            self.update_plan_info(plan)
+            update_plan_info(plan)
 
         # main response
         body = self.get_serializer(plan).data
@@ -562,9 +530,9 @@ def update_plan_info(plan):
     semester_lectures = SemesterLecture.objects.filter(semester__plan=plan)
     for semester_lecture in list(semester_lectures):
         lecture = semester_lecture.lecture
-        pivot_major, lecture_type = cal_lecture_type(lecture, majors, entrance_year)
-        semester_lecture.pivot_major = pivot_major
-        semester_lecture.lecture = lecture_type
+        recognized_major, lecture_type = cal_lecture_type(lecture, majors, entrance_year)
+        semester_lecture.recognized_major = recognized_major
+        semester_lecture.lecture_type = lecture_type
         semester_lecture.save()
 
     # Semester 모델의 credit 관련 값 업데이트
