@@ -22,7 +22,7 @@ class PlanViewSet(viewsets.GenericViewSet):
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
         data = request.data.copy()
-        plan_name = data.get("plan_id", None)
+        plan_name = data.get("plan_name", None)
         majors = data.get("majors", None)
 
         # err response
@@ -30,13 +30,13 @@ class PlanViewSet(viewsets.GenericViewSet):
             return Response({"error": "majors missing"}, status=status.HTTP_400_BAD_REQUEST)
         try:
             for major in majors:
-                searched_major = Major.objects.get(major_name=major.major_name, major_type=major.major_type)
+                searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
         except Major.DoesNotExist:
-            return Response({"error": "major_id not_exist"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "major not_exist"}, status=status.HTTP_404_NOT_FOUND)
 
         plan = Plan.objects.create(user=user, plan_name=plan_name)
         for major in majors:
-            searched_major = Major.objects.get(major_name=major.major_name, major_type=major.major_type)
+            searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
             PlanMajor.objects.create(plan=plan, major=searched_major)
 
         serializer = self.get_serializer(plan)
@@ -114,7 +114,7 @@ class PlanViewSet(viewsets.GenericViewSet):
         # GET /plan/major/
         if self.request.method == 'GET':
             planmajor = PlanMajor.objects.filter(plan=plan)
-        else:
+        elif self.request.method == 'PUT':
             post_list = request.data.get("post_list", None)
             delete_list = request.data.get("delete_list", None)
 
@@ -126,6 +126,12 @@ class PlanViewSet(viewsets.GenericViewSet):
             # err response
             try:
                 for major in post_list:
+                    try:
+                        UserMajor.objects.filter(user=user, major__major_name=major.major_name)
+                        return Response({"error": "major_name not_allowed same_major_already_exist_in_user_major"},
+                                        status=status.HTTP_400_BAD_REQUEST)
+                    except UserMajor.DoesNotExist:
+                        pass
                     searched_major = Major.objects.get(major_name=major.major_name, major_type=major.major_type)
                 for major in delete_list:
                     searched_major = Major.objects.get(major_name=major.major_name, major_type=major.major_type)
@@ -147,14 +153,27 @@ class PlanViewSet(viewsets.GenericViewSet):
                 searched_major = Major.objects.get(major_name=major.major_name, major_type=major.major_type)
                 PlanMajor.objects.create(plan=plan, major=searched_major)
 
+            try:
+                changed_usermajor = UserMajor.objects.filter(user=user)
+                if changed_usermajor.count() == 1:
+                    only_major = changed_usermajor.get(0)
+                    if only_major.major_type == Major.MAJOR:
+                        only_major.major_type = Major.SINGLE_MAJOR
+                        only_major.save()
+                else:
+                    try:
+                        not_only_major = changed_usermajor.get(major__major_type=Major.SINGLE_MAJOR)
+                        not_only_major.major_type = Major.MAJOR
+                        not_only_major.save()
+                    except UserMajor.DoesNotExist:
+                        pass
+            except UserMajor.DoesNotExist:
+                pass
+
             self.update_plan_info(plan)
 
         # main response
-        ls = []
-        planmajor = PlanMajor.objects.filter(plan=plan)
-        for major in planmajor.major.all():
-            ls.append({"id": major.id, "name": major.major_name, "type": major.major_type})
-        body = {"plan_id": plan.id, "major": ls}
+        body = self.get_serializer(plan).data
 
         if self.request.method == 'POST':
             return Response(body, status=status.HTTP_201_CREATED)
@@ -309,10 +328,18 @@ class SemesterViewSet(viewsets.GenericViewSet):
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
-        plan = request.data.get('plan')
-        year = request.data.get('year')
-        semester_type = request.data.get('semester_type')
-        if Semester.objects.filter(plan=plan, year=year, semester_type=semester_type).exists():
+        plan = request.data.get('plan', None)
+        year = request.data.get('year', None)
+        semester_type = request.data.get('semester_type', None)
+        is_complete = request.data.get('is_complete', False)
+
+        if plan is None:
+            return Response({"error": "plan missing"}, status=status.HTTP_400_BAD_REQUEST)
+        if year is None:
+            return Response({"error": "year missing"}, status=status.HTTP_400_BAD_REQUEST)
+        if semester_type is None:
+            return Response({"error": "semester_type missing"}, status=status.HTTP_400_BAD_REQUEST)
+        if Semester.objects.filter(plan=plan, year=year, semester_type=semester_type, is_complete=is_complete).exists():
             return Response(status=status.HTTP_403_FORBIDDEN)
         
         data = request.data.copy()
@@ -533,11 +560,12 @@ class LectureViewSet(viewsets.GenericViewSet):
 #        self.get_object().delete()
         return Response(status=status.HTTP_200_OK) 
 
-    # GET /lecture/?{plan_id}=(int)&lecture_type=(string)&search_keyword=(string)&year=(int)&semester=(string)
-    def list(self, request):
 
+    # GET /lecture/?plan_id=(int)&lecture_type=(string)&search_keyword=(string)&year=(int)&semester=(string)
+    def list(self, request):
         lecture_type = request.query_params.get("lecture_type", None)
         year = request.query_params.get("year", None)
+        plan_id = request.query_params.get("plan_id", None)
 
         user = request.user
         user_entrance_year = user.userprofile.year
@@ -546,8 +574,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         # user = get_object_or_404(User, id=user_id)
         # user_entrance_year = user.userprofile.year
 
-        plan_id = request.query_params.get("plan_id", None)
-        plan = Plan.objects.get(id= plan_id)
+        plan = get_object_or_404(Plan, pk=plan_id)
         majors = Major.objects.filter(planmajor__plan=plan)
 
         already_in_semester_id = Lecture.objects.filter(semesterlecture__semester__plan= plan).values('id')

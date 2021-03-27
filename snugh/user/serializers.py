@@ -1,5 +1,6 @@
-from django.contrib.auth.models import User
 from rest_framework import serializers
+from django.contrib.auth.models import User
+from user.models import Major
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -7,7 +8,7 @@ class UserSerializer(serializers.ModelSerializer):
     email = serializers.CharField()
     year = serializers.SerializerMethodField()
     full_name = serializers.SerializerMethodField()
-    major = serializers.SerializerMethodField()
+    majors = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
 
     class Meta:
@@ -17,25 +18,35 @@ class UserSerializer(serializers.ModelSerializer):
             "email",
             "year",
             "full_name",
+            "majors",
             "status",
-            "major"
         )
 
     def get_year(self, user):
         userprofile = user.userprofile
         return userprofile.year
 
+    def get_full_name(self, user):
+        return user.first_name
+
+    def get_majors(self, user):
+        majors = Major.objects.filter(usermajor__user=user)
+        return MajorSerializer(majors, many=True).data
+
     def get_status(self, user):
         userprofile = user.userprofile
         return userprofile.status
 
-    def get_major(self, user):
-        ls = []
-        usermajors = user.usermajor.all()
-        for usermajor in usermajors:
-            body = {"id": usermajor.major.id, "name": usermajor.major.major_name, "type": usermajor.major.major_type}
-            ls.append(body)
-        return ls
 
-    def get_full_name(self, user):
-        return user.first_name
+class MajorSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField()
+    major_name = serializers.CharField()
+    major_type = serializers.CharField()
+
+    class Meta:
+        model = Major
+        fields = (
+            "id",
+            "major_name",
+            "major_type",
+        )
