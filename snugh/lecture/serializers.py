@@ -63,11 +63,13 @@ class SemesterSerializer(serializers.ModelSerializer):
         for semesterlecture in semesterlectures:
             lecture = semesterlecture.lecture
             ls.append({
-                "lecture_id": lecture.id, 
-                "semesterlecture_id": semesterlecture.id, 
+                "semesterlecture_id": semesterlecture.id,
+                "id": lecture.id,
+                "lecture_id": lecture.lecture_id,
                 "lecture_name": lecture.lecture_name,
                 "credit": lecture.credit, 
                 "open_semester": lecture.open_semester,
+                "recognized_major_name": semesterlecture.recognized_major.major_name,
                 "lecture_type": semesterlecture.lecture_type,
             })
         return ls 
