@@ -28,6 +28,8 @@ class MajorViewSet(viewsets.GenericViewSet):
             if major.major_name not in ls:
                 ls.append(major.major_name)
 
+        if "none" in ls:
+            ls.remove("none")
         ls = sorted(ls)
         body = {"majors": ls}
         return Response(body, status=status.HTTP_200_OK)
