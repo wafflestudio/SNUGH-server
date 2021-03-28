@@ -220,9 +220,9 @@ class UserViewSet(viewsets.GenericViewSet):
             # (TBD) 사용자의 입학년도 변경에 따른 강의구분 및 졸업요건 재계산이 필요합니다.
             #####
         if "status" in data:
-            userprofile.status=data.get("status")        
+            userprofile.status = data.get("status")
         if "full_name" in data:
-            user.first_name=data.get("full_name")
+            user.first_name = data.get("full_name")
         serializer = self.get_serializer(user, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
