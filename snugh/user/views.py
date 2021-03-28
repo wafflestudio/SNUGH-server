@@ -208,7 +208,7 @@ class UserViewSet(viewsets.GenericViewSet):
         # err response 1
         if pk != 'me':
             return Response( {"error": "pk≠me"}, status=status.HTTP_403_FORBIDDEN)
-        #err response 2
+        # err response 2
         if not request.user.is_authenticated:
             return Response({"error":"no_token"}, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -216,16 +216,15 @@ class UserViewSet(viewsets.GenericViewSet):
         data = request.data
         if "year" in data:
             userprofile.year = data.get("year")
-            #####
-            # (TBD) 사용자의 입학년도 변경에 따른 강의구분 및 졸업요건 재계산이 필요합니다.
-            #####
         if "status" in data:
             userprofile.status = data.get("status")
         if "full_name" in data:
             user.first_name = data.get("full_name")
+
         serializer = self.get_serializer(user, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        userprofile.save()
 
         # main response
         data = serializer.data
