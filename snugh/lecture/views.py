@@ -214,7 +214,7 @@ class SemesterViewSet(viewsets.GenericViewSet):
         semester = self.get_object()
         plan = semester.plan
         semester.delete()
-        update_plan_info(plan=plan)
+        # update_plan_info(plan=plan)
         return Response(status=status.HTTP_200_OK)
     
     # GET /semester/(int)/
