@@ -141,7 +141,7 @@ class PlanViewSet(viewsets.GenericViewSet):
                 major_type = major['major_type']
                 selected_major = Major.objects.get(major_name=major_name, major_type=major_type)
                 selected_planmajor = PlanMajor.objects.get(plan=plan, major=selected_major)
-                selected_major.delete()
+                selected_planmajor.delete()
 
             for major in post_list:
                 major_name = major['major_name']
