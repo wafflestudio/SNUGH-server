@@ -359,7 +359,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         lecture_type = data['lecture_type']
         # Case 1: lecture_type를 교양으로 변경
         if lecture_type == 'general':
-            # need to change data 
+            # Need to change data 
             serializer = self.get_serializer(lecture, data=data, partial=True)
             serializer.is_valid(raise_exception=True)
             serializer.update(lecture, serializer.validated_data)
@@ -367,11 +367,17 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         # Case 2: 학과별 강의 구분을 recognized_major1,2와 lecture_type1,2를 이용해 입력  
         elif lecture_type == 'major_requirement' or lecture_type == 'major_elective':
-            pass 
+            recognized_major1 = Major.objects.get(major_name=data['recognized_major_name1'], major_type=data['recognized_major_type1'])
+            recognized_major2 = Major.objects.get(major_name=data['recognized_major_name2'], major_type=data['recognized_major_type2'])
+            # Need to change data
+            serializer = self.get_serializer(lecture, data=data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.update(lecture, serializer.validated_data)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
         # Case 3: lecture_type를 general_elective로 변경 
         elif lecture_type == 'general_elective':
-            # need to change data 
+            # Need to change data 
             serializer = self.get_serializer(lecture, data=data, partial=True) 
             serializer.is_valid(raise_exception=True)
             serializer.update(lecture, serializer.validated_data)
