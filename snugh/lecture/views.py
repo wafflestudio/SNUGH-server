@@ -351,7 +351,7 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
 
-    # PUT /lecture/recognized_major/{lecture_id}
+    # PUT /lecture/{lecture_id}/recognized_major/
     @action(methods=['PUT'], detail=True)
     def recognized_major(self, request, pk=None):
         lecture = self.get_object() 
