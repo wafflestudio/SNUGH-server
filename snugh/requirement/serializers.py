@@ -8,8 +8,6 @@ class RequirementSerializer(serializers.ModelSerializer):
     description = serializers.SerializerMethodField()
     is_credit_requirement = serializers.SerializerMethodField()
     requirement_type = serializers.SerializerMethodField()
-    requirement_type_detail = serializers.SerializerMethodField()
-    requirement_type_detail_detail = serializers.SerializerMethodField()
     required_credit = serializers.SerializerMethodField()
 
     class Meta:
@@ -20,8 +18,6 @@ class RequirementSerializer(serializers.ModelSerializer):
             'is_fulfilled',
             'is_credit_requirement',
             'requirement_type',
-            'requirement_type_detail',
-            'requirement_type_detail_detail',
             'required_credit',
             'earned_credit'
         )
@@ -41,14 +37,6 @@ class RequirementSerializer(serializers.ModelSerializer):
     def get_requirement_type(self, plan_requirement):
         requirement = plan_requirement.requirement
         return requirement.requirement_type
-
-    def get_requirement_type_detail(self, plan_requirement):
-        requirement = plan_requirement.requirement
-        return requirement.requirement_type_detail
-
-    def get_requirement_type_detail_detail(self, plan_requirement):
-        requirement = plan_requirement.requirement
-        return requirement.requirement_type_detail_detail
 
     def get_required_credit(self, plan_requirement):
         requirement = plan_requirement.requirement
