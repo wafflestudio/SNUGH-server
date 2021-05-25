@@ -6,7 +6,7 @@ from user.models import Major
 class UserSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField()
     email = serializers.CharField()
-    year = serializers.SerializerMethodField()
+    entrance_year = serializers.SerializerMethodField()
     full_name = serializers.SerializerMethodField()
     majors = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
@@ -22,9 +22,9 @@ class UserSerializer(serializers.ModelSerializer):
             "status",
         )
 
-    def get_year(self, user):
+    def get_entrance_year(self, user):
         userprofile = user.userprofile
-        return userprofile.year
+        return userprofile.entrance_year
 
     def get_full_name(self, user):
         return user.first_name

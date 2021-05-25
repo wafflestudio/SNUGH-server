@@ -35,7 +35,6 @@ class PlanSerializer(serializers.ModelSerializer):
 class SemesterSerializer(serializers.ModelSerializer):
     lectures = serializers.SerializerMethodField()
 
-
     class Meta:
         model = Semester 
         fields = (
@@ -58,13 +57,17 @@ class SemesterSerializer(serializers.ModelSerializer):
             lecture = semesterlecture.lecture
             ls.append({
                 "semesterlecture_id": semesterlecture.id,
-                "id": lecture.id,
-                "lecture_id": lecture.lecture_id,
+                "lecture_id": lecture.id,
+                "lecture_code": lecture.lecture_code,
                 "lecture_name": lecture.lecture_name,
                 "credit": lecture.credit, 
                 "open_semester": lecture.open_semester,
-                "recognized_major_name": semesterlecture.recognized_major.major_name,
-                "lecture_type": semesterlecture.lecture_type,
+                "is_major": semesterlecture.lecture_type,
+                "recognized_major_name1": semesterlecture.recognized_major1.major_name,
+                "lecture_type1": semesterlecture.lecture_type1,
+                "recognized_major_name2": semesterlecture.recognized_major2.major_name,
+                "lecture_type2": semesterlecture.lecture_type2,
+                "is_modified": semesterlecture.is_modified
             })
         return ls 
 
