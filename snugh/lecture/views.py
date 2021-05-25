@@ -355,11 +355,13 @@ class LectureViewSet(viewsets.GenericViewSet):
     @action(methods=['PUT'], detail=True)
     def recognized_major(self, request, pk=None):
         lecture = self.get_object() 
-        data = request.data.copy() 
-        lecture_type = data['lecture_type']
+        lecture_type = request.data.get('lecture_type', None) 
         # Case 1: lecture_type를 교양으로 변경
         if lecture_type == 'general':
             # Need to change data 
+            data = {
+                "lecture_type": lecture_type
+            }
             serializer = self.get_serializer(lecture, data=data, partial=True)
             serializer.is_valid(raise_exception=True)
             serializer.update(lecture, serializer.validated_data)
@@ -369,7 +371,14 @@ class LectureViewSet(viewsets.GenericViewSet):
         elif lecture_type == 'major_requirement' or lecture_type == 'major_elective':
             recognized_major1 = Major.objects.get(major_name=data['recognized_major_name1'], major_type=data['recognized_major_type1'])
             recognized_major2 = Major.objects.get(major_name=data['recognized_major_name2'], major_type=data['recognized_major_type2'])
-            # Need to change data
+            lecture_type1 = request.data.get('lecture_type1', None) 
+            lecture_type2 = request.data.get('lecture_type2', None) 
+            data = {
+                "recognized_major1": recognized_major1,
+                "recognized_major2": recognized_major2,
+                "lecture_type1": lecture_type1, 
+                "lecture_type2": lecture_type2 ,
+            }
             serializer = self.get_serializer(lecture, data=data, partial=True)
             serializer.is_valid(raise_exception=True)
             serializer.update(lecture, serializer.validated_data)
@@ -378,6 +387,9 @@ class LectureViewSet(viewsets.GenericViewSet):
         # Case 3: lecture_type를 general_elective로 변경 
         elif lecture_type == 'general_elective':
             # Need to change data 
+            data = {
+                "lecture_type": lecture_type
+            }
             serializer = self.get_serializer(lecture, data=data, partial=True) 
             serializer.is_valid(raise_exception=True)
             serializer.update(lecture, serializer.validated_data)
