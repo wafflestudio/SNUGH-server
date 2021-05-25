@@ -410,15 +410,38 @@ class LectureViewSet(viewsets.GenericViewSet):
         semesterlecture.delete()
         return Response(status=status.HTTP_200_OK) 
 
-    # GET /lecture/?search_keyword=(string) 
+    # GET /lecture/?search_type=(string)&search_keyword=(string)&major=(string)&credit=(string)
     def list(self, request): 
-        search_keyword = request.query_params.get("search_keyword", None)
-        if search_keyword:  # 만약 검색어가 존재하면
-            lectures = Lecture.objects.filter(lecture_name__icontains=search_keyword)  # 해당 검색어를 포함한 queryset 가져오기
-            serializer = LectureSerializer(lectures, many=True)
-            return Response(serializer.data, status = status.HTTP_200_OK)
+        search_type = request.query_params.get("search_type", None)
+        # Case 1: major requirement or major elective
+        if search_type == 'major_requirement' or search_type == 'major_elective':
+            major = request.query_params.get("major", None)
+            if major: 
+                majorLectures = MajorLecture.objects.filter(major=major, lecture_type=search_type)
+                lectures = Lecture.objects.filter(majorlecture__in=majorLectures)
+                serializer = LectureSerializer(lectures, many=True) 
+                return Response(serializer.data, status = status.HTTP_200_OK)
+            else: 
+                return Response({"error": "major missing"}, status=status.HTTP_400_BAD_REQUEST)
+        # Case 2: general
+        elif search_type == 'general': 
+            credit = request.query_params.get("credit", None)
+            search_keyword = request.query_params.get("search_keyword", None)
+            if credit and search_keyword:
+                lectures = Lecture.objects.filter(credit=credit, lecture_name__icontains=search_keyword) 
+                serializer = LectureSerializer(lectures, many=True)
+                return Response(serializer.data, status = status.HTTP_200_OK)
+            else:
+                return Response({"error": "credit or search keyword missing"}, status=status.HTTP_400_BAD_REQUEST) 
+        # Case 3: keyword 
         else:
-            return Response({"error": "search_keyword missing"}, status=status.HTTP_400_BAD_REQUEST)
+            search_keyword = request.query_params.get("search_keyword", None)
+            if search_keyword:  # 만약 검색어가 존재하면
+                lectures = Lecture.objects.filter(lecture_name__icontains=search_keyword)  # 해당 검색어를 포함한 queryset 가져오기
+                serializer = LectureSerializer(lectures, many=True)
+                return Response(serializer.data, status = status.HTTP_200_OK)
+            else:
+                return Response({"error": "search keyword missing"}, status=status.HTTP_400_BAD_REQUEST)
 
 # 공용 함수 모음 #
 def update_plan_info(plan):
