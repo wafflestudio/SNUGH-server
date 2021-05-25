@@ -369,8 +369,10 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         # Case 2: 학과별 강의 구분을 recognized_major1,2와 lecture_type1,2를 이용해 입력  
         elif lecture_type == 'major_requirement' or lecture_type == 'major_elective':
-            recognized_major1 = Major.objects.get(major_name=data['recognized_major_name1'], major_type=data['recognized_major_type1'])
-            recognized_major2 = Major.objects.get(major_name=data['recognized_major_name2'], major_type=data['recognized_major_type2'])
+            print(request.data.get('recognized_major_name1'))
+            print(request.data.get('recognized_major_type1'))
+            recognized_major1 = Major.objects.get(major_name=request.data.get('recognized_major_name1', None), major_type=request.data.get('recognized_major_type1', None))
+            recognized_major2 = Major.objects.get(major_name=request.data.get('recognized_major_name2', None), major_type=request.data.get('recognized_major_type2', None))
             lecture_type1 = request.data.get('lecture_type1', None) 
             lecture_type2 = request.data.get('lecture_type2', None) 
             data = {
@@ -416,7 +418,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         search_keyword = request.query_params.get("search_keyword", None)
         if search_keyword:  # 만약 검색어가 존재하면
             lectures = Lecture.objects.filter(lecture_name__icontains=search_keyword)  # 해당 검색어를 포함한 queryset 가져오기
-            serializer = self.get_serializer(lectures, many=True)
+            serializer = LectureSerializer(lectures, many=True)
             return Response(serializer.data, status = status.HTTP_200_OK)
         else:
             return Response({"error": "search_keyword missing"}, status=status.HTTP_400_BAD_REQUEST)
