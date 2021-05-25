@@ -351,26 +351,34 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
 
-# PUT /lecture/recognized_major/{lecture_id}
-@action(methods=['PUT'], detail=True)
-def recognized_major(self, request, pk=None):
-    lecture = self.get_object() 
-    data = request.data.copy() 
-    lecture_type = data['lecture_type']
-    # Case 1: lecture_type를 교양으로 변경
-    if lecture_type == 'general':
-        pass  
+    # PUT /lecture/recognized_major/{lecture_id}
+    @action(methods=['PUT'], detail=True)
+    def recognized_major(self, request, pk=None):
+        lecture = self.get_object() 
+        data = request.data.copy() 
+        lecture_type = data['lecture_type']
+        # Case 1: lecture_type를 교양으로 변경
+        if lecture_type == 'general':
+            # need to change data 
+            serializer = self.get_serializer(lecture, data=data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.update(lecture, serializer.validated_data)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # Case 2: 학과별 강의 구분을 recognized_major1,2와 lecture_type1,2를 이용해 입력  
-    elif lecture_type == 'major_requirement' or lecture_type == 'major_elective':
-        pass 
+        # Case 2: 학과별 강의 구분을 recognized_major1,2와 lecture_type1,2를 이용해 입력  
+        elif lecture_type == 'major_requirement' or lecture_type == 'major_elective':
+            pass 
 
-    # Case 3: lecture_type를 general_elective로 변경 
-    elif lecture_type == 'general_elective':
-        pass 
+        # Case 3: lecture_type를 general_elective로 변경 
+        elif lecture_type == 'general_elective':
+            # need to change data 
+            serializer = self.get_serializer(lecture, data=data, partial=True) 
+            serializer.is_valid(raise_exception=True)
+            serializer.update(lecture, serializer.validated_data)
+            return Response(serializer.data, status=status.HTTP_200_OK) 
 
-    else:
-        return Response({"error": "wrong lecture_type"}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({"error": "wrong lecture_type"}, status=status.HTTP_400_BAD_REQUEST)
 
     # DEL /lecture/(int)
     @transaction.atomic
