@@ -104,7 +104,7 @@ class SemesterLecture(models.Model):
     )
     semester = models.ForeignKey(Semester, related_name='semesterlecture', on_delete=models.CASCADE)
     lecture = models.ForeignKey(Lecture, related_name='semesterlecture', on_delete=models.CASCADE)
-    is_major = models.BooleanField(default=False)
+    lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE)
     recognized_major1 = models.ForeignKey(Major, related_name='semesterlecture', on_delete=models.CASCADE)
     lecture_type1 = models.CharField(max_length=50, choices=LECTURE_TYPE)
     recognized_major2 = models.ForeignKey(Major, related_name='semesterlecture', on_delete=models.CASCADE)
