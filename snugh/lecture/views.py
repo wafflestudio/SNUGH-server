@@ -358,7 +358,6 @@ class LectureViewSet(viewsets.GenericViewSet):
         lecture_type = request.data.get('lecture_type', None) 
         # Case 1: lecture_type를 교양으로 변경
         if lecture_type == 'general':
-            # Need to change data 
             data = {
                 "lecture_type": lecture_type
             }
@@ -369,15 +368,14 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         # Case 2: 학과별 강의 구분을 recognized_major1,2와 lecture_type1,2를 이용해 입력  
         elif lecture_type == 'major_requirement' or lecture_type == 'major_elective':
-            print(request.data.get('recognized_major_name1'))
-            print(request.data.get('recognized_major_type1'))
             recognized_major1 = Major.objects.get(major_name=request.data.get('recognized_major_name1', None), major_type=request.data.get('recognized_major_type1', None))
             recognized_major2 = Major.objects.get(major_name=request.data.get('recognized_major_name2', None), major_type=request.data.get('recognized_major_type2', None))
             lecture_type1 = request.data.get('lecture_type1', None) 
             lecture_type2 = request.data.get('lecture_type2', None) 
             data = {
-                "recognized_major1": recognized_major1,
-                "recognized_major2": recognized_major2,
+                "lecture_type": lecture_type, 
+                "recognized_major1": recognized_major1.id,
+                "recognized_major2": recognized_major2.id,
                 "lecture_type1": lecture_type1, 
                 "lecture_type2": lecture_type2 ,
             }
@@ -388,7 +386,6 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         # Case 3: lecture_type를 general_elective로 변경 
         elif lecture_type == 'general_elective':
-            # Need to change data 
             data = {
                 "lecture_type": lecture_type
             }
