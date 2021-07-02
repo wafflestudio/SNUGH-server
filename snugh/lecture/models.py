@@ -5,6 +5,9 @@ from user.models import Major
 
 # Lecture, Plan, Semester, PlanMajor, SemesterLecture, MajorLecture
 class Lecture(models.Model):
+    # 공통
+    NONE = 'none'  # 구분 없음
+
     # Semester Type
     UNKNOWN = 'unknown'
     FIRST = 'first'
@@ -42,7 +45,7 @@ class Lecture(models.Model):
     open_department = models.CharField(max_length=50, null=True)
     open_major = models.CharField(max_length=50, null=True)
     open_semester = models.CharField(max_length=50, choices=SEMESTER_TYPE, default=UNKNOWN)
-    lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE)
+    lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
     credit = models.PositiveIntegerField(default=0)
     grade = models.PositiveSmallIntegerField(null=True)
     prev_lecture_name = models.CharField(max_length=50, null=True)
@@ -106,13 +109,16 @@ class SemesterLecture(models.Model):
         (TEACHING, 'teaching'),
     )
 
+    # Default Major ID
+    DEFAULT_MAJOR_ID = 1
+
     semester = models.ForeignKey(Semester, related_name='semesterlecture', on_delete=models.CASCADE)
     lecture = models.ForeignKey(Lecture, related_name='semesterlecture', on_delete=models.CASCADE)
-    lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE)
-    recognized_major1 = models.ForeignKey(Major, related_name='semesterlecture1', on_delete=models.CASCADE)
-    lecture_type1 = models.CharField(max_length=50, choices=LECTURE_TYPE)
-    recognized_major2 = models.ForeignKey(Major, related_name='semesterlecture2', on_delete=models.CASCADE)
-    lecture_type2 = models.CharField(max_length=50, choices=LECTURE_TYPE)
+    lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
+    recognized_major1 = models.ForeignKey(Major, related_name='semesterlecture1', on_delete=models.CASCADE, default=DEFAULT_MAJOR_ID)
+    lecture_type1 = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
+    recognized_major2 = models.ForeignKey(Major, related_name='semesterlecture2', on_delete=models.CASCADE, default=DEFAULT_MAJOR_ID)
+    lecture_type2 = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
     recent_sequence = models.PositiveSmallIntegerField()
     is_modified = models.BooleanField(default=False)
 
@@ -146,7 +152,7 @@ class MajorLecture(models.Model):
     start_year = models.PositiveSmallIntegerField()
     end_year = models.PositiveSmallIntegerField()
     is_required = models.BooleanField(default=False)
-    lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE)
+    lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
 
     # class Meta:
     #     unique_together = (

@@ -123,7 +123,7 @@ DATABASES = {
         'NAME': 'snugh_db',
         'USER': 'admin',
         'PASSWORD': 'babyammo',
-        'HOST': 'snugh-db.cey1mulmuayy.us-east-2.rds.amazonaws.com',
+        'HOST': 'snugh-db.cxytj3fklrdc.us-east-2.rds.amazonaws.com',
         'PORT': '3306',
         'OPTIONS': {
             'init_command': 'SET sql_mode="STRICT_TRANS_TABLES"'
