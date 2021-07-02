@@ -28,6 +28,7 @@ class Lecture(models.Model):
         (WINTER, 'winter'),
         (ALL, 'all'),
     )
+
     LECTURE_TYPE = (
         (MAJOR_REQUIREMENT, 'major_requirement'),
         (MAJOR_ELECTIVE, 'major_elective'),
@@ -35,6 +36,7 @@ class Lecture(models.Model):
         (GENERAL_ELECTIVE, 'general_elective'),
         (TEACHING, 'teaching'),
     )
+
     lecture_code = models.CharField(max_length=50, default="")
     lecture_name = models.CharField(max_length=50, db_index=True)
     open_department = models.CharField(max_length=50, null=True)
@@ -64,6 +66,7 @@ class Semester(models.Model):
         (SUMMER, 'summer'),
         (WINTER, 'winter'),
     )
+
     plan = models.ForeignKey(Plan, related_name='semester', on_delete=models.CASCADE)
     year = models.PositiveIntegerField()
     semester_type = models.CharField(max_length=50, choices=SEMESTER_TYPE)
@@ -102,6 +105,7 @@ class SemesterLecture(models.Model):
         (GENERAL_ELECTIVE, 'general_elective'),
         (TEACHING, 'teaching'),
     )
+
     semester = models.ForeignKey(Semester, related_name='semesterlecture', on_delete=models.CASCADE)
     lecture = models.ForeignKey(Lecture, related_name='semesterlecture', on_delete=models.CASCADE)
     lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE)
@@ -136,6 +140,7 @@ class MajorLecture(models.Model):
         (GENERAL_ELECTIVE, 'general_elective'),
         (TEACHING, 'teaching')
     )
+
     major = models.ForeignKey(Major, related_name='majorlecture', on_delete=models.CASCADE)
     lecture = models.ForeignKey(Lecture, related_name='majorlecture', on_delete=models.CASCADE)
     start_year = models.PositiveSmallIntegerField()

@@ -25,6 +25,7 @@ class Requirement(models.Model):
         (TEACHING, 'teaching'),
         (ALL, 'all'),
     )
+
     major = models.ForeignKey(Major, related_name='requirement', on_delete=models.CASCADE)
     start_year = models.PositiveSmallIntegerField()
     end_year = models.PositiveSmallIntegerField()
