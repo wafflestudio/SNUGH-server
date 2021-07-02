@@ -13,8 +13,9 @@ class UserProfile(models.Model):
         (INACTIVE, 'inactive'),  # 서비스 탈퇴
         (BREAK, 'break'),  # 휴학
     )
+
     user = models.OneToOneField(User, related_name='userprofile', on_delete=models.CASCADE)
-    year = models.IntegerField()
+    entrance_year = models.IntegerField()
     status = models.CharField(max_length=50, choices=STUDENT_STATUS, default=ACTIVE)
 
 
@@ -38,6 +39,7 @@ class Major(models.Model):
         (INTERDISCIPLINARY_MAJOR_FOR_TEACHER, 'interdisciplinary_major_for_teacher_training_programs'),  # 교직연합전공
         (STUDENT_DIRECTED_MAJOR, 'student_directed_major'),  # 학생설계전공
     )
+
     major_name = models.CharField(max_length=50, db_index=True)
     major_type = models.CharField(max_length=100, choices=MAJOR_TYPE)
 
