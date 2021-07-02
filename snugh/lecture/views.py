@@ -351,6 +351,52 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
 
+    # PUT /lecture/{lecture_id}/recognized_major/
+    @action(methods=['PUT'], detail=True)
+    def recognized_major(self, request, pk=None):
+        lecture = self.get_object() 
+        lecture_type = request.data.get('lecture_type', None) 
+        # Case 1: lecture_type를 교양으로 변경
+        if lecture_type == 'general':
+            data = {
+                "lecture_type": lecture_type
+            }
+            serializer = self.get_serializer(lecture, data=data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.update(lecture, serializer.validated_data)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # Case 2: 학과별 강의 구분을 recognized_major1,2와 lecture_type1,2를 이용해 입력  
+        elif lecture_type == 'major_requirement' or lecture_type == 'major_elective':
+            recognized_major1 = Major.objects.get(major_name=request.data.get('recognized_major_name1', None), major_type=request.data.get('recognized_major_type1', None))
+            recognized_major2 = Major.objects.get(major_name=request.data.get('recognized_major_name2', None), major_type=request.data.get('recognized_major_type2', None))
+            lecture_type1 = request.data.get('lecture_type1', None) 
+            lecture_type2 = request.data.get('lecture_type2', None) 
+            data = {
+                "lecture_type": lecture_type, 
+                "recognized_major1": recognized_major1.id,
+                "recognized_major2": recognized_major2.id,
+                "lecture_type1": lecture_type1, 
+                "lecture_type2": lecture_type2 ,
+            }
+            serializer = self.get_serializer(lecture, data=data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.update(lecture, serializer.validated_data)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # Case 3: lecture_type를 general_elective로 변경 
+        elif lecture_type == 'general_elective':
+            data = {
+                "lecture_type": lecture_type
+            }
+            serializer = self.get_serializer(lecture, data=data, partial=True) 
+            serializer.is_valid(raise_exception=True)
+            serializer.update(lecture, serializer.validated_data)
+            return Response(serializer.data, status=status.HTTP_200_OK) 
+
+        else:
+            return Response({"error": "wrong lecture_type"}, status=status.HTTP_400_BAD_REQUEST)
+
     # DEL /lecture/(int)
     @transaction.atomic
     def destroy(self, request, pk=None):
@@ -364,163 +410,38 @@ class LectureViewSet(viewsets.GenericViewSet):
         semesterlecture.delete()
         return Response(status=status.HTTP_200_OK) 
 
-    # GET /lecture/?plan_id=(int)&lecture_type=(string)&search_keyword=(string)&year=(int)&semester=(string)
-    @transaction.atomic
-    def list(self, request):
-        lecture_type = request.query_params.get("lecture_type", None)
-        year = request.query_params.get("year", None)
-        plan_id = request.query_params.get("plan_id", None)
-
-        user = request.user
-        user_entrance_year = user.userprofile.year
-
-        # user_id = request.query_params.get("user_id", None)
-        # user = get_object_or_404(User, id=user_id)
-        # user_entrance_year = user.userprofile.year
-
-        plan = get_object_or_404(Plan, pk=plan_id)
-        majors = Major.objects.filter(planmajor__plan=plan)
-
-        already_in_semester_id = Lecture.objects.filter(semesterlecture__semester__plan= plan).values('id')
-
-        if(int(year)<user_entrance_year):
-            return Response({"error": "year must be larger than your entrance_year"}, status=status.HTTP_400_BAD_REQUEST)
-
-        if lecture_type == MajorLecture.MAJOR_REQUIREMENT or lecture_type == MajorLecture.MAJOR_ELECTIVE:
-            body = []
-            for major in majors:
-                majorLectures = MajorLecture.objects.filter(
-                    major=major,
-                    start_year__lte=min(int(year), user_entrance_year),
-                    end_year__gte=max(int(year), user_entrance_year),
-                    lecture_type=lecture_type
-                )
-
+    # GET /lecture/?search_type=(string)&search_keyword=(string)&major=(string)&credit=(string)
+    def list(self, request): 
+        search_type = request.query_params.get("search_type", None)
+        # Case 1: major requirement or major elective
+        if search_type == 'major_requirement' or search_type == 'major_elective':
+            major = request.query_params.get("major", None)
+            if major: 
+                majorLectures = MajorLecture.objects.filter(major=major, lecture_type=search_type)
                 lectures = Lecture.objects.filter(majorlecture__in=majorLectures)
-
-                lectures = lectures.exclude(id__in = already_in_semester_id)
-                # lectures = set()
-                # for majorLecture in majorLectures:
-                #     lecture = majorLecture.lecture
-                #     lectures.add(lecture)
-
-                ls = []
-                for lecture in lectures:
-                    data = LectureSerializer(lecture).data
-                    data['recognized_major_id'] = major.id
-                    data['lecture_type'] = lecture_type
-                    ls.append(data)
-
-                # 자기 학번보다 후에 전선/전필 과목이 새롭게 개설되었을 경우
-                if lecture_type == MajorLecture.MAJOR_ELECTIVE:
-                    futureLectures = MajorLecture.objects.filter(
-                        Q(major=major)&
-                        Q(start_year__lte=int(year)) &
-                        Q(start_year__gt=user_entrance_year) &
-                        Q(end_year__gte=max(int(year), user_entrance_year)) &
-                        (Q(lecture_type=MajorLecture.MAJOR_ELECTIVE) | Q(lecture_type = MajorLecture.MAJOR_REQUIREMENT))
-                    )
-
-                    lectures_future = Lecture.objects.filter(majorlecture__in=futureLectures)
-                    lectures_future = lectures_future.exclude(id__in = already_in_semester_id)
-
-                    for lecture in lectures_future:
-                        # 이 부분이 제대로 필터링을 하는지 테스트해보지 못함(의미없는듯)
-                        if lecture not in list(lectures):
-                            data = LectureSerializer(lecture).data
-                            data['recognized_major_id'] = major.id
-                            data['lecture_type'] = lecture_type
-                            ls.append(data)
-
-
-                majorLectureList = {
-                    "major_name": major.major_name,
-                    "lectures": ls,
-                }
-                body.append(majorLectureList)
-            return Response(body, status=status.HTTP_200_OK)
-        elif lecture_type == MajorLecture.GENERAL:
-            body = []
-            ls = []
-            general_lectures = MajorLecture.objects.filter(
-                lecture_type=lecture_type,
-                start_year__lte=int(year),
-                end_year__gte=int(year)
-            )
-            lectures = Lecture.objects.filter(majorlecture__in=general_lectures)
-
-            lectures = lectures.exclude(id__in=already_in_semester_id)
-
-            for lecture in lectures:
-                data = LectureSerializer(lecture).data
-                data['recognized_major_id'] = Major.objects.get(major_name='none').id
-                data['lecture_type'] = lecture_type
-                ls.append(data)
-
-            majorLectureList = {
-                "major_name": "",
-                "lectures": ls,
-            }
-            body.append(majorLectureList)
-
-            return Response(body, status=status.HTTP_200_OK)
+                serializer = LectureSerializer(lectures, many=True) 
+                return Response(serializer.data, status = status.HTTP_200_OK)
+            else: 
+                return Response({"error": "major missing"}, status=status.HTTP_400_BAD_REQUEST)
+        # Case 2: general
+        elif search_type == 'general': 
+            credit = request.query_params.get("credit", None)
+            search_keyword = request.query_params.get("search_keyword", None)
+            if credit and search_keyword:
+                lectures = Lecture.objects.filter(credit=credit, lecture_name__icontains=search_keyword) 
+                serializer = LectureSerializer(lectures, many=True)
+                return Response(serializer.data, status = status.HTTP_200_OK)
+            else:
+                return Response({"error": "credit or search keyword missing"}, status=status.HTTP_400_BAD_REQUEST) 
+        # Case 3: keyword 
         else:
             search_keyword = request.query_params.get("search_keyword", None)
             if search_keyword:  # 만약 검색어가 존재하면
                 lectures = Lecture.objects.filter(lecture_name__icontains=search_keyword)  # 해당 검색어를 포함한 queryset 가져오기
-                lectures = lectures.exclude(id__in=already_in_semester_id)
-                body = []
-                ls = []
-                for lecture in lectures:  # 각각의 검색결과(강의)에 대해 구분 찾아주기
-                    data = LectureSerializer(lecture).data
-                    majorlectures = MajorLecture.objects.filter(
-                        lecture=lecture,
-                        start_year__lte=int(year),
-                        end_year__gte=max(int(year), user_entrance_year)
-                    )
-                    if(majorlectures.exists()): # 사용자에게 해당하는 강의 정보라면
-                        data = LectureSerializer(lecture).data
-                        curr_lecture = majorlectures.filter(
-                            start_year__lte = user_entrance_year
-                        )
-                        if(curr_lecture.exists()): # 사용자 학번에 해당하는 강의면
-                            pivot_lecture = curr_lecture.filter(major__in=majors).order_by('-lecture_type').first() # 전필 우선
-                            if pivot_lecture is not None: # 사용자의 전공에서 인정되는 강의라면
-                                data['recognized_major_id'] = pivot_lecture.major.id
-                                data['lecture_type'] = pivot_lecture.lecture_type
-                            elif (curr_lecture.first().lecture_type == MajorLecture.GENERAL or curr_lecture.first().lecture_type ==MajorLecture.TEACHING):
-                                data['recognized_major_id'] = Major.objects.get(major_name = 'none').id
-                                data['lecture_type'] = curr_lecture.first().lecture_type
-                            else:
-                                data['recognized_major_id'] = Major.objects.get(major_name='none').id
-                                data['lecture_type'] = MajorLecture.GENERAL_ELECTIVE
-                            ls.append(data)
-                        else: # 사용자 학번보다 이후에 개설된 강의라면
-                            future_lecture = majorlectures.filter(major__in=majors).first()
-                            if future_lecture is not None and future_lecture.lecture_type != MajorLecture.MAJOR_REQUIREMENT:
-                                data['recognized_major_id'] = future_lecture.major.id
-                                data['lecture_type'] = future_lecture.lecture_type
-                            elif future_lecture is not None and future_lecture.lecture_type == MajorLecture.MAJOR_REQUIREMENT: # 전필강의면 전선으로
-                                data['recognized_major_id'] = future_lecture.major.id
-                                data['lecture_type'] = MajorLecture.MAJOR_ELECTIVE
-                            elif future_lecture is None and (majorlectures.first().lecture_type == MajorLecture.GENERAL or majorlectures.first().lecture_type == MajorLecture.TEACHING):
-                                data['recognized_major_id'] = Major.objects.get(major_name = 'none').id
-                                data['lecture_type'] = majorlectures.first().lecture_type
-                            else:
-                                data['recognized_major_id'] = Major.objects.get(major_name = 'none').id
-                                data['lecture_type'] = MajorLecture.GENERAL_ELECTIVE
-                            ls.append(data)
-                sorted_ls = sorted(ls, key=lambda data: lecture_type_to_int(data['lecture_type']))
-                majorLectureList = {
-                    "major_name": "",
-                    "lectures": sorted_ls,
-                }
-                body.append(majorLectureList)
-
-                return Response(body, status = status.HTTP_200_OK)
+                serializer = LectureSerializer(lectures, many=True)
+                return Response(serializer.data, status = status.HTTP_200_OK)
             else:
-                return Response({"error": "search_keyword missing"}, status=status.HTTP_400_BAD_REQUEST)
-
+                return Response({"error": "search keyword missing"}, status=status.HTTP_400_BAD_REQUEST)
 
 # 공용 함수 모음 #
 def update_plan_info(plan):
