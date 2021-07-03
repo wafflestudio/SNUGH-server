@@ -37,6 +37,8 @@ class PlanViewSet(viewsets.GenericViewSet):
             return Response({"error": "major not_exist"}, status=status.HTTP_404_NOT_FOUND)
 
         plan = Plan.objects.create(user=user, plan_name=plan_name)
+
+        # planmajor
         if len(majors) == 1 and majors[0]['major_type'] == Major.MAJOR:
             searched_major = Major.objects.get(major_name=majors[0]['major_name'], major_type=Major.SINGLE_MAJOR)
             PlanMajor.objects.create(plan=plan, major=searched_major)
@@ -44,6 +46,13 @@ class PlanViewSet(viewsets.GenericViewSet):
             for major in majors:
                 searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
                 PlanMajor.objects.create(plan=plan, major=searched_major)
+
+        # planrequirement
+        for major in majors:
+            curr_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
+            requirements = Requirement.objects.filter(major= curr_major)
+            for requirement in requirements:
+                PlanRequirement.objects.create(plan=plan, requirement=requirement)
 
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -126,6 +135,7 @@ class PlanViewSet(viewsets.GenericViewSet):
         if self.request.method == 'GET':
             planmajor = PlanMajor.objects.filter(plan=plan)
 
+        # PUT /plan/major/
         elif self.request.method == 'PUT':
             post_list = request.data.get("post_list", None)
             delete_list = request.data.get("delete_list", None)
@@ -136,6 +146,7 @@ class PlanViewSet(viewsets.GenericViewSet):
             if delete_list is None:
                 return Response({"error": "delete_list missing"}, status=status.HTTP_400_BAD_REQUEST)
 
+            # planmajor
             for major in delete_list:
                 major_name = major['major_name']
                 major_type = major['major_type']
@@ -148,6 +159,21 @@ class PlanViewSet(viewsets.GenericViewSet):
                 major_type = major['major_type']
                 selected_major = Major.objects.get(major_name=major_name, major_type=major_type)
                 PlanMajor.objects.create(plan=plan, major=selected_major)
+
+            # planrequirement
+            for major in post_list:
+                curr_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
+                requirements = Requirement.objects.filter(major=curr_major)
+                for requirement in requirements:
+                    PlanRequirement.objects.create(plan=plan, requirement=requirement)
+
+            for major in delete_list:
+                curr_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
+                requirements = Requirement.objects.filter(major=curr_major)
+                for requirement in requirements:
+                    selected_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=requirement)
+                    selected_planrequirement.delete()
+
 
             update_plan_info(plan)
 
@@ -447,7 +473,7 @@ class LectureViewSet(viewsets.GenericViewSet):
 def update_plan_info(plan):
     # SemesterLecture 모델의 lecture_type 관련 값 업데이트
     majors = Major.objects.filter(planmajor__plan=plan)
-    entrance_year = plan.user.userprofile.year
+    entrance_year = plan.user.userprofile.entrance_year
     semester_lectures = SemesterLecture.objects.filter(semester__plan=plan)
     for semester_lecture in list(semester_lectures):
         lecture = semester_lecture.lecture

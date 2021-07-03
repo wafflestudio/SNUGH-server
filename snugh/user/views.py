@@ -51,9 +51,9 @@ class UserViewSet(viewsets.GenericViewSet):
         password = body.get('password')
         if not password:
             errorls.append('password')
-        year = body.get('year')
-        if not year:
-            errorls.append('year')
+        entrance_year = body.get('entrance_year')
+        if not entrance_year:
+            errorls.append('entrance_year')
         full_name = body.get('full_name')
         if not full_name:
             errorls.append('full_name')
@@ -74,9 +74,9 @@ class UserViewSet(viewsets.GenericViewSet):
             return Response({"error": text}, status=status.HTTP_400_BAD_REQUEST)
 
         # err response 2
-        ls1 = [email, password, year, full_name, student_status]
+        ls1 = [email, password, entrance_year, full_name, student_status]
         ls2 = ["str", "str", "int", "str", "str"]
-        ls3 = ["email", "password", "year", "full_name", "status"]
+        ls3 = ["email", "password", "entrance_year", "full_name", "status"]
         errorls = []
         for i in range(0, len(ls1)):
             if ls2[i] == "str":
@@ -98,8 +98,8 @@ class UserViewSet(viewsets.GenericViewSet):
             return Response({"error":"email wrong_format"}, status=status.HTTP_400_BAD_REQUEST)
         if len(password) < 6:
             return Response({"error": "password wrong_range(more than 6 letters)"}, status=status.HTTP_400_BAD_REQUEST)
-        if year < 1000 or year > 9999:
-            return Response({"error": "year wrong_range(4 digits)"}, status=status.HTTP_400_BAD_REQUEST)
+        if entrance_year < 1000 or entrance_year > 9999:
+            return Response({"error": "entrance_year wrong_range(4 digits)"}, status=status.HTTP_400_BAD_REQUEST)
         if len(full_name) < 2 or len(full_name) > 30:
             return Response({"error": "full_name wrong_range(2~30 letters)"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -112,7 +112,7 @@ class UserViewSet(viewsets.GenericViewSet):
 
         # create user
         user = User.objects.create_user(username=email, email=email, password=password, first_name=full_name)
-        UserProfile.objects.create(user=user, year=year, status=student_status)
+        UserProfile.objects.create(user=user, entrance_year=entrance_year, status=student_status)
 
         # register majors
         if len(major_list) == 1:
@@ -216,8 +216,8 @@ class UserViewSet(viewsets.GenericViewSet):
 
         # edit user
         data = request.data
-        if "year" in data:
-            userprofile.year = data.get("year")
+        if "entrance_year" in data:
+            userprofile.entrance_year = data.get("entrance_year")
         if "status" in data:
             userprofile.status = data.get("status")
         if "full_name" in data:
