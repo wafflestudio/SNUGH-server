@@ -112,22 +112,16 @@ class PlanViewSet(viewsets.GenericViewSet):
         return Response(self.get_serializer(plans, many=True).data, status=status.HTTP_200_OK)
 
     # 강의구분 자동계산
-    # PUT /plan/calculate/
-    @action(detail=False, methods=['PUT'])
-    def calculate(self, request):
+    # PUT /plan/(int)/calculate/
+    @action(detail=True, methods=['PUT'])
+    def calculate(self, request, pk=None):
         user = request.user
 
         # err response
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
-        # err response
-        if not bool(plan_id):
-            return Response({"error": "plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)
-        if Plan.objects.filter(id=plan_id).exists():
-            plan = Plan.objects.get(id=plan_id)
-        else:
-            return Response({"error": "plan not_exist"}, status=status.HTTP_404_NOT_FOUND)
+        plan = Plan.objects.get(pk=pk)
 
         semesters = Semester.objects.filter(plan=plan)
         semesterlectures =SemesterLecture.objects.filter(semester__in=semesters)
