@@ -127,7 +127,7 @@ class PlanViewSet(viewsets.GenericViewSet):
 
         semesters = Semester.objects.filter(plan=plan)
         semesterlectures =SemesterLecture.objects.filter(semester__in=semesters)
-        majors = PlanMajor.objects.filter(plan=plan)
+        majors = Major.objects.filter(planmajor__plan=plan)
 
         for semesterlecture in semesterlectures:
             # calculate lecture_type for each semesterlecture
@@ -136,8 +136,8 @@ class PlanViewSet(viewsets.GenericViewSet):
                 lecture = semesterlecture.lecture
                 # 전필, 전선, 교직, 일선 -> 교양 인 경우는 처리하지 못함!
                 candidate_majorlectures = MajorLecture.objects.filter(lecture=lecture, major__in=majors,
-                                                                      start_year__lte=user.entrance_year,
-                                                                      end_year__gt=user.entrance_year).exclude(
+                                                                      start_year__lte=user.userprofile.entrance_year,
+                                                                      end_year__gt=user.userprofile.entrance_year).exclude(
                     lecture_type=MajorLecture.GENERAL).exclude(lecture_type = MajorLecture.GENERAL_ELECTIVE)
                 # lecture_type = general or general_elective & not opened by majors
                 if candidate_majorlectures.count() == 0:
@@ -148,9 +148,9 @@ class PlanViewSet(viewsets.GenericViewSet):
                         # lecture_type 변경
                         semesterlecture.lecture_type = SemesterLecture.GENERAL_ELECTIVE
                         semesterlecture.lecture_type1 = SemesterLecture.GENERAL_ELECTIVE
-                        semesterlecture.recognized_major1 = SemesterLecture.NONE
+                        semesterlecture.recognized_major1 = Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID)
                         semesterlecture.lecture_type2 = SemesterLecture.NONE
-                        semesterlecture.recognized_major2 = SemesterLecture.DEFAULT_MAJOR_ID
+                        semesterlecture.recognized_major2 = Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID)
                         semesterlecture.save()
                         # semester credit 변경
                         semester.general_elective_credit += lecture.credit
@@ -194,7 +194,7 @@ class PlanViewSet(viewsets.GenericViewSet):
                     semesterlecture.lecture_type1 = majorlecture.lecture_type
                     semesterlecture.recognized_major1 = majorlecture.major
                     semesterlecture.lecture_type2 = SemesterLecture.NONE
-                    semesterlecture.recognized_major2 = SemesterLecture.DEFAULT_MAJOR_ID
+                    semesterlecture.recognized_major2 = Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID)
                     semesterlecture.save()
 
                     # semester credit 변경
