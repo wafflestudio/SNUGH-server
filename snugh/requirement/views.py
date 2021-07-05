@@ -1,6 +1,5 @@
 from rest_framework import status, viewsets, filters
 from rest_framework.response import Response
-from rest_framework.decorators import action
 from requirement.models import Requirement, PlanRequirement
 from requirement.serializers import RequirementSerializer, ProgressSerializer
 from user.models import Major

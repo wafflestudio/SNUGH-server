@@ -302,79 +302,80 @@ class PlanViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # GET/PUT /plan/major/
-    @action(detail=False, methods=['GET', 'PUT'])
+    # PUT /plan/{plan_id}/major/
+    @action(detail=True, methods=['PUT'])
     @transaction.atomic
-    def major(self, request):
+    def major(self, request, pk=None):
         user = request.user
-
-        # err response
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
-        plan_id = request.query_params.get("plan_id")
+        plan = get_object_or_404(Plan, pk=pk)
+        post_list = request.data.get("post_list", [])
+        delete_list = request.data.get("delete_list", [])
 
-        # err response
-        if not bool(plan_id):
-            return Response({"error": "plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)
-        if Plan.objects.filter(id=plan_id).exists():
-            plan = Plan.objects.get(id=plan_id)
-        else:
-            return Response({"error": "plan not_exist"}, status=status.HTTP_404_NOT_FOUND)
+        # update planmajor
+        for major in delete_list:
+            selected_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
+            selected_planmajor = PlanMajor.objects.get(plan=plan, major=selected_major)
+            selected_planmajor.delete()
 
-        # GET /plan/major/
-        if self.request.method == 'GET':
-            planmajor = PlanMajor.objects.filter(plan=plan)
+        for major in post_list:
+            selected_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
+            PlanMajor.objects.create(plan=plan, major=selected_major)
 
-        # PUT /plan/major/
-        elif self.request.method == 'PUT':
-            post_list = request.data.get("post_list", None)
-            delete_list = request.data.get("delete_list", None)
+        # update planrequirement
+        for major in post_list:
+            curr_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
+            requirements = Requirement.objects.filter(major=curr_major)
+            for requirement in requirements:
+                PlanRequirement.objects.create(plan=plan, requirement=requirement)
 
-            # err response
-            if post_list is None:
-                return Response({"error": "post_list missing"}, status=status.HTTP_400_BAD_REQUEST)
-            if delete_list is None:
-                return Response({"error": "delete_list missing"}, status=status.HTTP_400_BAD_REQUEST)
+        for major in delete_list:
+            curr_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
+            requirements = Requirement.objects.filter(major=curr_major)
+            for requirement in requirements:
+                selected_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=requirement)
+                selected_planrequirement.delete()
 
-            # planmajor
-            for major in delete_list:
-                major_name = major['major_name']
-                major_type = major['major_type']
-                selected_major = Major.objects.get(major_name=major_name, major_type=major_type)
-                selected_planmajor = PlanMajor.objects.get(plan=plan, major=selected_major)
-                selected_planmajor.delete()
+        self.calculate(request, pk)
 
-            for major in post_list:
-                major_name = major['major_name']
-                major_type = major['major_type']
-                selected_major = Major.objects.get(major_name=major_name, major_type=major_type)
-                PlanMajor.objects.create(plan=plan, major=selected_major)
+        return Response(status=status.HTTP_200_OK)
 
-            # planrequirement
-            for major in post_list:
-                curr_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-                requirements = Requirement.objects.filter(major=curr_major)
-                for requirement in requirements:
-                    PlanRequirement.objects.create(plan=plan, requirement=requirement)
+    # PUT /plan/{plan_id}/copy/
+    @action(detail=True, methods=['POST'])
+    @transaction.atomic
+    def copy(self, request, pk=None):
+        plan = get_object_or_404(Plan, pk=pk)
+        new_plan = Plan.objects.create(user=plan.user,
+                                       plan_name=plan.plan_name+'(복사본)',
+                                       recent_scroll=0)
 
-            for major in delete_list:
-                curr_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-                requirements = Requirement.objects.filter(major=curr_major)
-                for requirement in requirements:
-                    selected_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=requirement)
-                    selected_planrequirement.delete()
+        semesters = Semester.objects.filter(plan=plan)
+        for semester in semesters:
+            new_semester = Semester.objects.create(plan=new_plan,
+                                                   year=semester.year,
+                                                   semester_type=semester.semester_type,
+                                                   is_complete=semester.is_complete,
+                                                   major_requirement_credit=semester.major_requirement_credit,
+                                                   major_elective_credit=semester.major_elective_credit,
+                                                   general_credit=semester.general_credit,
+                                                   general_elective_credit=semester.general_elective_credit)
 
+            semesterlectures = SemesterLecture.objects.filter(semester=semester)
+            for sl in semesterlectures:
+                SemesterLecture.objects.create(semester=new_semester,
+                                               lecture=sl.lecture,
+                                               lecture_type=sl.lecture_type,
+                                               recognized_major1=sl.recognized_major1,
+                                               lecture_type1=sl.lecture_type1,
+                                               recognized_major2=sl.recognized_major2,
+                                               lecture_type2=sl.lecture_type2,
+                                               recent_sequence=sl.recent_sequence,
+                                               is_modified=sl.is_modified)
 
-            update_plan_info(plan)
-
-        # main response
-        body = self.get_serializer(plan).data
-
-        if self.request.method == 'POST':
-            return Response(body, status=status.HTTP_201_CREATED)
-        else:
-            return Response(body, status=status.HTTP_200_OK)
+        serializer = self.get_serializer(new_plan)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class SemesterViewSet(viewsets.GenericViewSet):
