@@ -1,5 +1,6 @@
 from rest_framework import status, viewsets, filters
 from rest_framework.response import Response
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from requirement.models import Requirement, PlanRequirement
 from requirement.serializers import RequirementSerializer, ProgressSerializer
@@ -12,6 +13,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
     serializer_class = RequirementSerializer
 
     # GET /requirement/
+    @transaction.atomic
     def list(self, request):
         user = request.user
         if not user.is_authenticated:
@@ -151,6 +153,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
         return Response(data, status=status.HTTP_200_OK)
 
     # PUT /requirement/
+    @transaction.atomic
     def put(self, request):
         user = request.user
         if not user.is_authenticated:

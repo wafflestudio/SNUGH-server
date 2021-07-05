@@ -116,6 +116,7 @@ class PlanViewSet(viewsets.GenericViewSet):
     # 강의구분 자동계산
     # PUT /plan/(int)/calculate/
     @action(detail=True, methods=['PUT'])
+    @transaction.atomic
     def calculate(self, request, pk=None):
         user = request.user
 
@@ -354,7 +355,7 @@ class PlanViewSet(viewsets.GenericViewSet):
         majors = Major.objects.filter(planmajor__plan=plan)
         for major in list(majors):
             PlanMajor.objects.create(plan=new_plan, major=major)
-            
+
         requirements = Requirement.objects.filter(planrequirement__plan=plan)
         for requirement in list(requirements):
             PlanRequirement.objects.create(plan=new_plan, requirement=requirement)
@@ -533,8 +534,8 @@ class LectureViewSet(viewsets.GenericViewSet):
         return Response(data, status=status.HTTP_201_CREATED)
     
     # PUT /lecture/(int)/position/
-    @transaction.atomic
     @action(methods=['PUT'], detail=True)
+    @transaction.atomic
     def position(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
@@ -582,6 +583,7 @@ class LectureViewSet(viewsets.GenericViewSet):
 
     # PUT /lecture/{semesterlecture_id}/recognized_major/
     @action(methods=['PUT'], detail=True)
+    @transaction.atomic
     def recognized_major(self, request, pk=None):
         semesterlecture = self.get_object()
         lecture_type = request.data.get('lecture_type', None)
@@ -670,6 +672,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         return Response(status=status.HTTP_200_OK) 
 
     # GET /lecture/?search_type=(string)&search_keyword=(string)&major=(string)&credit=(string)
+    @transaction.atomic
     def list(self, request):
         user = request.user
         search_type = request.query_params.get("search_type", None)
