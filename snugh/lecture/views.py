@@ -328,13 +328,13 @@ class PlanViewSet(viewsets.GenericViewSet):
         for major in post_list:
             curr_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
             requirements = Requirement.objects.filter(major=curr_major)
-            for requirement in requirements:
+            for requirement in list(requirements):
                 PlanRequirement.objects.create(plan=plan, requirement=requirement)
 
         for major in delete_list:
             curr_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
             requirements = Requirement.objects.filter(major=curr_major)
-            for requirement in requirements:
+            for requirement in list(requirements):
                 selected_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=requirement)
                 selected_planrequirement.delete()
 
@@ -352,7 +352,7 @@ class PlanViewSet(viewsets.GenericViewSet):
                                        recent_scroll=0)
 
         semesters = Semester.objects.filter(plan=plan)
-        for semester in semesters:
+        for semester in list(semesters):
             new_semester = Semester.objects.create(plan=new_plan,
                                                    year=semester.year,
                                                    semester_type=semester.semester_type,
@@ -363,7 +363,7 @@ class PlanViewSet(viewsets.GenericViewSet):
                                                    general_elective_credit=semester.general_elective_credit)
 
             semesterlectures = SemesterLecture.objects.filter(semester=semester)
-            for sl in semesterlectures:
+            for sl in list(semesterlectures):
                 SemesterLecture.objects.create(semester=new_semester,
                                                lecture=sl.lecture,
                                                lecture_type=sl.lecture_type,
