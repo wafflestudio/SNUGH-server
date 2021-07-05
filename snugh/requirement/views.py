@@ -1,6 +1,6 @@
 from rest_framework import status, viewsets, filters
 from rest_framework.response import Response
-from rest_framework.decorators import action
+from django.shortcuts import get_object_or_404
 from requirement.models import Requirement, PlanRequirement
 from requirement.serializers import RequirementSerializer, ProgressSerializer
 from user.models import Major
@@ -18,51 +18,127 @@ class RequirementViewSet(viewsets.GenericViewSet):
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
         plan_id = request.query_params.get('plan_id', None)
-        search_type = request.query_params.get('search_type', None)
-
         if plan_id is None:
             return Response({"error": "plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)
-        if search_type is None:
-            return Response({"error": "search_type missing"}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            plan = Plan.objects.get(pk=plan_id)
-        except Plan.DoesNotExist:
-            return Response({"error": "plan_id not_exist"}, status=status.HTTP_404_NOT_FOUND)
-
+        plan = get_object_or_404(Plan, pk=plan_id)
         majors = Major.objects.filter(planmajor__plan=plan)
 
-        result_list = []
-        if search_type == "all":
-            for major in list(majors):
-                plan_requirements = PlanRequirement.objects.filter(plan=plan, requirement__major=major)
-                serializer = self.get_serializer(plan_requirements, many=True)
-                requirements = serializer.data
-                result_list.append({"major_name": major.major_name,
-                                    "major_type": major.major_type,
-                                    "requirements": requirements})
-        elif search_type == "credit":
-            for major in list(majors):
-                plan_requirements = PlanRequirement.objects.filter(plan=plan, requirement__major=major,
-                                                                   requirement__is_credit_requirement=True)
-                serializer = self.get_serializer(plan_requirements, many=True)
-                requirements = serializer.data
-                result_list.append({"major_name": major.major_name,
-                                    "major_type": major.major_type,
-                                    "requirements": requirements})
-        elif search_type == "etc":
-            for major in list(majors):
-                plan_requirements = PlanRequirement.objects.filter(plan=plan, requirement__major=major,
-                                                                   requirement__is_credit_requirement=False)
-                serializer = self.get_serializer(plan_requirements, many=True)
-                requirements = serializer.data
-                result_list.append({"major_name": major.major_name,
-                                    "major_type": major.major_type,
-                                    "requirements": requirements})
-        else:
-            return Response({"error": "search_type not_allowed"}, status=status.HTTP_400_BAD_REQUEST)
+        # calculate all progress
+        major = {"required_credit": 0,
+                 "earned_credit": 0,
+                 "progress": 0}
 
-        data = {"majors": result_list}
+        general = {"required_credit": 0,
+                   "earned_credit": 0,
+                   "progress": 0}
+
+        general_elective = {"required_credit": 0,
+                            "earned_credit": 0,
+                            "progress": 0}
+
+        all_requirement = {"required_credit": 0,
+                           "earned_credit": 0,
+                           "progress": 0}
+
+        for major in list(majors):
+            # major_requirement
+            mr_pr = PlanRequirement.objects.get(plan=plan,
+                                                requirement__major=major,
+                                                requirement__requirement_type=Requirement.MAJOR_REQUIREMENT)
+            mr_rc = mr_pr.requirement.required_credit
+            mr_ec = mr_pr.earned_credit
+            major["required_credit"] += mr_rc
+            major["earned_credit"] += mr_ec
+            all_requirement ["required_credit"] += mr_rc
+            all_requirement ["earned_credit"] += mr_ec
+
+            # major_elective
+            me_pr = PlanRequirement.objects.get(plan=plan,
+                                                requirement__major=major,
+                                                requirement__requirement_type=Requirement.MAJOR_ELECTIVE)
+            me_rc = me_pr.requirement.required_credit
+            me_ec = me_pr.earned_credit
+            major["required_credit"] += me_rc
+            major["earned_credit"] += me_ec
+            all_requirement["required_credit"] += me_rc
+            all_requirement["earned_credit"] += me_ec
+
+            # teaching
+            t_pr = PlanRequirement.objects.get(plan=plan,
+                                               requirement__major=major,
+                                               requirement__requirement_type=Requirement.TEACHING)
+            t_rc = t_pr.requirement.required_credit
+            t_ec = t_pr.earned_credit
+            major["required_credit"] += t_rc
+            major["earned_credit"] += t_ec
+            all_requirement["required_credit"] += t_rc
+            all_requirement["earned_credit"] += t_ec
+
+            # general
+            g_pr = PlanRequirement.objects.get(plan=plan,
+                                               requirement__major=major,
+                                               requirement__requirement_type=Requirement.GENERAL)
+            g_rc = g_pr.requirement.required_credit
+            g_ec = g_pr.earned_credit
+            general["required_credit"] += g_rc
+            general["earned_credit"] += g_ec
+            all_requirement["required_credit"] += g_rc
+            all_requirement["earned_credit"] += g_ec
+
+            # general_elective
+            ge_pr = PlanRequirement.objects.get(plan=plan,
+                                                requirement__major=major,
+                                                requirement__requirement_type=Requirement.GENERAL_ELECTIVE)
+            ge_rc = ge_pr.requirement.required_credit
+            ge_ec = ge_pr.earned_credit
+            general_elective["required_credit"] += ge_rc
+            general_elective["earned_credit"] += ge_ec
+            all_requirement["required_credit"] += ge_rc
+            all_requirement["earned_credit"] += ge_ec
+
+        major["progress"] = round(major["earned_credit"] / major["required_credit"], 2)
+        general["progress"] = round(general["earned_credit"] / general["required_credit"], 2)
+        general_elective["progress"] = round(general_elective["earned_credit"] / general_elective["required_credit"], 2)
+        all_requirement["progress"] = round(all_requirement["earned_credit"] / all_requirement["required_credit"], 2)
+
+        all_progress = {"major": major,
+                        "general": general,
+                        "general_elective": general_elective,
+                        "all": all_requirement}
+
+        # calculate major progress
+        major_progress = []
+        for major in list(majors):
+            mr_pr = PlanRequirement.objects.get(plan=plan,
+                                                requirement__major=major,
+                                                requirement__requirement_type=Requirement.MAJOR_REQUIREMENT)
+            mr_rc = mr_pr.requirement.required_credit
+            mr_ec = mr_pr.earned_credit
+            major_requirement_credit = {"required_credit": mr_rc,
+                                        "earned_credit": mr_ec,
+                                        "progress": round(mr_ec/mr_rc, 2)}
+
+            me_pr = PlanRequirement.objects.get(plan=plan,
+                                                requirement__major=major,
+                                                requirement__requirement_type=Requirement.MAJOR_ELECTIVE)
+            me_rc = me_pr.requirement.required_credit
+            me_ec = me_pr.earned_credit
+            major_elective_credit = {"required_credit": me_rc,
+                                     "earned_credit": me_ec,
+                                     "progress": round(me_ec/me_rc, 2)}
+
+            major_progress.append({"major_id": major.id,
+                                   "major_name": major.major_name,
+                                   "major_type": major.major_type,
+                                   "major_requirement_credit": major_requirement_credit,
+                                   "major_elective_credit": major_elective_credit})
+
+        # calculate general progress
+        general_progress = general
+
+        data = {"all_progress": all_progress,
+                "major_progress": major_progress,
+                "general_progress": general_progress}
         return Response(data, status=status.HTTP_200_OK)
 
     # PUT /requirement/
