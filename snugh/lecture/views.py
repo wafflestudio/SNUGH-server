@@ -50,7 +50,9 @@ class PlanViewSet(viewsets.GenericViewSet):
         # planrequirement
         for major in majors:
             curr_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-            requirements = Requirement.objects.filter(major= curr_major)
+            requirements = Requirement.objects.filter(major=curr_major,
+                                                      start_year__lte=user.userprofile.entrance_year,
+                                                      end_year__gte=user.userprofile.entrance_year)
             for requirement in requirements:
                 PlanRequirement.objects.create(plan=plan, requirement=requirement)
 
@@ -208,7 +210,7 @@ class SemesterViewSet(viewsets.GenericViewSet):
             return Response({"error": "year missing"}, status=status.HTTP_400_BAD_REQUEST)
         if semester_type is None:
             return Response({"error": "semester_type missing"}, status=status.HTTP_400_BAD_REQUEST)
-        if Semester.objects.filter(plan=plan, year=year, semester_type=semester_type, is_complete=is_complete).exists():
+        if Semester.objects.filter(plan=plan, year=year, semester_type=semester_type).exists():
             return Response({"error": "semester already_exist"}, status=status.HTTP_403_FORBIDDEN)
         
         data = request.data.copy()
@@ -224,7 +226,23 @@ class SemesterViewSet(viewsets.GenericViewSet):
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
         semester = self.get_object()
-        data = request.data.copy() 
+        data = request.data.copy()
+
+        plan = semester.plan
+        year = data.get('year', None)
+        semester_type = data.get('semester_type', None)
+        is_complete = data.get('is_complete', None)
+
+        if (is_complete is None) and (year is None) and (semester_type is None):
+            return Response({"error": "body is empty"}, status=status.HTTP_403_FORBIDDEN)
+
+        if (is_complete is None) == ((year is None) and (semester_type is None)):
+            return Response({"error": "is_complete should be none"}, status=status.HTTP_403_FORBIDDEN)
+
+        if is_complete is None:
+            if Semester.objects.filter(plan=plan, year=year, semester_type=semester_type).exists():
+                return Response({"error": "semester already_exist"}, status=status.HTTP_403_FORBIDDEN)
+
         serializer = self.get_serializer(semester, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.update(semester, serializer.validated_data)
@@ -258,42 +276,52 @@ class LectureViewSet(viewsets.GenericViewSet):
     queryset = SemesterLecture.objects.all()
     serializer_class = SemesterLectureSerializer
 
-    # POST /lecture
-    # 에러 처리: 이미 있는 lecture 추가시 IntegrityError 500 -> BadRequest
-    # 에러 처리: 똑같은 Lecture가 body에 두번 있으면 -> for문 들어가기도 전에 에러처리해야.
+    # POST /lecture/
     @transaction.atomic
     def create(self, request): 
         user = request.user
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
+
         semester_id = request.data.get('semester_id')
-        lecture_id_list = request.data.get('lecture_id') 
-#        recent_sequence_list = request.data.get('recent_sequence')
+        lecture_id_list = request.data.get('lecture_id')
         lecture_type_list = request.data.get('lecture_type')
         recognized_major_id_list = request.data.get('recognized_major_id')
         semester = Semester.objects.get(id=semester_id)
+        plan = semester.plan
 
-        if(len(lecture_id_list) != len(set(lecture_id_list))):
+        if len(lecture_id_list) != len(set(lecture_id_list)):
             return Response({"error": "identical lectures in lecture_id_list"}, status=status.HTTP_400_BAD_REQUEST)
 
+        lectures_in_plan = []
+        sl_list = SemesterLecture.objects.filter(semester__plan=plan)
+        for sl in sl_list:
+            lectures_in_plan.append(sl.lecture.id)
+
+        for lecture in lecture_id_list:
+            if lecture in lectures_in_plan:
+                return Response({"error": "identical lecture already exist"}, status=status.HTTP_400_BAD_REQUEST)
+
+        lecture_in_semester = SemesterLecture.objects.filter(semester=semester)
+        n_lectures = len(lecture_in_semester)
         for i in range(len(lecture_id_list)):
             lecture = Lecture.objects.get(id=lecture_id_list[i]) 
             lecture_type = lecture_type_list[i]
             recognized_major_id = recognized_major_id_list[i]
             recognized_major = Major.objects.get(id=recognized_major_id)
 
-            SemesterLecture.objects.create(recognized_major=recognized_major, semester=semester, lecture=lecture, lecture_type=lecture_type, recent_sequence = 20)
-            semlecture = SemesterLecture.objects.get(semester=semester, lecture=lecture)
-            semlecture.recent_sequence = semlecture.id
+            semlecture = SemesterLecture.objects.create(semester=semester,
+                                                        lecture=lecture,
+                                                        lecture_type=lecture_type,
+                                                        recognized_major1=recognized_major,
+                                                        lecture_type1=lecture_type,
+                                                        recent_sequence=n_lectures+i)
             semlecture.save()
 
             if lecture_type == SemesterLecture.MAJOR_REQUIREMENT:
                 semester.major_requirement_credit += lecture.credit
                 semester.save()
             elif lecture_type == SemesterLecture.MAJOR_ELECTIVE or lecture_type == SemesterLecture.TEACHING:
-                # credit = semester.major_elective_credit
-                # credit += lecture.credit
-                # semester.objects.update(partial=True, major_elective_credit=credit)
                 semester.major_elective_credit += lecture.credit
                 semester.save()
             elif lecture_type == SemesterLecture.GENERAL:
@@ -303,43 +331,13 @@ class LectureViewSet(viewsets.GenericViewSet):
                 semester.general_elective_credit += lecture.credit
                 semester.save()
 
-        semesterlectures = SemesterLecture.objects.filter(semester=semester)
-
-            # semesterlecture.objects.update(partial=True, recent_sequence = semesterlecture.id)
-        # 정렬시
-        # sorted_list = sorted(list(semesterlectures), key=lecture_type_to_int)
-        #
-        # for i in range(len(sorted_list)):
-        #     semesterlecture = sorted_list[i]
-        #     semesterlecture.update(partial=True, recent_sequence=i)
-
         data = SemesterSerializer(semester).data
-        # ls = []
-        # for semesterlecture in semesterlectures:
-        #     lecture = semesterlecture.lecture
-        #     ls.append({
-        #         "lecture_id": lecture.lecture_id,
-        #         "semester_lecture_id": semesterlecture.id,
-        #         "recent_sequence" : semesterlecture.recent_sequence,
-        #         "lecture_name": lecture.lecture_name,
-        #         "credit": lecture.credit,
-        #         "open_semester": lecture.open_semester,
-        #     })
-        #
-        # body = {
-        #     "plan": int(semester.plan.id),
-        #     "semester": int(semester_id),
-        #     "major_requrirement" : int(semester.major_requirement_credit),
-        #     "major_elective": int(semester.major_elective_credit),
-        #     "general": int(semester.general_credit),
-        #     "general_elective": int(semester.general_elective_credit),
-        #     "lectures": ls,
-        # }
         return Response(data, status=status.HTTP_201_CREATED)
     
-    # PUT /lecture/(int)
+    # PUT /lecture/(int)/position/
     @transaction.atomic
-    def update(self, request, pk=None):
+    @action(methods=['PUT'], detail=True)
+    def position(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
@@ -353,8 +351,12 @@ class LectureViewSet(viewsets.GenericViewSet):
         semester_to = Semester.objects.get(id=semester_to_id)
         semester_from = Semester.objects.get(id=semester_from_id)
 
-        # credit 처리 및 semesterlecture의 semester 변경(?)
-        semesterlecture = SemesterLecture.objects.get(semester_id=semester_from_id, lecture_id=lecture.id)
+        # credit 처리 및 semesterlecture의 semester 변경
+        try:
+            semesterlecture = SemesterLecture.objects.get(semester_id=semester_from_id, lecture_id=lecture.id)
+        except SemesterLecture.DoesNotExist:
+            return Response({"error": "there is no lecture id in the semester"}, status=status.HTTP_400_BAD_REQUEST)
+
         subtract_credits(semesterlecture)
 
         semesterlecture.semester = semester_to
@@ -372,30 +374,47 @@ class LectureViewSet(viewsets.GenericViewSet):
             semester_lecture2.recent_sequence = i
             semester_lecture2.save()
 
-        serializer = SemesterSerializer([semester_to,semester_from], many=True)
+        semester_to = Semester.objects.get(id=semester_to_id)
+        semester_from = Semester.objects.get(id=semester_from_id)
+
+        serializer = SemesterSerializer([semester_from, semester_to], many=True)
         data = serializer.data
 
         return Response(data, status=status.HTTP_200_OK)
 
-    # PUT /lecture/{lecture_id}/recognized_major/
+    # PUT /lecture/{semesterlecture_id}/recognized_major/
     @action(methods=['PUT'], detail=True)
     def recognized_major(self, request, pk=None):
-        lecture = self.get_object() 
-        lecture_type = request.data.get('lecture_type', None) 
-        # Case 1: lecture_type를 교양으로 변경
+        semesterlecture = self.get_object()
+        lecture_type = request.data.get('lecture_type', None)
+
+        subtract_credits(semesterlecture)
+
+        # Case 1: lecture_type을 교양으로 변경
         if lecture_type == 'general':
             data = {
-                "lecture_type": lecture_type
+                "lecture_type": lecture_type,
+                "recognized_major1": SemesterLecture.NONE,
+                "recognized_major2": SemesterLecture.NONE,
+                "lecture_type1": SemesterLecture.DEFAULT_MAJOR_ID,
+                "lecture_type2": SemesterLecture.DEFAULT_MAJOR_ID,
+                "is_modified": True
             }
-            serializer = self.get_serializer(lecture, data=data, partial=True)
+            serializer = self.get_serializer(semesterlecture, data=data, partial=True)
             serializer.is_valid(raise_exception=True)
-            serializer.update(lecture, serializer.validated_data)
+            serializer.update(semesterlecture, serializer.validated_data)
+            serializer.save()
+
+            add_credits(semesterlecture)
+
             return Response(serializer.data, status=status.HTTP_200_OK)
 
-        # Case 2: 학과별 강의 구분을 recognized_major1,2와 lecture_type1,2를 이용해 입력  
+        # Case 2: 학과별 강의 구분을 recognized_major1,2와 lecture_type1,2을 이용해 입력
         elif lecture_type == 'major_requirement' or lecture_type == 'major_elective':
-            recognized_major1 = Major.objects.get(major_name=request.data.get('recognized_major_name1', None), major_type=request.data.get('recognized_major_type1', None))
-            recognized_major2 = Major.objects.get(major_name=request.data.get('recognized_major_name2', None), major_type=request.data.get('recognized_major_type2', None))
+            recognized_major1 = Major.objects.get(major_name=request.data.get('recognized_major_name1', None),
+                                                  major_type=request.data.get('recognized_major_type1', None))
+            recognized_major2 = Major.objects.get(major_name=request.data.get('recognized_major_name2', None),
+                                                  major_type=request.data.get('recognized_major_type2', None))
             lecture_type1 = request.data.get('lecture_type1', None) 
             lecture_type2 = request.data.get('lecture_type2', None) 
             data = {
@@ -403,50 +422,79 @@ class LectureViewSet(viewsets.GenericViewSet):
                 "recognized_major1": recognized_major1.id,
                 "recognized_major2": recognized_major2.id,
                 "lecture_type1": lecture_type1, 
-                "lecture_type2": lecture_type2 ,
+                "lecture_type2": lecture_type2,
+                "is_modified": True
             }
-            serializer = self.get_serializer(lecture, data=data, partial=True)
+            serializer = self.get_serializer(semesterlecture, data=data, partial=True)
             serializer.is_valid(raise_exception=True)
-            serializer.update(lecture, serializer.validated_data)
+            serializer.update(semesterlecture, serializer.validated_data)
+            serializer.save()
+
+            add_credits(semesterlecture)
+
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         # Case 3: lecture_type를 general_elective로 변경 
         elif lecture_type == 'general_elective':
             data = {
-                "lecture_type": lecture_type
+                "lecture_type": lecture_type,
+                "recognized_major1": SemesterLecture.NONE,
+                "recognized_major2": SemesterLecture.NONE,
+                "lecture_type1": SemesterLecture.DEFAULT_MAJOR_ID,
+                "lecture_type2": SemesterLecture.DEFAULT_MAJOR_ID,
+                "is_modified": True
             }
-            serializer = self.get_serializer(lecture, data=data, partial=True) 
+            serializer = self.get_serializer(semesterlecture, data=data, partial=True)
             serializer.is_valid(raise_exception=True)
-            serializer.update(lecture, serializer.validated_data)
-            return Response(serializer.data, status=status.HTTP_200_OK) 
+            serializer.update(semesterlecture, serializer.validated_data)
+            serializer.save()
+
+            add_credits(semesterlecture)
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
         else:
             return Response({"error": "wrong lecture_type"}, status=status.HTTP_400_BAD_REQUEST)
 
-    # DEL /lecture/(int)
+    # DEL /lecture/(int)/
     @transaction.atomic
     def destroy(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
-        semesterlecture = SemesterLecture.objects.get(pk=pk)
+        try:
+            semesterlecture = SemesterLecture.objects.get(pk=pk)
+        except SemesterLecture.DoesNotExist:
+            return Response({"error": "semesterlecture not_exist"}, status=status.HTTP_404_NOT_FOUND)
         subtract_credits(semesterlecture)
-
         semesterlecture.delete()
         return Response(status=status.HTTP_200_OK) 
 
     # GET /lecture/?search_type=(string)&search_keyword=(string)&major=(string)&credit=(string)
-    def list(self, request): 
+    def list(self, request):
+        user = request.user
         search_type = request.query_params.get("search_type", None)
+
+        if search_type is None:
+            return Response({"error": "search_type missing"}, status=status.HTTP_400_BAD_REQUEST)
+
         # Case 1: major requirement or major elective
         if search_type == 'major_requirement' or search_type == 'major_elective':
             major = request.query_params.get("major", None)
             if major: 
-                majorLectures = MajorLecture.objects.filter(major=major, lecture_type=search_type)
+                majorLectures = MajorLecture.objects.filter(major=major,
+                                                            lecture_type=search_type,
+                                                            start_year__lte=user.userprofile.entrance_year,
+                                                            end_year__gt=user.userprofile.entrance_year)
                 lectures = Lecture.objects.filter(majorlecture__in=majorLectures)
-                serializer = LectureSerializer(lectures, many=True) 
-                return Response(serializer.data, status = status.HTTP_200_OK)
+                serializer = LectureSerializer(lectures, many=True)
+
+                data = serializer.data
+                for lecture in data:
+                    lecture['lecture_type'] = search_type
+
+                return Response(data, status=status.HTTP_200_OK)
             else: 
                 return Response({"error": "major missing"}, status=status.HTTP_400_BAD_REQUEST)
         # Case 2: general
@@ -456,7 +504,7 @@ class LectureViewSet(viewsets.GenericViewSet):
             if credit and search_keyword:
                 lectures = Lecture.objects.filter(credit=credit, lecture_name__icontains=search_keyword) 
                 serializer = LectureSerializer(lectures, many=True)
-                return Response(serializer.data, status = status.HTTP_200_OK)
+                return Response(serializer.data, status=status.HTTP_200_OK)
             else:
                 return Response({"error": "credit or search keyword missing"}, status=status.HTTP_400_BAD_REQUEST) 
         # Case 3: keyword 
@@ -465,9 +513,9 @@ class LectureViewSet(viewsets.GenericViewSet):
             if search_keyword:  # 만약 검색어가 존재하면
                 lectures = Lecture.objects.filter(lecture_name__icontains=search_keyword)  # 해당 검색어를 포함한 queryset 가져오기
                 serializer = LectureSerializer(lectures, many=True)
-                return Response(serializer.data, status = status.HTTP_200_OK)
+                return Response(serializer.data, status=status.HTTP_200_OK)
             else:
-                return Response({"error": "search keyword missing"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": "search_keyword missing"}, status=status.HTTP_400_BAD_REQUEST)
 
 # 공용 함수 모음 #
 def update_plan_info(plan):
@@ -608,7 +656,7 @@ def cal_priority_lt(lecture_type):
     return switcher.get(lecture_type, -1)
 
 def lecture_type_to_int(semesterlecture):
-    switcher ={
+    switcher = {
         SemesterLecture.MAJOR_REQUIREMENT : 1,
         SemesterLecture.MAJOR_ELECTIVE : 2,
         SemesterLecture.TEACHING : 3,
@@ -619,32 +667,50 @@ def lecture_type_to_int(semesterlecture):
 
 def add_credits(semesterlecture):
     semester = semesterlecture.semester
-    if(semesterlecture.lecture_type == SemesterLecture.MAJOR_REQUIREMENT):
+
+    if semesterlecture.lecture_type == SemesterLecture.MAJOR_REQUIREMENT:
         semester.major_requirement_credit += semesterlecture.lecture.credit
         semester.save()
-    elif(semesterlecture.lecture_type == SemesterLecture.MAJOR_ELECTIVE or semesterlecture.lecture_type == SemesterLecture.TEACHING ):
+    elif semesterlecture.lecture_type == SemesterLecture.MAJOR_ELECTIVE or semesterlecture.lecture_type == SemesterLecture.TEACHING:
         semester.major_elective_credit += semesterlecture.lecture.credit
         semester.save()
-    elif(semesterlecture.lecture_type == SemesterLecture.GENERAL):
+    elif semesterlecture.lecture_type == SemesterLecture.GENERAL:
         semester.general_credit += semesterlecture.lecture.credit
         semester.save()
-    elif(semesterlecture.lecture_type == SemesterLecture.GENERAL_ELECTIVE):
+    elif semesterlecture.lecture_type == SemesterLecture.GENERAL_ELECTIVE:
         semester.general_elective_credit += semesterlecture.lecture.credit
         semester.save()
+
+    if semesterlecture.lecture_type in [SemesterLecture.MAJOR_REQUIREMENT, SemesterLecture.MAJOR_ELECTIVE] and semesterlecture.recognized_major2 is not "none":
+        if semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
+            semester.major_requirement_credit += semesterlecture.lecture.credit
+            semester.save()
+        elif semesterlecture.lecture_type2 == SemesterLecture.MAJOR_ELECTIVE:
+            semester.major_elective_credit += semesterlecture.lecture.credit
+            semester.save()
     return
 
 def subtract_credits(semesterlecture):
     semester = semesterlecture.semester
-    if (semesterlecture.lecture_type == SemesterLecture.MAJOR_REQUIREMENT):
+
+    if semesterlecture.lecture_type == SemesterLecture.MAJOR_REQUIREMENT:
         semester.major_requirement_credit -= semesterlecture.lecture.credit
         semester.save()
-    elif (semesterlecture.lecture_type == SemesterLecture.MAJOR_ELECTIVE or semesterlecture.lecture_type == SemesterLecture.TEACHING):
+    elif semesterlecture.lecture_type == SemesterLecture.MAJOR_ELECTIVE or semesterlecture.lecture_type == SemesterLecture.TEACHING:
         semester.major_elective_credit -= semesterlecture.lecture.credit
         semester.save()
-    elif (semesterlecture.lecture_type == SemesterLecture.GENERAL):
+    elif semesterlecture.lecture_type == SemesterLecture.GENERAL:
         semester.general_credit -= semesterlecture.lecture.credit
         semester.save()
-    elif (semesterlecture.lecture_type == SemesterLecture.GENERAL_ELECTIVE):
+    elif semesterlecture.lecture_type == SemesterLecture.GENERAL_ELECTIVE:
         semester.general_elective_credit -= semesterlecture.lecture.credit
         semester.save()
+
+    if semesterlecture.lecture_type in [SemesterLecture.MAJOR_REQUIREMENT, SemesterLecture.MAJOR_ELECTIVE] and semesterlecture.recognized_major2 is not "none":
+        if semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
+            semester.major_requirement_credit -= semesterlecture.lecture.credit
+            semester.save()
+        elif semesterlecture.lecture_type2 == SemesterLecture.MAJOR_ELECTIVE:
+            semester.major_elective_credit -= semesterlecture.lecture.credit
+            semester.save()
     return

@@ -62,12 +62,13 @@ class SemesterSerializer(serializers.ModelSerializer):
                 "lecture_name": lecture.lecture_name,
                 "credit": lecture.credit, 
                 "open_semester": lecture.open_semester,
-                "is_major": semesterlecture.lecture_type,
+                "lecture_type": semesterlecture.lecture_type,
                 "recognized_major_name1": semesterlecture.recognized_major1.major_name,
                 "lecture_type1": semesterlecture.lecture_type1,
                 "recognized_major_name2": semesterlecture.recognized_major2.major_name,
                 "lecture_type2": semesterlecture.lecture_type2,
-                "is_modified": semesterlecture.is_modified
+                "is_modified": semesterlecture.is_modified,
+                "recent_sequence": semesterlecture.recent_sequence
             })
         return ls 
 

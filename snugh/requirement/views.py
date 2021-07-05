@@ -72,60 +72,14 @@ class RequirementViewSet(viewsets.GenericViewSet):
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
         update_list = request.data.copy()
-        if update_list:
-            plan_id = update_list[0]['plan_id']
-            try:
-                plan = Plan.objects.get(pk=plan_id)
-            except Plan.DoesNotExist:
-                return Response({"error": "plan_id not_exist"}, status=status.HTTP_404_NOT_FOUND)
-        else:
-            return Response({"error": "update_list missing"}, status=status.HTTP_400_BAD_REQUEST)
-
         for curr_request in update_list:
+            plan_id = curr_request['plan_id']
             requirement_id = curr_request['requirement_id']
             is_fulfilled = curr_request['is_fulfilled']
 
+            plan = Plan.objects.get(pk=plan_id)
             requirement = Requirement.objects.get(pk=requirement_id)
             planrequirement = PlanRequirement.objects.filter(plan=plan, requirement=requirement)
             planrequirement.update(is_fulfilled=is_fulfilled)
 
-        majors = Major.objects.filter(planmajor__plan=plan)
-
-        result_list = []
-        for major in list(majors):
-            planrequirement = PlanRequirement.objects.filter(plan=plan, requirement__major=major)
-            serializer = RequirementSerializer(planrequirement, many=True)
-            requirements = serializer.data
-            result_list.append({"major_name": major.major_name,
-                                "major_type": major.major_type,
-                                "requirements": requirements})
-
-        data = {"majors": result_list}
-        return Response(data, status=status.HTTP_200_OK)
-
-    # GET /requirement/progress/
-    @action(detail=False, methods=['GET'])
-    def progress(self, request):
-        user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
-
-        plan_id = request.query_params.get('plan_id', None)
-
-        if plan_id is None:
-            return Response({"error": "plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            plan = Plan.objects.get(pk=plan_id)
-        except Plan.DoesNotExist:
-            return Response({"error": "plan not_exist"}, status=status.HTTP_404_NOT_FOUND)
-
-        planmajors = PlanMajor.objects.filter(plan=plan)
-
-        result_list = []
-        for planmajor in list(planmajors):
-            serializer = ProgressSerializer(planmajor)
-            progress = serializer.data
-            result_list.append(progress)
-
-        data = {"majors": result_list}
-        return Response(data, status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_200_OK)
