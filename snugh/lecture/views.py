@@ -113,6 +113,195 @@ class PlanViewSet(viewsets.GenericViewSet):
         plans = Plan.objects.filter(user=user)
         return Response(self.get_serializer(plans, many=True).data, status=status.HTTP_200_OK)
 
+    # 강의구분 자동계산
+    # PUT /plan/(int)/calculate/
+    @action(detail=True, methods=['PUT'])
+    def calculate(self, request, pk=None):
+        user = request.user
+
+        # err response
+        if not user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+        plan = Plan.objects.get(pk=pk)
+
+        semesters = Semester.objects.filter(plan=plan)
+        semesterlectures =SemesterLecture.objects.filter(semester__in=semesters)
+        majors = PlanMajor.objects.filter(plan=plan)
+
+        for semesterlecture in semesterlectures:
+            # calculate lecture_type for each semesterlecture
+            if semesterlecture.is_modified == False:
+                semester = semesterlecture.semester
+                lecture = semesterlecture.lecture
+                # 전필, 전선, 교직, 일선 -> 교양 인 경우는 처리하지 못함!
+                candidate_majorlectures = MajorLecture.objects.filter(lecture=lecture, major__in=majors,
+                                                                      start_year__lte=user.entrance_year,
+                                                                      end_year__gt=user.entrance_year).exclude(
+                    lecture_type=MajorLecture.GENERAL).exclude(lecture_type = MajorLecture.GENERAL_ELECTIVE)
+                # lecture_type = general or general_elective & not opened by majors
+                if candidate_majorlectures.count() == 0:
+                    # general_elective
+                    if semesterlecture.lecture_type != SemesterLecture.GENERAL and semesterlecture.lecture_type != SemesterLecture.GENERAL_ELECTIVE:
+                        prev_lecture_type1 = semesterlecture.lecture_type1
+                        prev_lecture_type2 = semesterlecture.lecture_type2
+                        # lecture_type 변경
+                        semesterlecture.lecture_type = SemesterLecture.GENERAL_ELECTIVE
+                        semesterlecture.lecture_type1 = SemesterLecture.GENERAL_ELECTIVE
+                        semesterlecture.recognized_major1 = SemesterLecture.NONE
+                        semesterlecture.lecture_type2 = SemesterLecture.NONE
+                        semesterlecture.recognized_major2 = SemesterLecture.DEFAULT_MAJOR_ID
+                        semesterlecture.save()
+                        # semester credit 변경
+                        semester.general_elective_credit += lecture.credit
+
+                        if prev_lecture_type1 == SemesterLecture.MAJOR_REQUIREMENT:
+                            semester.major_requirement_credit -= lecture.credit
+                            semester.save()
+                        elif prev_lecture_type1 == SemesterLecture.MAJOR_ELECTIVE or prev_lecture_type1 == SemesterLecture.TEACHING:
+                            semester.major_elective_credit -= lecture.credit
+                            semester.save()
+                        elif prev_lecture_type1 == SemesterLecture.GENERAL:
+                            semester.general_credit -= lecture.credit
+                            semester.save()
+                        elif prev_lecture_type1 == SemesterLecture.GENERAL_ELECTIVE:
+                            semester.general_elective_credit -= lecture.credit
+                            semester.save()
+
+                        if prev_lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
+                            semester.major_requirement_credit -= lecture.credit
+                            semester.save()
+                        elif prev_lecture_type2 == SemesterLecture.MAJOR_ELECTIVE or prev_lecture_type2 == SemesterLecture.TEACHING:
+                            semester.major_elective_credit -= lecture.credit
+                            semester.save()
+                        elif prev_lecture_type2 == SemesterLecture.GENERAL:
+                            semester.general_credit -= lecture.credit
+                            semester.save()
+                        elif prev_lecture_type2 == SemesterLecture.GENERAL_ELECTIVE:
+                            semester.general_elective_credit -= lecture.credit
+                            semester.save()
+                    # general => 변경 필요 없음
+
+                # 단수인정
+                elif candidate_majorlectures.count() == 1:
+                    majorlecture = candidate_majorlectures.first()
+
+                    # lecture_type 변경
+                    prev_lecture_type1 = semesterlecture.lecture_type1
+                    prev_lecture_type2 = semesterlecture.lecture_type2
+
+                    semesterlecture.lecture_type = majorlecture.lecture_type
+                    semesterlecture.lecture_type1 = majorlecture.lecture_type
+                    semesterlecture.recognized_major1 = majorlecture.major
+                    semesterlecture.lecture_type2 = SemesterLecture.NONE
+                    semesterlecture.recognized_major2 = SemesterLecture.DEFAULT_MAJOR_ID
+                    semesterlecture.save()
+
+                    # semester credit 변경
+                    if semesterlecture.lecture_type == SemesterLecture.MAJOR_REQUIREMENT:
+                        semester.major_requirement_credit += lecture.credit
+                        semester.save()
+                    elif semesterlecture.lecture_type == SemesterLecture.MAJOR_ELECTIVE or semesterlecture.lecture_type == SemesterLecture.TEACHING:
+                        semester.major_elective_credit += lecture.credit
+                        semester.save()
+                    elif semesterlecture.lecture_type == SemesterLecture.GENERAL:
+                        semester.general_credit += lecture.credit
+                        semester.save()
+                    elif semesterlecture.lecture_type == SemesterLecture.GENERAL_ELECTIVE:
+                        semester.general_elective_credit += lecture.credit
+                        semester.save()
+
+                    if prev_lecture_type1 == SemesterLecture.MAJOR_REQUIREMENT:
+                        semester.major_requirement_credit -= lecture.credit
+                        semester.save()
+                    elif prev_lecture_type1 == SemesterLecture.MAJOR_ELECTIVE or prev_lecture_type1 == SemesterLecture.TEACHING:
+                        semester.major_elective_credit -= lecture.credit
+                        semester.save()
+                    elif prev_lecture_type1 == SemesterLecture.GENERAL:
+                        semester.general_credit -= lecture.credit
+                        semester.save()
+                    elif prev_lecture_type1 == SemesterLecture.GENERAL_ELECTIVE:
+                        semester.general_elective_credit -= lecture.credit
+                        semester.save()
+
+                    if prev_lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
+                        semester.major_requirement_credit -= lecture.credit
+                        semester.save()
+                    elif prev_lecture_type2 == SemesterLecture.MAJOR_ELECTIVE or prev_lecture_type2 == SemesterLecture.TEACHING:
+                        semester.major_elective_credit -= lecture.credit
+                        semester.save()
+                    elif prev_lecture_type2 == SemesterLecture.GENERAL:
+                        semester.general_credit -= lecture.credit
+                        semester.save()
+                    elif prev_lecture_type2 == SemesterLecture.GENERAL_ELECTIVE:
+                        semester.general_elective_credit -= lecture.credit
+                        semester.save()
+                # 복수인정
+                else:
+                    cnt = 0
+                    for majorlecture in candidate_majorlectures:
+                        cnt += 1
+                        # recognized_major1
+                        if cnt == 1:
+                            # lecture_type1 변경
+                            prev_lecture_type1 = semesterlecture.lecture_type1
+
+                            semesterlecture.lecture_type = majorlecture.lecture_type
+                            semesterlecture.lecture_type1 = majorlecture.lecture_type
+                            semesterlecture.recognized_major1 = majorlecture.major
+                            semesterlecture.save()
+                            # semester credit 변경
+                            if prev_lecture_type1 == SemesterLecture.MAJOR_REQUIREMENT:
+                                semester.major_requirement_credit -= lecture.credit
+                                semester.save()
+                            elif prev_lecture_type1 == SemesterLecture.MAJOR_ELECTIVE or prev_lecture_type1 == SemesterLecture.TEACHING:
+                                semester.major_elective_credit -= lecture.credit
+                                semester.save()
+                            elif prev_lecture_type1 == SemesterLecture.GENERAL:
+                                semester.general_credit -= lecture.credit
+                                semester.save()
+                            elif prev_lecture_type1 == SemesterLecture.GENERAL_ELECTIVE:
+                                semester.general_elective_credit -= lecture.credit
+                                semester.save()
+
+                            if semesterlecture.lecture_type == SemesterLecture.MAJOR_REQUIREMENT:
+                                semester.major_requirement_credit += lecture.credit
+                                semester.save()
+                            elif semesterlecture.lecture_type == SemesterLecture.MAJOR_ELECTIVE or semesterlecture.lecture_type == SemesterLecture.TEACHING:
+                                semester.major_elective_credit += lecture.credit
+                                semester.save()
+                        elif cnt ==2:
+                            prev_lecture_type2 = semesterlecture.lecture_type2
+
+                            semesterlecture.lecture_type2 = majorlecture.lecture_type
+                            semesterlecture.recognized_major2 = majorlecture.major
+                            semesterlecture.save()
+
+                            if prev_lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
+                                semester.major_requirement_credit -= lecture.credit
+                                semester.save()
+                            elif prev_lecture_type2 == SemesterLecture.MAJOR_ELECTIVE or prev_lecture_type2 == SemesterLecture.TEACHING:
+                                semester.major_elective_credit -= lecture.credit
+                                semester.save()
+                            elif prev_lecture_type2 == SemesterLecture.GENERAL:
+                                semester.general_credit -= lecture.credit
+                                semester.save()
+                            elif prev_lecture_type2 == SemesterLecture.GENERAL_ELECTIVE:
+                                semester.general_elective_credit -= lecture.credit
+                                semester.save()
+
+                            if semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
+                                semester.major_requirement_credit += lecture.credit
+                                semester.save()
+                            elif semesterlecture.lecture_type2 == SemesterLecture.MAJOR_ELECTIVE or semesterlecture.lecture_type2 == SemesterLecture.TEACHING:
+                                semester.major_elective_credit += lecture.credit
+                                semester.save()
+                        else:
+                            break
+
+        serializer = self.get_serializer(plan)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     # GET/PUT /plan/major/
     @action(detail=False, methods=['GET', 'PUT'])
     @transaction.atomic
