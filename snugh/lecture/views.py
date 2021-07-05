@@ -351,6 +351,10 @@ class PlanViewSet(viewsets.GenericViewSet):
                                        plan_name=plan.plan_name+'(복사본)',
                                        recent_scroll=0)
 
+        majors = Major.objects.filter(planmajor__plan=plan)
+        for major in list(majors):
+            PlanMajor.objects.create(plan=new_plan, major=major)
+
         semesters = Semester.objects.filter(plan=plan)
         for semester in list(semesters):
             new_semester = Semester.objects.create(plan=new_plan,
