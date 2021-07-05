@@ -354,6 +354,10 @@ class PlanViewSet(viewsets.GenericViewSet):
         majors = Major.objects.filter(planmajor__plan=plan)
         for major in list(majors):
             PlanMajor.objects.create(plan=new_plan, major=major)
+            
+        requirements = Requirement.objects.filter(planrequirement__plan=plan)
+        for requirement in list(requirements):
+            PlanRequirement.objects.create(plan=new_plan, requirement=requirement)
 
         semesters = Semester.objects.filter(plan=plan)
         for semester in list(semesters):
@@ -875,7 +879,7 @@ def add_credits(semesterlecture):
         semester.general_elective_credit += semesterlecture.lecture.credit
         semester.save()
 
-    if semesterlecture.lecture_type in [SemesterLecture.MAJOR_REQUIREMENT, SemesterLecture.MAJOR_ELECTIVE] and semesterlecture.recognized_major2 is not "none":
+    if semesterlecture.lecture_type in [SemesterLecture.MAJOR_REQUIREMENT, SemesterLecture.MAJOR_ELECTIVE] and semesterlecture.recognized_major2 != "none":
         if semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
             semester.major_requirement_credit += semesterlecture.lecture.credit
             semester.save()
@@ -900,7 +904,7 @@ def subtract_credits(semesterlecture):
         semester.general_elective_credit -= semesterlecture.lecture.credit
         semester.save()
 
-    if semesterlecture.lecture_type in [SemesterLecture.MAJOR_REQUIREMENT, SemesterLecture.MAJOR_ELECTIVE] and semesterlecture.recognized_major2 is not "none":
+    if semesterlecture.lecture_type in [SemesterLecture.MAJOR_REQUIREMENT, SemesterLecture.MAJOR_ELECTIVE] and semesterlecture.recognized_major2 != "none":
         if semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
             semester.major_requirement_credit -= semesterlecture.lecture.credit
             semester.save()
