@@ -109,7 +109,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
 
         major_requirement["progress"] = round(major_requirement["earned_credit"] / major_requirement["required_credit"], 2)
         general_requirement["progress"] = round(general_requirement["earned_credit"] / general_requirement["required_credit"], 2)
-        general_elective_requirement["progress"] = round(general_elective_requirement["earned_credit"] / general_elective_requirement["required_credit"], 2)
+        general_elective_requirement["progress"] = 1
         all_requirement["progress"] = round(all_requirement["earned_credit"] / all_requirement["required_credit"], 2)
 
         all_progress = {"major": major_requirement,
