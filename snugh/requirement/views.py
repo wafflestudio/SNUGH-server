@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 from requirement.models import Requirement, PlanRequirement
 from requirement.serializers import RequirementSerializer, ProgressSerializer
 from user.models import Major
-from lecture.models import Plan, PlanMajor
+from lecture.models import Plan, PlanMajor, SemesterLecture
 
 
 class RequirementViewSet(viewsets.GenericViewSet):
@@ -24,6 +24,26 @@ class RequirementViewSet(viewsets.GenericViewSet):
             return Response({"error": "plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)
         plan = get_object_or_404(Plan, pk=plan_id)
         majors = Major.objects.filter(planmajor__plan=plan)
+
+        # init earned credit of plan_requirement
+        pr_list = list(PlanRequirement.objects.filter(plan=plan))
+        for pr in pr_list:
+            pr.earned_credit = 0
+            pr.save()
+
+        # calculate earned credit of plan_requirement
+        sl_list = list(SemesterLecture.objects.filter(semester__plan=plan))
+        for sl in sl_list:
+            r1 = Requirement.objects.get(major=sl.recognized_major1, requirement_type=sl.lecture_type1)
+            pr1 = PlanRequirement.objects.get(plan=plan, requirement=r1)
+            pr1.earned_credit += sl.lecture.credit
+            pr1.save()
+
+            if sl.recognized_major2 != Major.DEFAULT_MAJOR_ID:
+                r2 = Requirement.objects.get(major=sl.recognized_major2, requirement_type=sl.lecture_type2)
+                pr2 = PlanRequirement.objects.get(plan=plan, requirement=r2)
+                pr2.earned_credit += sl.lecture.credit
+                pr2.save()
 
         # calculate all progress
         major_requirement = {"required_credit": 0,

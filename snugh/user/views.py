@@ -116,7 +116,9 @@ class UserViewSet(viewsets.GenericViewSet):
         UserProfile.objects.create(user=user, entrance_year=entrance_year, status=student_status)
 
         # register majors
-        if len(major_list) == 1:
+        if len(major_list) == 0:
+            return Response({"error": "major missing"}, status=status.HTTP_400_BAD_REQUEST)
+        elif len(major_list) == 1:
             major = major_list[0]
             if major['major_type'] == Major.MAJOR:
                 try:
@@ -298,6 +300,9 @@ class UserViewSet(viewsets.GenericViewSet):
                 usermajor = UserMajor.objects.get(user=user, major=searched_major)
             except UserMajor.DoesNotExist:
                 return Response({"error": "usermajor not_exist"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if len(list(UserMajor.objects.filter(user=user))) == 1:
+                return Response({"error": "The number of majors cannot be zero or minus."}, status=status.HTTP_400_BAD_REQUEST)
 
             usermajor.delete()
 

@@ -40,6 +40,9 @@ class Major(models.Model):
         (STUDENT_DIRECTED_MAJOR, 'student_directed_major'),  # 학생설계전공
     )
 
+    # Default Major ID
+    DEFAULT_MAJOR_ID = 1
+
     major_name = models.CharField(max_length=50, db_index=True)
     major_type = models.CharField(max_length=100, choices=MAJOR_TYPE)
 

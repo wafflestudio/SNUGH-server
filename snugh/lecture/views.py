@@ -315,6 +315,9 @@ class PlanViewSet(viewsets.GenericViewSet):
         post_list = request.data.get("post_list", [])
         delete_list = request.data.get("delete_list", [])
 
+        if len(list(UserMajor.objects.filter(user=user))) - len(delete_list) + len(post_list) <= 0:
+            return Response({"error": "The number of majors cannot be zero or minus."}, status=status.HTTP_400_BAD_REQUEST)
+
         # update planmajor
         for major in delete_list:
             selected_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
@@ -324,6 +327,20 @@ class PlanViewSet(viewsets.GenericViewSet):
         for major in post_list:
             selected_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
             PlanMajor.objects.create(plan=plan, major=selected_major)
+
+        majors = Major.objects.filter(planmajor__plan=plan)
+        majors = list(majors)
+        if len(majors) == 1:
+            if majors[0].major_type == Major.MAJOR:
+                PlanMajor.objects.get(plan=plan, major=majors[0]).delete()
+                new_type_major = Major.objects.get(major_name=majors[0].major_name, major_type=Major.SINGLE_MAJOR)
+                PlanMajor.objects.create(plan=plan, major=new_type_major)
+        else:
+            for major in majors:
+                if major.major_type == Major.SINGLE_MAJOR:
+                    PlanMajor.objects.get(plan=plan, major=major).delete()
+                    new_type_major = Major.objects.get(major_name=major.major_name, major_type=Major.MAJOR)
+                    PlanMajor.objects.create(plan=plan, major=new_type_major)
 
         # update planrequirement
         for major in post_list:
