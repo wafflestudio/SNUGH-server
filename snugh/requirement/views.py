@@ -39,7 +39,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
             pr1.earned_credit += sl.lecture.credit
             pr1.save()
 
-            if sl.recognized_major2 != Major.DEFAULT_MAJOR_ID:
+            if sl.recognized_major2.id != Major.DEFAULT_MAJOR_ID:
                 r2 = Requirement.objects.get(major=sl.recognized_major2, requirement_type=sl.lecture_type2)
                 pr2 = PlanRequirement.objects.get(plan=plan, requirement=r2)
                 pr2.earned_credit += sl.lecture.credit
