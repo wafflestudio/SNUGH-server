@@ -358,7 +358,9 @@ class PlanViewSet(viewsets.GenericViewSet):
 
         self.calculate(request, pk)
 
-        return Response(status=status.HTTP_200_OK)
+        plan = get_object_or_404(Plan, pk=pk)
+        serializer = self.get_serializer(plan)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     # PUT /plan/{plan_id}/copy/
     @action(detail=True, methods=['POST'])
