@@ -228,7 +228,9 @@ class UserViewSet(viewsets.GenericViewSet):
             userprofile.status = data.get("status")
         if "full_name" in data:
             user.first_name = data.get("full_name")
-
+        if "password" in data:
+            user.password = data.get("password")
+        
         serializer = self.get_serializer(user, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
