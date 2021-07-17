@@ -504,7 +504,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         semester_id = request.data.get('semester_id')
         lecture_id_list = request.data.get('lecture_id')
         lecture_type_list = request.data.get('lecture_type')
-        recognized_major_id_list = request.data.get('recognized_major_id')
+        recognized_major_name_list = request.data.get('recognized_major_names')
         semester = Semester.objects.get(id=semester_id)
         plan = semester.plan
 
@@ -525,8 +525,19 @@ class LectureViewSet(viewsets.GenericViewSet):
         for i in range(len(lecture_id_list)):
             lecture = Lecture.objects.get(id=lecture_id_list[i]) 
             lecture_type = lecture_type_list[i]
-            recognized_major_id = recognized_major_id_list[i]
-            recognized_major = Major.objects.get(id=recognized_major_id)
+            recognized_major_name = recognized_major_name_list[i]
+
+            if (lecture_type == Lecture.MAJOR_REQUIREMENT) \
+                or (lecture_type == Lecture.MAJOR_ELECTIVE) \
+                or (lecture_type == Lecture.TEACHING):
+
+                if PlanMajor.objects.filter(plan=plan, major__major_name=recognized_major_name).exists():
+                    recognized_major = Major.objects.get(planmajor__plan=plan, major_name=recognized_major_name)
+                else:
+                    recognized_major = Major.objects.get(id=Major.DEFAULT_MAJOR_ID)
+                    lecture_type = Lecture.GENERAL_ELECTIVE
+            else:
+                recognized_major = Major.objects.get(id=Major.DEFAULT_MAJOR_ID)
 
             semlecture = SemesterLecture.objects.create(semester=semester,
                                                         lecture=lecture,
@@ -701,13 +712,9 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         # Case 1: major requirement or major elective
         if search_type == 'major_requirement' or search_type == 'major_elective':
-            major = request.query_params.get("major", None)
-            if major: 
-                majorLectures = MajorLecture.objects.filter(major=major,
-                                                            lecture_type=search_type,
-                                                            start_year__lte=user.userprofile.entrance_year,
-                                                            end_year__gt=user.userprofile.entrance_year)
-                lectures = Lecture.objects.filter(majorlecture__in=majorLectures)
+            major_name = request.query_params.get("major_name", None)
+            if major_name:
+                lectures = Lecture.objects.filter(open_major=major_name, lecture_type=search_type)
                 serializer = LectureSerializer(lectures, many=True)
 
                 data = serializer.data
@@ -716,7 +723,7 @@ class LectureViewSet(viewsets.GenericViewSet):
 
                 return Response(data, status=status.HTTP_200_OK)
             else: 
-                return Response({"error": "major missing"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": "major_name missing"}, status=status.HTTP_400_BAD_REQUEST)
         # Case 2: general
         elif search_type == 'general': 
             credit = request.query_params.get("credit", None)
