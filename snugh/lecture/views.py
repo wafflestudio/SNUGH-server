@@ -54,7 +54,7 @@ class PlanViewSet(viewsets.GenericViewSet):
                                                       start_year__lte=user.userprofile.entrance_year,
                                                       end_year__gte=user.userprofile.entrance_year)
             for requirement in requirements:
-                PlanRequirement.objects.create(plan=plan, requirement=requirement)
+                PlanRequirement.objects.create(plan=plan, requirement=requirement, required_credit=requirement.required_credit)
 
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -345,13 +345,15 @@ class PlanViewSet(viewsets.GenericViewSet):
         # update planrequirement
         for major in post_list:
             curr_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-            requirements = Requirement.objects.filter(major=curr_major)
+            requirements = Requirement.objects.filter(major=curr_major, start_year__lte=user.userprofile.entrance_year,
+                                                      end_year__gte=user.userprofile.entrance_year)
             for requirement in list(requirements):
-                PlanRequirement.objects.create(plan=plan, requirement=requirement)
+                PlanRequirement.objects.create(plan=plan, requirement=requirement, required_credit = requirement.required_credit)
 
         for major in delete_list:
             curr_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-            requirements = Requirement.objects.filter(major=curr_major)
+            requirements = Requirement.objects.filter(major=curr_major, start_year__lte=user.userprofile.entrance_year,
+                                                      end_year__gte=user.userprofile.entrance_year)
             for requirement in list(requirements):
                 selected_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=requirement)
                 selected_planrequirement.delete()

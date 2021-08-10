@@ -10,7 +10,7 @@ class Requirement(models.Model):
 
     # Requirement Type
     MAJOR_REQUIREMENT = 'major_requirement'  # 전공 필수
-    MAJOR_ELECTIVE = 'major_elective'  # 전공 선택
+    MAJOR_ALL = 'major_all'  # 전공 전체
     GENERAL = 'general'  # 교양
     GENERAL_ELECTIVE = 'general_elective'  # 일반 선택
     TEACHING = 'teaching'  # 교직
@@ -19,7 +19,7 @@ class Requirement(models.Model):
     REQUIREMENT_TYPE = (
         (NONE, 'none'),
         (MAJOR_REQUIREMENT, 'major_requirement'),
-        (MAJOR_ELECTIVE, 'major_elective'),
+        (MAJOR_ALL, 'major_all'),
         (GENERAL, 'general'),
         (GENERAL_ELECTIVE, 'general_elective'),
         (TEACHING, 'teaching'),
@@ -41,7 +41,7 @@ class Requirement(models.Model):
 class PlanRequirement(models.Model):
     plan = models.ForeignKey(Plan, related_name='planrequirement', on_delete=models.CASCADE)
     requirement = models.ForeignKey(Requirement, related_name='planrequirement', on_delete=models.CASCADE)
-    required_credit = models.PositiveSmallIntegerField(default=requirement.required_credit)
+    required_credit = models.PositiveSmallIntegerField(default=0) # requirement.required_credit으로 하고싶은데
     is_fulfilled = models.BooleanField(default=False)
     earned_credit = models.PositiveSmallIntegerField(default=0)
     auto_calculate = models.BooleanField(default=False)

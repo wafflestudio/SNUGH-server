@@ -6,6 +6,7 @@ from requirement.models import Requirement, PlanRequirement
 from requirement.serializers import RequirementSerializer, ProgressSerializer
 from user.models import Major
 from lecture.models import Plan, PlanMajor, SemesterLecture
+from rest_framework.decorators import action
 
 
 class RequirementViewSet(viewsets.GenericViewSet):
@@ -71,8 +72,8 @@ class RequirementViewSet(viewsets.GenericViewSet):
             mr_ec = mr_pr.earned_credit
             major_requirement["required_credit"] += mr_rc
             major_requirement["earned_credit"] += mr_ec
-            all_requirement ["required_credit"] += mr_rc
-            all_requirement ["earned_credit"] += mr_ec
+            all_requirement["required_credit"] += mr_rc
+            all_requirement["earned_credit"] += mr_ec
 
             # major_elective
             me_pr = PlanRequirement.objects.get(plan=plan,
@@ -172,7 +173,129 @@ class RequirementViewSet(viewsets.GenericViewSet):
                 "general_progress": general_progress}
         return Response(data, status=status.HTTP_200_OK)
 
-    # PUT /requirement/
+    # GET /requirement/{plan_id}/loading/
+    @action(methods=['GET'], detail=True)
+    @transaction.atomic
+    def loading(self, request, pk=None):
+        plan = Plan.objects.get(pk=pk)
+        majors = Major.objects.filter(planmajor__plan=plan)
+
+        # 자유전공학부 때문에 filter => 자전 외에는 major가 두개인 경우는 없어야 정상
+        all_requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=Requirement.ALL).order_by('-required_credit').first()
+        all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=all_requirement)
+
+        general_requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=Requirement.GENERAL).order_by('-required_credit').first()
+        general_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=general_requirement)
+
+        major_requirement_list = []
+
+        for major in majors:
+            major_all_requirement = Requirement.objects.get(planrequirement__plan=plan, requirement_type=Requirement.MAJOR_ALL, major=major)
+            major_all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=major_all_requirement)
+
+            major_requirement_requirement = Requirement.objects.get(planrequirement__plan=plan, requirement_type=Requirement.MAJOR_REQUIREMENT, major=major)
+            major_requirement_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=major_requirement_requirement)
+
+            data = {
+                "major_name": major.major_name,
+                "major_type": major.major_type,
+                "major_credit": major_all_planrequirement.required_credit,
+                "major_requirement_credit": major_requirement_planrequirement.required_credit,
+                "auto_calculate": major_requirement_planrequirement.auto_calculate
+            }
+
+            major_requirement_list.append(data)
+
+        data = {
+            "majors": major_requirement_list,
+            "all": all_planrequirement.required_credit,
+            "general": general_planrequirement.required_credit
+        }
+
+        return Response(data, status=status.HTTP_200_OK)
+
+    # PUT /requirement/{plan_id}/settings/
+    @action(methods=['PUT'], detail=True)
+    @transaction.atomic
+    def settings(self, request, pk=None):
+        user = request.user
+        if not user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+        plan = Plan.objects.get(pk=pk)
+        majors = Major.objects.filter(planmajor__plan=plan)
+
+        major_credit_list = request.data.get('majors')
+        all_credit = request.data.get('all')
+        general_credit = request.data.get('general')
+
+        # update all&general planrequirements
+        # 자유전공학부 때문에 filter => 자전 외에는 major가 두개인 경우는 없어야 정상
+        all_requirement = Requirement.objects.filter(planrequirement__plan=plan,
+                                                     requirement_type=Requirement.ALL).order_by('-required_credit').first()
+        all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=all_requirement)
+        all_planrequirement.required_credit = all_credit
+        all_planrequirement.save()
+
+        general_requirement = Requirement.objects.filter(planrequirement__plan=plan,
+                                                         requirement_type=Requirement.GENERAL).order_by('-required_credit').first()
+        general_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=general_requirement)
+        general_planrequirement.required_credit = general_credit
+        general_planrequirement.save()
+
+        # update major planrequirements
+        for major_credit in major_credit_list:
+            major_name = major_credit["major_name"]
+            major_type = major_credit["major_type"]
+            major = Major.objects.get(major_name=major_name, major_type=major_type)
+
+            major_all_requirement = Requirement.objects.get(planrequirement__plan=plan,
+                                                            requirement_type=Requirement.MAJOR_ALL, major=major)
+            major_all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=major_all_requirement)
+            major_all_planrequirement.required_credit = major_credit["major_credit"]
+            major_all_planrequirement.save()
+
+            major_requirement_requirement = Requirement.objects.get(planrequirement__plan=plan,
+                                                                    requirement_type=Requirement.MAJOR_REQUIREMENT,
+                                                                    major=major)
+            major_requirement_planrequirement = PlanRequirement.objects.get(plan=plan,
+                                                                            requirement=major_requirement_requirement)
+            major_requirement_planrequirement.required_credit = major_credit["major_requirement_credit"]
+            major_requirement_planrequirement.auto_calculate = major_credit["auto_calculate"]
+            major_requirement_planrequirement.save()
+
+        # response for debugging
+        major_requirement_list = []
+
+        for major in majors:
+            major_all_requirement = Requirement.objects.get(planrequirement__plan=plan,
+                                                            requirement_type=Requirement.MAJOR_ALL, major=major)
+            major_all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=major_all_requirement)
+
+            major_requirement_requirement = Requirement.objects.get(planrequirement__plan=plan,
+                                                                    requirement_type=Requirement.MAJOR_REQUIREMENT,
+                                                                    major=major)
+            major_requirement_planrequirement = PlanRequirement.objects.get(plan=plan,
+                                                                            requirement=major_requirement_requirement)
+
+            data = {
+                "major_name": major.major_name,
+                "major_type": major.major_type,
+                "major_credit": major_all_planrequirement.required_credit,
+                "major_requirement_credit": major_requirement_planrequirement.required_credit,
+                "auto_calculate": major_requirement_planrequirement.auto_calculate
+            }
+
+            major_requirement_list.append(data)
+
+        data = {
+            "majors": major_requirement_list,
+            "all": all_planrequirement.required_credit,
+            "general": general_planrequirement.required_credit
+        }
+
+        return Response(data, status=status.HTTP_200_OK)
+
     @transaction.atomic
     def put(self, request):
         user = request.user
