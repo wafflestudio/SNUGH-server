@@ -16,8 +16,6 @@ class RequirementViewSet(viewsets.GenericViewSet):
     # GET /requirement/
     @transaction.atomic
     def list(self, request):
-        return Response({'잘 되네?'}, status=status.HTTP_200_OK)
-
         user = request.user
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
