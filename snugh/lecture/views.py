@@ -8,6 +8,7 @@ from lecture.models import *
 from lecture.serializers import *
 from user.models import *
 from requirement.models import *
+from django.core.paginator import Paginator
 
 
 class PlanViewSet(viewsets.GenericViewSet):
@@ -707,10 +708,14 @@ class LectureViewSet(viewsets.GenericViewSet):
     @transaction.atomic
     def list(self, request):
         user = request.user
-        search_type = request.query_params.get("search_type", None)
 
-        if search_type is None:
-            return Response({"error": "search_type missing"}, status=status.HTTP_400_BAD_REQUEST)
+        # Pagination Parameter
+        page = request.GET.get('page', '1')
+
+        # Query Params
+        search_type = request.query_params.get("search_type", None)
+        if not search_type:
+            return Response({ "error": "search_type missing" }, status=status.HTTP_400_BAD_REQUEST)
 
         # Case 1: major requirement or major elective
         if search_type == 'major_requirement' or search_type == 'major_elective':
@@ -726,6 +731,7 @@ class LectureViewSet(viewsets.GenericViewSet):
                 return Response(data, status=status.HTTP_200_OK)
             else: 
                 return Response({"error": "major_name missing"}, status=status.HTTP_400_BAD_REQUEST)
+
         # Case 2: general
         elif search_type == 'general': 
             credit = request.query_params.get("credit", None)
@@ -736,17 +742,19 @@ class LectureViewSet(viewsets.GenericViewSet):
                 return Response(serializer.data, status=status.HTTP_200_OK)
             else:
                 return Response({"error": "credit or search keyword missing"}, status=status.HTTP_400_BAD_REQUEST) 
-        # Case 3: keyword 
+
+        # Case 3: keyword
         else:
             search_keyword = request.query_params.get("search_keyword", None)
-            if search_keyword:  # 만약 검색어가 존재하면
-                lectures = Lecture.objects.filter(lecture_name__icontains=search_keyword)  # 해당 검색어를 포함한 queryset 가져오기
+            if search_keyword:
+                lectures = Lecture.objects.filter(lecture_name__icontains=search_keyword)
+                lectures = Paginator(lectures, 20).get_page(page)
                 serializer = LectureSerializer(lectures, many=True)
                 return Response(serializer.data, status=status.HTTP_200_OK)
             else:
                 return Response({"error": "search_keyword missing"}, status=status.HTTP_400_BAD_REQUEST)
 
-# 공용 함수 모음 #
+# 공용 함수 모음
 def update_plan_info(plan):
     # SemesterLecture 모델의 lecture_type 관련 값 업데이트
     majors = Major.objects.filter(planmajor__plan=plan)
