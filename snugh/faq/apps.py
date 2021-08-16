@@ -1,5 +1,5 @@
 from django.apps import AppConfig
 
 
-class FaqConfig(AppConfig):
+class FAQConfig(AppConfig):
     name = 'faq'

@@ -16,6 +16,8 @@ class RequirementViewSet(viewsets.GenericViewSet):
     # GET /requirement/
     @transaction.atomic
     def list(self, request):
+        return Response({'잘 되네?'}, status=status.HTTP_200_OK)
+
         user = request.user
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
@@ -30,7 +32,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
         pr_list = list(PlanRequirement.objects.filter(plan=plan))
         for pr in pr_list:
             pr.earned_credit = 0
-            pr.save()
+            pr.save()   
 
         # calculate earned credit of plan_requirement
         sl_list = list(SemesterLecture.objects.filter(semester__plan=plan))
@@ -217,7 +219,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
     # PUT /requirement/{plan_id}/settings/
     @action(methods=['PUT'], detail=True)
     @transaction.atomic
-    def settings(self, request, pk=None):
+    def setting(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
