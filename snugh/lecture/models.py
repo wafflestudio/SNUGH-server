@@ -47,7 +47,7 @@ class Lecture(models.Model):
     open_semester = models.CharField(max_length=50, choices=SEMESTER_TYPE, default=UNKNOWN)
     lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
     credit = models.PositiveIntegerField(default=0)
-    grade = models.PositiveSmallIntegerField(null=True)
+    grade = models.PositiveSmallIntegerField(null=True, blank=True)
     prev_lecture_name = models.CharField(max_length=50, null=True)
 
 
