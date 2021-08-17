@@ -138,6 +138,7 @@ class UserViewSet(viewsets.GenericViewSet):
                     if major['major_type'] == Major.MAJOR:
                         major_count += 1
                 except Major.DoesNotExist:
+                    print(major)
                     return Response({"error": "major not_exist"}, status=status.HTTP_404_NOT_FOUND)
                 UserMajor.objects.create(user=user, major=searched_major)
             if major_count == 0:
