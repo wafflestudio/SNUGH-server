@@ -575,6 +575,7 @@ class LectureViewSet(viewsets.GenericViewSet):
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
         lecture = get_object_or_404(Lecture, pk=pk)
+
         semester_from_id = request.data.get('semester_from_id')
         semester_to_id = request.data.get('semester_to_id')
         semester_from_list = request.data.get('semester_from')
@@ -583,28 +584,22 @@ class LectureViewSet(viewsets.GenericViewSet):
         semester_to = Semester.objects.get(id=semester_to_id)
         semester_from = Semester.objects.get(id=semester_from_id)
 
-        # credit 처리 및 semesterlecture의 semester 변경
-        try:
-            semesterlecture = SemesterLecture.objects.get(semester_id=semester_from_id, lecture_id=lecture.id)
-        except SemesterLecture.DoesNotExist:
-            return Response({"error": "there is no lecture id in the semester"}, status=status.HTTP_400_BAD_REQUEST)
+        semesterlecture = SemesterLecture.objects.get(semester_id=semester_from_id, lecture_id=lecture.id)
 
         subtract_credits(semesterlecture)
-
         semesterlecture.semester = semester_to
         semesterlecture.save()
         add_credits(semesterlecture)
 
-        # recent sequence 저장
         for i in range(len(semester_from_list)):
             semester_lecture = SemesterLecture.objects.get(semester_id=semester_from_id, lecture_id=semester_from_list[i])
             semester_lecture.recent_sequence = i
             semester_lecture.save()
 
         for i in range(len(semester_to_list)):
-            semester_lecture2 = SemesterLecture.objects.get(semester_id=semester_to_id, lecture_id=semester_to_list[i])
-            semester_lecture2.recent_sequence = i
-            semester_lecture2.save()
+            semester_lecture = SemesterLecture.objects.get(semester_id=semester_to_id, lecture_id=semester_to_list[i])
+            semester_lecture.recent_sequence = i
+            semester_lecture.save()
 
         semester_to = Semester.objects.get(id=semester_to_id)
         semester_from = Semester.objects.get(id=semester_from_id)
@@ -918,14 +913,13 @@ def add_credits(semesterlecture):
         semester.general_elective_credit += semesterlecture.lecture.credit
         semester.save()
 
-    if semesterlecture.lecture_type in [SemesterLecture.MAJOR_REQUIREMENT, SemesterLecture.MAJOR_ELECTIVE] and semesterlecture.recognized_major2 != "none":
-        if semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
-            semester.major_requirement_credit += semesterlecture.lecture.credit
-            semester.save()
-        elif semesterlecture.lecture_type2 == SemesterLecture.MAJOR_ELECTIVE:
-            semester.major_elective_credit += semesterlecture.lecture.credit
-            semester.save()
-    return
+    # if semesterlecture.lecture_type in [SemesterLecture.MAJOR_REQUIREMENT, SemesterLecture.MAJOR_ELECTIVE] and semesterlecture.recognized_major2 != 1:
+    #     if semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
+    #         semester.major_requirement_credit += semesterlecture.lecture.credit
+    #         semester.save()
+    #     elif semesterlecture.lecture_type2 == SemesterLecture.MAJOR_ELECTIVE:
+    #         semester.major_elective_credit += semesterlecture.lecture.credit
+    #         semester.save()
 
 def subtract_credits(semesterlecture):
     semester = semesterlecture.semester
@@ -943,11 +937,10 @@ def subtract_credits(semesterlecture):
         semester.general_elective_credit -= semesterlecture.lecture.credit
         semester.save()
 
-    if semesterlecture.lecture_type in [SemesterLecture.MAJOR_REQUIREMENT, SemesterLecture.MAJOR_ELECTIVE] and semesterlecture.recognized_major2 != "none":
-        if semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
-            semester.major_requirement_credit -= semesterlecture.lecture.credit
-            semester.save()
-        elif semesterlecture.lecture_type2 == SemesterLecture.MAJOR_ELECTIVE:
-            semester.major_elective_credit -= semesterlecture.lecture.credit
-            semester.save()
-    return
+    # if semesterlecture.lecture_type in [SemesterLecture.MAJOR_REQUIREMENT, SemesterLecture.MAJOR_ELECTIVE] and semesterlecture.recognized_major2 != 1:
+    #     if semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
+    #         semester.major_requirement_credit -= semesterlecture.lecture.credit
+    #         semester.save()
+    #     elif semesterlecture.lecture_type2 == SemesterLecture.MAJOR_ELECTIVE:
+    #         semester.major_elective_credit -= semesterlecture.lecture.credit
+    #         semester.save()
