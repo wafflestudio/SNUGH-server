@@ -586,6 +586,8 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         semesterlecture = SemesterLecture.objects.get(semester_id=semester_from_id, lecture_id=lecture.id)
 
+        semesterlecture.semester = semester_from
+        semesterlecture.save()
         subtract_credits(semesterlecture)
         semesterlecture.semester = semester_to
         semesterlecture.save()
