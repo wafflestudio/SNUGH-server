@@ -641,12 +641,12 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         # Case 2: 학과별 강의 구분을 recognized_major1,2와 lecture_type1,2을 이용해 입력
         elif lecture_type == 'major_requirement' or lecture_type == 'major_elective':
-            recognized_major1 = Major.objects.get(major_name=request.data.get('recognized_major_name1', None),
-                                                  major_type=request.data.get('recognized_major_type1', None))
-            recognized_major2 = Major.objects.get(major_name=request.data.get('recognized_major_name2', None),
-                                                  major_type=request.data.get('recognized_major_type2', None))
-            lecture_type1 = request.data.get('lecture_type1', None) 
-            lecture_type2 = request.data.get('lecture_type2', None) 
+            recognized_major1 = Major.objects.get(major_name=request.data.get('recognized_major_name1'),
+                                                  major_type=request.data.get('recognized_major_type1'))
+            recognized_major2 = Major.objects.get(major_name=request.data.get('recognized_major_name2', Major.DEFAULT_MAJOR_NAME),
+                                                  major_type=request.data.get('recognized_major_type2', Major.DEFAULT_MAJOR_TYPE))
+            lecture_type1 = request.data.get('lecture_type1', SemesterLecture.NONE) 
+            lecture_type2 = request.data.get('lecture_type2', SemesterLecture.NONE) 
             data = {
                 "lecture_type": lecture_type, 
                 "recognized_major1": recognized_major1.id,

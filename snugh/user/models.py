@@ -42,6 +42,8 @@ class Major(models.Model):
 
     # Default Major ID
     DEFAULT_MAJOR_ID = 31
+    DEFAULT_MAJOR_NAME = 'none'
+    DEFAULT_MAJOR_TYPE = 'major'
 
     major_name = models.CharField(max_length=50, db_index=True)
     major_type = models.CharField(max_length=100, choices=MAJOR_TYPE)
