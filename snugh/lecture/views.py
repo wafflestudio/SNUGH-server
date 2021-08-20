@@ -585,13 +585,11 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         semesterlecture = SemesterLecture.objects.get(semester_id=semester_from_id, lecture_id=lecture.id)
 
-        print(semesterlecture.semester.major_elective_credit)
         subtract_credits(semesterlecture)
-        print(semesterlecture.semester.major_elective_credit)
         semester_to = Semester.objects.get(id=semester_to_id)
         semesterlecture.semester = semester_to
         add_credits(semesterlecture)
-        print(semesterlecture.semester.major_elective_credit)
+        semesterlecture.save()
 
         for i in range(len(semester_from_list)):
             semester_lecture = SemesterLecture.objects.get(semester_id=semester_from_id, lecture_id=semester_from_list[i])
