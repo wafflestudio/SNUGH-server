@@ -111,7 +111,7 @@ class SemesterLecture(models.Model):
     )
 
     # Default Major ID
-    DEFAULT_MAJOR_ID = 1
+    DEFAULT_MAJOR_ID = 31
 
     semester = models.ForeignKey(Semester, related_name='semesterlecture', on_delete=models.CASCADE)
     lecture = models.ForeignKey(Lecture, related_name='semesterlecture', on_delete=models.CASCADE)

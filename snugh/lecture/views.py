@@ -913,13 +913,13 @@ def add_credits(semesterlecture):
         semester.general_elective_credit += semesterlecture.lecture.credit
         semester.save()
 
-    # if semesterlecture.lecture_type in [SemesterLecture.MAJOR_REQUIREMENT, SemesterLecture.MAJOR_ELECTIVE] and semesterlecture.recognized_major2 != 1:
-    #     if semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
-    #         semester.major_requirement_credit += semesterlecture.lecture.credit
-    #         semester.save()
-    #     elif semesterlecture.lecture_type2 == SemesterLecture.MAJOR_ELECTIVE:
-    #         semester.major_elective_credit += semesterlecture.lecture.credit
-    #         semester.save()
+    if semesterlecture.lecture_type in [SemesterLecture.MAJOR_REQUIREMENT, SemesterLecture.MAJOR_ELECTIVE] and semesterlecture.recognized_major2 != SemesterLecture.DEFAULT_MAJOR_ID:
+        if semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
+            semester.major_requirement_credit += semesterlecture.lecture.credit
+            semester.save()
+        elif semesterlecture.lecture_type2 == SemesterLecture.MAJOR_ELECTIVE:
+            semester.major_elective_credit += semesterlecture.lecture.credit
+            semester.save()
 
 def subtract_credits(semesterlecture):
     semester = semesterlecture.semester
@@ -937,7 +937,7 @@ def subtract_credits(semesterlecture):
         semester.general_elective_credit -= semesterlecture.lecture.credit
         semester.save()
 
-    # if semesterlecture.lecture_type in [SemesterLecture.MAJOR_REQUIREMENT, SemesterLecture.MAJOR_ELECTIVE] and semesterlecture.recognized_major2 != 1:
+    # if semesterlecture.lecture_type in [SemesterLecture.MAJOR_REQUIREMENT, SemesterLecture.MAJOR_ELECTIVE] and semesterlecture.recognized_major2 != SemesterLecture.DEFAULT_MAJOR_ID:
     #     if semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
     #         semester.major_requirement_credit -= semesterlecture.lecture.credit
     #         semester.save()
