@@ -622,10 +622,10 @@ class LectureViewSet(viewsets.GenericViewSet):
         if lecture_type == 'general':
             data = {
                 "lecture_type": lecture_type,
-                "recognized_major1": SemesterLecture.NONE,
-                "recognized_major2": SemesterLecture.NONE,
-                "lecture_type1": SemesterLecture.DEFAULT_MAJOR_ID,
-                "lecture_type2": SemesterLecture.DEFAULT_MAJOR_ID,
+                "recognized_major1": SemesterLecture.DEFAULT_MAJOR_ID,
+                "recognized_major2": SemesterLecture.DEFAULT_MAJOR_ID,
+                "lecture_type1": lecture_type,
+                "lecture_type2": SemesterLecture.NONE,
                 "is_modified": True
             }
             serializer = self.get_serializer(semesterlecture, data=data, partial=True)
@@ -666,10 +666,10 @@ class LectureViewSet(viewsets.GenericViewSet):
         elif lecture_type == 'general_elective':
             data = {
                 "lecture_type": lecture_type,
-                "recognized_major1": SemesterLecture.NONE,
-                "recognized_major2": SemesterLecture.NONE,
-                "lecture_type1": SemesterLecture.DEFAULT_MAJOR_ID,
-                "lecture_type2": SemesterLecture.DEFAULT_MAJOR_ID,
+                "recognized_major1": SemesterLecture.DEFAULT_MAJOR_ID,
+                "recognized_major2": SemesterLecture.DEFAULT_MAJOR_ID,
+                "lecture_type1": lecture_type,
+                "lecture_type2": SemesterLecture.NONE,
                 "is_modified": True
             }
             serializer = self.get_serializer(semesterlecture, data=data, partial=True)
@@ -903,6 +903,9 @@ def add_credits(semesterlecture):
     if semesterlecture.lecture_type == SemesterLecture.MAJOR_REQUIREMENT:
         semester.major_requirement_credit += semesterlecture.lecture.credit
         semester.save()
+    elif semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
+        semester.major_requirement_credit += semesterlecture.lecture.credit
+        semester.save()
     elif semesterlecture.lecture_type == SemesterLecture.MAJOR_ELECTIVE or semesterlecture.lecture_type == SemesterLecture.TEACHING:
         semester.major_elective_credit += semesterlecture.lecture.credit
         semester.save()
@@ -913,18 +916,21 @@ def add_credits(semesterlecture):
         semester.general_elective_credit += semesterlecture.lecture.credit
         semester.save()
 
-    if semesterlecture.lecture_type in [SemesterLecture.MAJOR_REQUIREMENT, SemesterLecture.MAJOR_ELECTIVE] and semesterlecture.recognized_major2 != SemesterLecture.DEFAULT_MAJOR_ID:
-        if semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
-            semester.major_requirement_credit += semesterlecture.lecture.credit
-            semester.save()
-        elif semesterlecture.lecture_type2 == SemesterLecture.MAJOR_ELECTIVE:
-            semester.major_elective_credit += semesterlecture.lecture.credit
-            semester.save()
+    # if semesterlecture.lecture_type in [SemesterLecture.MAJOR_REQUIREMENT, SemesterLecture.MAJOR_ELECTIVE] and semesterlecture.recognized_major2 != SemesterLecture.DEFAULT_MAJOR_ID:
+    #     if semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
+    #         semester.major_requirement_credit += semesterlecture.lecture.credit
+    #         semester.save()
+    #     elif semesterlecture.lecture_type2 == SemesterLecture.MAJOR_ELECTIVE:
+    #         semester.major_elective_credit += semesterlecture.lecture.credit
+    #         semester.save()
 
 def subtract_credits(semesterlecture):
     semester = semesterlecture.semester
 
     if semesterlecture.lecture_type == SemesterLecture.MAJOR_REQUIREMENT:
+        semester.major_requirement_credit -= semesterlecture.lecture.credit
+        semester.save()
+    elif semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
         semester.major_requirement_credit -= semesterlecture.lecture.credit
         semester.save()
     elif semesterlecture.lecture_type == SemesterLecture.MAJOR_ELECTIVE or semesterlecture.lecture_type == SemesterLecture.TEACHING:
