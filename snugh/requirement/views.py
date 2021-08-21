@@ -206,9 +206,19 @@ class RequirementViewSet(viewsets.GenericViewSet):
         major_requirement["earned_credit"] = major_earned_credit
         other_requirement["earned_credit"] = all_earned_credit - general_earned_credit - major_earned_credit
 
-        major_requirement["progress"] = round(major_requirement_progress_earned / major_requirement_progress_required, 2)
-        general_requirement["progress"] = round(general_requirement["earned_credit"] / general_requirement_credit, 2)
-        all_requirement["progress"] = round(all_requirement["earned_credit"] / all_requirement["required_credit"], 2)
+        major_requirement_progress = 0
+        general_requirement_progress = 0
+        all_requirement_progress = 0
+        if major_requirement_progress_required != 0:
+            major_requirement_progress=major_requirement_progress_earned / major_requirement_progress_required
+        elif general_requirement_credit != 0:
+            general_requirement_progress = general_requirement["earned_credit"] / general_requirement_credit
+        elif all_requirement["required_credit"] != 0:
+            all_requirement_progress = all_requirement["earned_credit"] / all_requirement["required_credit"]
+
+        major_requirement["progress"] = round(major_requirement_progress, 2)
+        general_requirement["progress"] = round(general_requirement_progress, 2)
+        all_requirement["progress"] = round(all_requirement_progress, 2)
 
         all_progress_summary = {"all": all_requirement,
                                 "major": major_requirement,
@@ -222,15 +232,21 @@ class RequirementViewSet(viewsets.GenericViewSet):
         for major in list(majors):
             mr_rc = major_requirement_pr_list[major].required_credit
             mr_ec = major_requirement_pr_list[major].earned_credit
+            mr_pg = 0
+            if mr_rc !=0:
+                mr_pg = round(mr_ec/mr_rc, 2)
             major_requirement_required_credit = {"required_credit": mr_rc,
                                                  "earned_credit": mr_ec,
-                                                 "progress": round(mr_ec/mr_rc, 2)}
+                                                 "progress": mr_pg}
 
             ma_rc = major_all_pr_list[major].required_credit
             ma_ec = major_all_pr_list[major].earned_credit
+            ma_pg =0
+            if ma_rc !=0:
+                ma_pg = round(ma_ec/ma_rc, 2)
             major_all_required_credit = {"required_credit": ma_rc,
                                          "earned_credit": ma_ec,
-                                         "progress": round(ma_ec/ma_rc, 2)}
+                                         "progress": ma_pg}
 
             major_progress.append({"major_id": major.id,
                                    "major_name": major.major_name,
