@@ -1,5 +1,6 @@
 from django.contrib.auth import authenticate, login, logout
 from django.db import transaction
+from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
@@ -105,44 +106,33 @@ class UserViewSet(viewsets.GenericViewSet):
             return Response({"error": "full_name wrong_range(2~30 letters)"}, status=status.HTTP_400_BAD_REQUEST)
 
         # err response 3
-        try:
-            User.objects.get(username=email)
-            return Response({"error": "user already_exist"}, status=status.HTTP_400_BAD_REQUEST)
-        except User.DoesNotExist:
-            pass
+        get_object_or_404(User, username=email)
 
-        # create user
-        user = User.objects.create_user(username=email, email=email, password=password, first_name=full_name)
-        UserProfile.objects.create(user=user, entrance_year=entrance_year, status=student_status)
-
-        # register majors
+        # err response 4
         if len(major_list) == 0:
             return Response({"error": "major missing"}, status=status.HTTP_400_BAD_REQUEST)
         elif len(major_list) == 1:
             major = major_list[0]
-            if major['major_type'] == Major.MAJOR:
-                try:
-                    searched_major = Major.objects.get(major_name=major['major_name'], major_type=Major.SINGLE_MAJOR)
-                except Major.DoesNotExist:
-                    return Response({"error": "major not_exist"}, status=status.HTTP_404_NOT_FOUND)
-                UserMajor.objects.create(user=user, major=searched_major)
-            else:
+            if major['major_type'] != Major.MAJOR:
                 return Response({"error": "major_type not_allowed"}, status=status.HTTP_400_BAD_REQUEST)
         else:
             major_count = 0
             for major in major_list:
                 if major['major_type'] == Major.SINGLE_MAJOR:
                     return Response({"error": "major_type not_allowed"}, status=status.HTTP_400_BAD_REQUEST)
-                try:
-                    searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-                    if major['major_type'] == Major.MAJOR:
-                        major_count += 1
-                except Major.DoesNotExist:
-                    print(major)
-                    return Response({"error": "major not_exist"}, status=status.HTTP_404_NOT_FOUND)
-                UserMajor.objects.create(user=user, major=searched_major)
+                if major['major_type'] == Major.MAJOR:
+                    major_count += 1
             if major_count == 0:
                 return Response({"error": "major_type not_allowed"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # create user
+        user = User.objects.create_user(username=email, email=email, password=password, first_name=full_name)
+        UserProfile.objects.create(user=user, entrance_year=entrance_year, status=student_status)
+
+        # create majors
+        for major in major_list:
+            searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
+            UserMajor.objects.create(user=user, major=searched_major)
 
         # login user
         login(request, user)
