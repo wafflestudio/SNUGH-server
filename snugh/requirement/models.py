@@ -27,12 +27,13 @@ class Requirement(models.Model):
     )
 
     major = models.ForeignKey(Major, related_name='requirement', on_delete=models.CASCADE)
-    start_year = models.PositiveSmallIntegerField()
-    end_year = models.PositiveSmallIntegerField()
+    start_year = models.PositiveSmallIntegerField(default=2014)
+    end_year = models.PositiveSmallIntegerField(default=10000)
     description = models.CharField(max_length=500, blank=True)
-    is_credit_requirement = models.BooleanField()
+    is_credit_requirement = models.BooleanField(default=True)
     required_credit = models.PositiveSmallIntegerField(default=0)
     requirement_type = models.CharField(max_length=50, choices=REQUIREMENT_TYPE)
+    is_auto_generated = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['-end_year', '-start_year']  # 최신순
