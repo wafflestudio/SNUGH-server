@@ -49,6 +49,7 @@ class Lecture(models.Model):
     credit = models.PositiveIntegerField(default=0)
     grade = models.PositiveSmallIntegerField(null=True, blank=True)
     prev_lecture_name = models.CharField(max_length=50, null=True)
+    recent_open_year = models.IntegerField(default=0)
 
 
 class Plan(models.Model):

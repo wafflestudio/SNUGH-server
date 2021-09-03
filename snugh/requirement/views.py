@@ -55,7 +55,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
 
         majors = Major.objects.filter(id__in = requirement_missing_major_ids)
         body = {"majors": MajorSerializer(majors, many=True).data}
-        return Response(majors.count(), status=status.HTTP_201_CREATED)
+        return Response(body, status=status.HTTP_201_CREATED)
 
     # GET /requirement/
     @transaction.atomic
