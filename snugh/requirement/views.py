@@ -311,22 +311,31 @@ class RequirementViewSet(viewsets.GenericViewSet):
     def loading(self, request, pk=None):
         plan = Plan.objects.get(pk=pk)
         majors = Major.objects.filter(planmajor__plan=plan)
+        is_necessary = False
 
         # 자유전공학부 때문에 filter => 자전 외에는 major가 두개인 경우는 없어야 정상
         all_requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=Requirement.ALL).order_by('-required_credit').first()
         all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=all_requirement)
+        if all_planrequirement.required_credit == 0:
+            is_necessary = True
 
         general_requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=Requirement.GENERAL).order_by('-required_credit').first()
         general_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=general_requirement)
+        if general_planrequirement.required_credit == 0:
+            is_necessary = True
 
         major_requirement_list = []
 
         for major in majors:
             major_all_requirement = Requirement.objects.get(planrequirement__plan=plan, requirement_type=Requirement.MAJOR_ALL, major=major)
             major_all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=major_all_requirement)
+            if major_all_planrequirement.required_credit == 0:
+                is_necessary = True
 
             major_requirement_requirement = Requirement.objects.get(planrequirement__plan=plan, requirement_type=Requirement.MAJOR_REQUIREMENT, major=major)
             major_requirement_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=major_requirement_requirement)
+            if major_requirement_planrequirement.required_credit == 0:
+                is_necessary = True
 
             data = {
                 "major_name": major.major_name,
@@ -342,7 +351,8 @@ class RequirementViewSet(viewsets.GenericViewSet):
             "majors": major_requirement_list,
             "all": all_planrequirement.required_credit,
             "general": general_planrequirement.required_credit,
-            "is_first_simulation": plan.is_first_simulation
+            "is_first_simulation": plan.is_first_simulation,
+            "is_necessary": is_necessary
         }
         if plan.is_first_simulation:
             plan.is_first_simulation = False
