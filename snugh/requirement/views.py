@@ -14,6 +14,49 @@ class RequirementViewSet(viewsets.GenericViewSet):
     queryset = Requirement.objects.all()
     serializer_class = RequirementSerializer
 
+    # POST /requirement/
+    # create requirement objects(only for temporary use)
+    @transaction.atomic
+    def create(self, request):
+        user = request.user
+
+        # err response
+        if not user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+        all_majors = Major.objects.all()
+        requirement_missing_major_ids = []
+
+        for major in all_majors:
+            cnt = 0
+            if major.major_type != Major.DOUBLE_MAJOR and major.major_type != Major.MINOR:
+                all_requirement = Requirement.objects.filter(major=major, requirement_type = Requirement.ALL)
+                if not all_requirement.exists():
+                    Requirement.objects.create(major=major, requirement_type=Requirement.ALL, is_auto_generated = True)
+                    cnt += 1
+                general_requirement = Requirement.objects.filter(major=major, requirement_type = Requirement.GENERAL)
+                if not general_requirement.exists():
+                    Requirement.objects.create(major=major, requirement_type=Requirement.GENERAL, is_auto_generated = True)
+                    cnt += 1
+            else:
+                cnt = 2
+
+            major_all_requirement = Requirement.objects.filter(major=major, requirement_type = Requirement.MAJOR_ALL)
+            if not major_all_requirement.exists():
+                Requirement.objects.create(major=major, requirement_type=Requirement.MAJOR_ALL, is_auto_generated = True)
+                cnt += 1
+            mr_requirement = Requirement.objects.filter(major=major, requirement_type = Requirement.MAJOR_REQUIREMENT)
+            if not mr_requirement.exists():
+                Requirement.objects.create(major=major, requirement_type=Requirement.MAJOR_REQUIREMENT, is_auto_generated = True)
+                cnt += 1
+
+            if cnt == 4:
+                requirement_missing_major_ids.append(major.id)
+
+        majors = Major.objects.filter(id__in = requirement_missing_major_ids)
+        body = {"majors": MajorSerializer(majors, many=True).data}
+        return Response(majors.count(), status=status.HTTP_201_CREATED)
+
     # GET /requirement/
     @transaction.atomic
     def list(self, request):
@@ -207,17 +250,17 @@ class RequirementViewSet(viewsets.GenericViewSet):
         other_requirement["earned_credit"] = all_earned_credit - general_earned_credit - major_earned_credit
 
         if major_requirement_progress_required ==0:
-            major_requirement["progress"] = 0
+            major_requirement["progress"] = 1
         else:
             major_requirement["progress"] = round(major_requirement_progress_earned / major_requirement_progress_required, 2)
 
         if general_requirement_credit == 0:
-            general_requirement["progress"] = 0
+            general_requirement["progress"] = 1
         else:
             general_requirement["progress"] = round(general_requirement["earned_credit"] / general_requirement_credit,2)
 
         if all_requirement["required_credit"] ==0:
-            all_requirement["progress"] = 0
+            all_requirement["progress"] = 1
         else:
             all_requirement["progress"]  = round(all_requirement["earned_credit"] / all_requirement["required_credit"], 2)
 
@@ -233,7 +276,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
         for major in list(majors):
             mr_rc = major_requirement_pr_list[major].required_credit
             mr_ec = major_requirement_pr_list[major].earned_credit
-            mr_pg = 0
+            mr_pg = 1
             if mr_rc !=0:
                 mr_pg = round(mr_ec/mr_rc, 2)
             major_requirement_required_credit = {"required_credit": mr_rc,
@@ -242,7 +285,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
 
             ma_rc = major_all_pr_list[major].required_credit
             ma_ec = major_all_pr_list[major].earned_credit
-            ma_pg = 0
+            ma_pg = 1
             if ma_rc !=0:
                 ma_pg = round(ma_ec/ma_rc, 2)
             major_all_required_credit = {"required_credit": ma_rc,
@@ -298,12 +341,16 @@ class RequirementViewSet(viewsets.GenericViewSet):
         data = {
             "majors": major_requirement_list,
             "all": all_planrequirement.required_credit,
-            "general": general_planrequirement.required_credit
+            "general": general_planrequirement.required_credit,
+            "is_first_simulation": plan.is_first_simulation
         }
+        if plan.is_first_simulation:
+            plan.is_first_simulation = False
+            plan.save()
 
         return Response(data, status=status.HTTP_200_OK)
 
-    # PUT /requirement/{plan_id}/settings/
+    # PUT /requirement/{plan_id}/setting/
     @action(methods=['PUT'], detail=True)
     @transaction.atomic
     def setting(self, request, pk=None):
