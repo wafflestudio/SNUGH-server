@@ -252,17 +252,26 @@ class RequirementViewSet(viewsets.GenericViewSet):
         if major_requirement_progress_required ==0:
             major_requirement["progress"] = 1
         else:
-            major_requirement["progress"] = round(major_requirement_progress_earned / major_requirement_progress_required, 2)
+            if round(major_requirement_progress_earned / major_requirement_progress_required, 2) > 1:
+                major_requirement["progress"] = 1
+            else:
+                major_requirement["progress"] = round(major_requirement_progress_earned / major_requirement_progress_required, 2)
 
         if general_requirement_credit == 0:
             general_requirement["progress"] = 1
         else:
-            general_requirement["progress"] = round(general_requirement["earned_credit"] / general_requirement_credit,2)
+            if round(general_requirement["earned_credit"] / general_requirement_credit,2) > 1:
+                general_requirement["progress"] = 1
+            else:
+                general_requirement["progress"] = round(general_requirement["earned_credit"] / general_requirement_credit,2)
 
         if all_requirement["required_credit"] ==0:
             all_requirement["progress"] = 1
         else:
-            all_requirement["progress"]  = round(all_requirement["earned_credit"] / all_requirement["required_credit"], 2)
+            if round(all_requirement["earned_credit"] / all_requirement["required_credit"], 2) >1:
+                all_requirement["progress"] = 1
+            else:
+                all_requirement["progress"] = round(all_requirement["earned_credit"] / all_requirement["required_credit"], 2)
 
         all_progress_summary = {"all": all_requirement,
                                 "major": major_requirement,
@@ -278,7 +287,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
             mr_ec = major_requirement_pr_list[major].earned_credit
             mr_pg = 1
             if mr_rc !=0:
-                mr_pg = round(mr_ec/mr_rc, 2)
+                mr_pg = 1 if round(mr_ec/mr_rc, 2) > 1 else round(mr_ec/mr_rc, 2)
             major_requirement_required_credit = {"required_credit": mr_rc,
                                                  "earned_credit": mr_ec,
                                                  "progress": mr_pg}
@@ -287,7 +296,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
             ma_ec = major_all_pr_list[major].earned_credit
             ma_pg = 1
             if ma_rc !=0:
-                ma_pg = round(ma_ec/ma_rc, 2)
+                ma_pg = 1 if round(ma_ec/ma_rc, 2) > 1 else round(ma_ec/ma_rc, 2)
             major_all_required_credit = {"required_credit": ma_rc,
                                          "earned_credit": ma_ec,
                                          "progress": ma_pg}
