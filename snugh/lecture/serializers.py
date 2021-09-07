@@ -64,8 +64,10 @@ class SemesterSerializer(serializers.ModelSerializer):
                 "open_semester": lecture.open_semester,
                 "lecture_type": semesterlecture.lecture_type,
                 "recognized_major_name1": semesterlecture.recognized_major1.major_name,
+                "recognized_major_type1": semesterlecture.recognized_major1.major_type,
                 "lecture_type1": semesterlecture.lecture_type1,
                 "recognized_major_name2": semesterlecture.recognized_major2.major_name,
+                "recognized_major_type2": semesterlecture.recognized_major2.major_type,
                 "lecture_type2": semesterlecture.lecture_type2,
                 "is_modified": semesterlecture.is_modified,
                 "recent_sequence": semesterlecture.recent_sequence
