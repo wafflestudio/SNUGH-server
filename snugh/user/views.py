@@ -106,7 +106,8 @@ class UserViewSet(viewsets.GenericViewSet):
             return Response({"error": "full_name wrong_range(2~30 letters)"}, status=status.HTTP_400_BAD_REQUEST)
 
         # err response 3
-        get_object_or_404(User, username=email)
+        if User.objects.filter(username=email).exists():
+            return Response({"error": "username already exist"}, status=status.HTTP_400_BAD_REQUEST)
 
         # err response 4
         if len(major_list) == 0:
