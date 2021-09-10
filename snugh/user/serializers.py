@@ -2,7 +2,6 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from user.models import Major
 
-
 class UserSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField()
     email = serializers.CharField()
@@ -23,8 +22,7 @@ class UserSerializer(serializers.ModelSerializer):
         )
 
     def get_entrance_year(self, user):
-        userprofile = user.userprofile
-        return userprofile.entrance_year
+        return user.userprofile.entrance_year
 
     def get_full_name(self, user):
         return user.first_name
@@ -34,9 +32,7 @@ class UserSerializer(serializers.ModelSerializer):
         return MajorSerializer(majors, many=True).data
 
     def get_status(self, user):
-        userprofile = user.userprofile
-        return userprofile.status
-
+        return user.userprofile.status
 
 class MajorSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField()

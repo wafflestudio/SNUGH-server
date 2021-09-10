@@ -1,8 +1,6 @@
 from django.contrib.auth.models import User
 from django.db import models
 
-
-# UserProfile, Major, UserMajor
 class UserProfile(models.Model):
     ACTIVE = 'active'
     INACTIVE = 'inactive'
@@ -18,7 +16,6 @@ class UserProfile(models.Model):
     entrance_year = models.IntegerField(default=0)
     status = models.CharField(max_length=50, choices=STUDENT_STATUS, default=ACTIVE)
 
-
 class Major(models.Model):
     MAJOR = 'major'
     DOUBLE_MAJOR = 'double_major'
@@ -26,7 +23,7 @@ class Major(models.Model):
     INTERDISCIPLINARY_MAJOR = 'interdisciplinary_major'
     INTERDISCIPLINARY = 'interdisciplinary'
     SINGLE_MAJOR = 'single_major'
-    INTERDISCIPLINARY_MAJOR_FOR_TEACHER = 'interdisciplinary_major_for_teacher_training_programs'
+    INTERDISCIPLINARY_MAJOR_FOR_TEACHER = 'interdisciplinary_major_for_teacher'
     STUDENT_DIRECTED_MAJOR = 'student_directed_major'
 
     MAJOR_TYPE = (
@@ -36,18 +33,18 @@ class Major(models.Model):
         (INTERDISCIPLINARY_MAJOR, 'interdisciplinary_major'),  # 연합전공
         (INTERDISCIPLINARY, 'interdisciplinary'),  # 연계전공
         (SINGLE_MAJOR, 'single_major'),  # 단일전공
-        (INTERDISCIPLINARY_MAJOR_FOR_TEACHER, 'interdisciplinary_major_for_teacher_training_programs'),  # 교직연합전공
+        (INTERDISCIPLINARY_MAJOR_FOR_TEACHER, 'interdisciplinary_major_for_teacher'),  # 교직연합전공
         (STUDENT_DIRECTED_MAJOR, 'student_directed_major'),  # 학생설계전공
     )
 
-    # Default Major ID
+    # TODO: Modify Default Major ID from 31 to 0
     DEFAULT_MAJOR_ID = 31
+
     DEFAULT_MAJOR_NAME = 'none'
     DEFAULT_MAJOR_TYPE = 'major'
 
     major_name = models.CharField(max_length=50, db_index=True)
     major_type = models.CharField(max_length=100, choices=MAJOR_TYPE)
-
 
 class UserMajor(models.Model):
     user = models.ForeignKey(User, related_name='usermajor', on_delete=models.CASCADE)

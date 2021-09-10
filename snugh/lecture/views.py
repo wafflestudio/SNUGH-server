@@ -77,7 +77,6 @@ class PlanViewSet(viewsets.GenericViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     # DEL /plan/(int)/
-    @transaction.atomic
     def destroy(self, request, pk=None):
         user = request.user
 
@@ -90,7 +89,6 @@ class PlanViewSet(viewsets.GenericViewSet):
         return Response(status=status.HTTP_200_OK)
 
     # GET /plan/(int)/
-    @transaction.atomic
     def retrieve(self, request, pk=None):
         user = request.user
 
@@ -103,7 +101,6 @@ class PlanViewSet(viewsets.GenericViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     # GET /plan/
-    @transaction.atomic
     def list(self, request):
         user = request.user
 
@@ -470,7 +467,6 @@ class SemesterViewSet(viewsets.GenericViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     # DEL /semester/(int)/
-    @transaction.atomic
     def destroy(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
@@ -483,7 +479,6 @@ class SemesterViewSet(viewsets.GenericViewSet):
         return Response(status=status.HTTP_200_OK)
     
     # GET /semester/(int)/
-    @transaction.atomic
     def retrieve(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
@@ -700,7 +695,6 @@ class LectureViewSet(viewsets.GenericViewSet):
         return Response(status=status.HTTP_200_OK) 
 
     # GET /lecture/?search_type=(string)&search_keyword=(string)&major=(string)&credit=(string)
-    @transaction.atomic
     def list(self, request):
         user = request.user
 

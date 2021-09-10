@@ -58,7 +58,6 @@ class RequirementViewSet(viewsets.GenericViewSet):
         return Response(body, status=status.HTTP_201_CREATED)
 
     # GET /requirement/
-    @transaction.atomic
     def list(self, request):
         user = request.user
         if not user.is_authenticated:
@@ -316,7 +315,6 @@ class RequirementViewSet(viewsets.GenericViewSet):
 
     # GET /requirement/{plan_id}/loading/
     @action(methods=['GET'], detail=True)
-    @transaction.atomic
     def loading(self, request, pk=None):
         plan = Plan.objects.get(pk=pk)
         majors = Major.objects.filter(planmajor__plan=plan)
