@@ -1,2 +1,2 @@
-# SNUGH Website
-Waffle Studio의 서울대 졸업 도우미 SNUGH 웹사이트를 위한 Github 저장소입니다.
+# SNUGH API Server
+서울대학교 웹/앱개발 동아리 Waffle Studio에서 개발한 서울대 강의 플래너 SNUGH 웹사이트의 API Server입니다. 
