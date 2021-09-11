@@ -179,7 +179,6 @@ class PlanViewSet(viewsets.GenericViewSet):
                         elif prev_lecture_type2 == SemesterLecture.GENERAL_ELECTIVE:
                             semester.general_elective_credit -= lecture.credit
                             semester.save()
-                    # general => 변경 필요 없음
 
                 # 단수인정
                 elif candidate_majorlectures.count() == 1:

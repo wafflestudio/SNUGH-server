@@ -15,7 +15,6 @@ class RequirementViewSet(viewsets.GenericViewSet):
     serializer_class = RequirementSerializer
 
     # POST /requirement/
-    # create requirement objects(only for temporary use)
     @transaction.atomic
     def create(self, request):
         user = request.user
@@ -143,19 +142,6 @@ class RequirementViewSet(viewsets.GenericViewSet):
         general_planrequirement.earned_credit = general_earned_credit
         general_planrequirement.save()
 
-        # # calculate earned credit of plan_requirement
-        # for sl in sl_list:
-        #     r1 = Requirement.objects.get(major=sl.recognized_major1, requirement_type=sl.lecture_type1, )
-        #     pr1 = PlanRequirement.objects.get(plan=plan, requirement=r1)
-        #     pr1.earned_credit += sl.lecture.credit
-        #     pr1.save()
-        #
-        #     if sl.recognized_major2.id != Major.DEFAULT_MAJOR_ID:
-        #         r2 = Requirement.objects.get(major=sl.recognized_major2, requirement_type=sl.lecture_type2)
-        #         pr2 = PlanRequirement.objects.get(plan=plan, requirement=r2)
-        #         pr2.earned_credit += sl.lecture.credit
-        #         pr2.save()
-
         # calculate all progress
         all_requirement = {"required_credit": 0,
                            "earned_credit": 0,
@@ -168,71 +154,6 @@ class RequirementViewSet(viewsets.GenericViewSet):
                                "progress": 0}
 
         other_requirement = {"earned_credit": 0}
-
-        # for major in list(majors):
-        #     # major_requirement
-        #     mr_pr = PlanRequirement.objects.get(plan=plan,
-        #                                         requirement__major=major,
-        #                                         requirement__requirement_type=Requirement.MAJOR_REQUIREMENT)
-        #     mr_rc = mr_pr.requirement.required_credit
-        #     mr_ec = mr_pr.earned_credit
-        #     major_requirement["required_credit"] += mr_rc
-        #     major_requirement["earned_credit"] += mr_ec
-        #     all_requirement["required_credit"] += mr_rc
-        #     all_requirement["earned_credit"] += mr_ec
-        #
-        #     # major_elective
-        #     me_pr = PlanRequirement.objects.get(plan=plan,
-        #                                         requirement__major=major,
-        #                                         requirement__requirement_type=Requirement.MAJOR_ELECTIVE)
-        #     me_rc = me_pr.requirement.required_credit
-        #     me_ec = me_pr.earned_credit
-        #     major_requirement["required_credit"] += me_rc
-        #     major_requirement["earned_credit"] += me_ec
-        #     all_requirement["required_credit"] += me_rc
-        #     all_requirement["earned_credit"] += me_ec
-        #
-        #     # teaching
-        #     try:
-        #         t_pr = PlanRequirement.objects.get(plan=plan,
-        #                                            requirement__major=major,
-        #                                            requirement__requirement_type=Requirement.TEACHING)
-        #         t_rc = t_pr.requirement.required_credit
-        #         t_ec = t_pr.earned_credit
-        #         major_requirement["required_credit"] += t_rc
-        #         major_requirement["earned_credit"] += t_ec
-        #         all_requirement["required_credit"] += t_rc
-        #         all_requirement["earned_credit"] += t_ec
-        #     except PlanRequirement.DoesNotExist:
-        #         pass
-        #
-        #     # general
-        #     try:
-        #         g_pr = PlanRequirement.objects.get(plan=plan,
-        #                                            requirement__major=major,
-        #                                            requirement__requirement_type=Requirement.GENERAL)
-        #         g_rc = g_pr.requirement.required_credit
-        #         g_ec = g_pr.earned_credit
-        #         general_requirement["required_credit"] += g_rc
-        #         general_requirement["earned_credit"] += g_ec
-        #         all_requirement["required_credit"] += g_rc
-        #         all_requirement["earned_credit"] += g_ec
-        #     except PlanRequirement.DoesNotExist:
-        #         pass
-        #
-        #     # general_elective
-        #     try:
-        #         ge_pr = PlanRequirement.objects.get(plan=plan,
-        #                                             requirement__major=major,
-        #                                             requirement__requirement_type=Requirement.GENERAL_ELECTIVE)
-        #         ge_rc = ge_pr.requirement.required_credit
-        #         ge_ec = ge_pr.earned_credit
-        #         general_elective_requirement["required_credit"] += ge_rc
-        #         general_elective_requirement["earned_credit"] += ge_ec
-        #         all_requirement["required_credit"] += ge_rc
-        #         all_requirement["earned_credit"] += ge_ec
-        #     except PlanRequirement.DoesNotExist:
-        #         pass
 
         major_requirement_progress_required  = 0
         major_requirement_progress_earned = 0

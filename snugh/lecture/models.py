@@ -2,11 +2,9 @@ from django.contrib.auth.models import User
 from django.db import models
 from user.models import Major
 
-
-# Lecture, Plan, Semester, PlanMajor, SemesterLecture, MajorLecture
 class Lecture(models.Model):
-    # 공통
-    NONE = 'none'  # 구분 없음
+    # 구분 없음
+    NONE = 'none'
 
     # Semester Type
     UNKNOWN = 'unknown'
@@ -51,13 +49,11 @@ class Lecture(models.Model):
     prev_lecture_name = models.CharField(max_length=50, null=True)
     recent_open_year = models.IntegerField(default=0)
 
-
 class Plan(models.Model):
     user = models.ForeignKey(User, related_name='plan', on_delete=models.CASCADE, default =5)
     plan_name = models.CharField(max_length=50, db_index=True, default="새로운 계획")
     recent_scroll = models.IntegerField(default=0)
     is_first_simulation = models.BooleanField(default = True)
-
 
 class Semester(models.Model):
     FIRST = 'first'
@@ -81,7 +77,6 @@ class Semester(models.Model):
     general_credit = models.PositiveSmallIntegerField(default=0)
     general_elective_credit = models.PositiveSmallIntegerField(default=0)
 
-
 class PlanMajor(models.Model):
     plan = models.ForeignKey(Plan, related_name='planmajor', on_delete=models.CASCADE)
     major = models.ForeignKey(Major, related_name='planmajor', on_delete=models.CASCADE)
@@ -91,10 +86,9 @@ class PlanMajor(models.Model):
             ('plan', 'major')
         )
 
-
 class SemesterLecture(models.Model):
-    # 공통
-    NONE = 'none'  # 구분 없음
+    # 구분 없음
+    NONE = 'none'  
 
     # Lecture Type
     MAJOR_REQUIREMENT = 'major_requirement'  # 전공 필수
@@ -130,10 +124,9 @@ class SemesterLecture(models.Model):
             ('semester', 'lecture')
         )
 
-
 class MajorLecture(models.Model):
-    # 공통
-    NONE = 'none'  # 구분 없음
+    # 구분 없음
+    NONE = 'none'  
 
     # Lecture Type
     MAJOR_REQUIREMENT = 'major_requirement'  # 전공 필수
@@ -156,8 +149,4 @@ class MajorLecture(models.Model):
     end_year = models.PositiveSmallIntegerField()
     is_required = models.BooleanField(default=False)
     lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
-
-    # class Meta:
-    #     unique_together = (
-    #         ('major', 'lecture')
-    #     )
+    

@@ -2,11 +2,9 @@ from django.db import models
 from user.models import Major
 from lecture.models import Plan
 
-
-# Requirement, PlanRequirement
 class Requirement(models.Model):
-    # 공통
-    NONE = 'none'  # 구분 없음
+    # 구분 없음
+    NONE = 'none'  
 
     # Requirement Type
     MAJOR_REQUIREMENT = 'major_requirement'  # 전공 필수
@@ -36,13 +34,12 @@ class Requirement(models.Model):
     is_auto_generated = models.BooleanField(default=False)
 
     class Meta:
-        ordering = ['-end_year', '-start_year']  # 최신순
-
+        ordering = ['-end_year', '-start_year']
 
 class PlanRequirement(models.Model):
     plan = models.ForeignKey(Plan, related_name='planrequirement', on_delete=models.CASCADE)
     requirement = models.ForeignKey(Requirement, related_name='planrequirement', on_delete=models.CASCADE)
-    required_credit = models.PositiveSmallIntegerField(default=0) # requirement.required_credit으로 하고싶은데
+    required_credit = models.PositiveSmallIntegerField(default=0)
     is_fulfilled = models.BooleanField(default=False)
     earned_credit = models.PositiveSmallIntegerField(default=0)
     auto_calculate = models.BooleanField(default=False)
