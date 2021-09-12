@@ -9,6 +9,7 @@ from django.contrib.auth.models import User
 from user.models import *
 from user.serializers import *
 
+
 class UserViewSet(viewsets.GenericViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -272,6 +273,7 @@ class UserViewSet(viewsets.GenericViewSet):
             return Response(body, status=status.HTTP_201_CREATED)
         else:
             return Response(body, status=status.HTTP_200_OK)
+
 
 class MajorViewSet(viewsets.GenericViewSet):
     queryset = Major.objects.all()

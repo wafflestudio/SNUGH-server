@@ -2,6 +2,7 @@ from django.db import models
 from user.models import Major
 from lecture.models import Plan
 
+
 class Requirement(models.Model):
     # 구분 없음
     NONE = 'none'  
@@ -35,6 +36,7 @@ class Requirement(models.Model):
 
     class Meta:
         ordering = ['-end_year', '-start_year']
+
 
 class PlanRequirement(models.Model):
     plan = models.ForeignKey(Plan, related_name='planrequirement', on_delete=models.CASCADE)

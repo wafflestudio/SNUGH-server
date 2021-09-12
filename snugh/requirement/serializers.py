@@ -2,6 +2,7 @@ from rest_framework import serializers
 from requirement.models import Requirement, PlanRequirement
 from lecture.models import PlanMajor
 
+
 class RequirementSerializer(serializers.ModelSerializer):
     id = serializers.SerializerMethodField()
     description = serializers.SerializerMethodField()
@@ -40,6 +41,7 @@ class RequirementSerializer(serializers.ModelSerializer):
     def get_required_credit(self, plan_requirement):
         requirement = plan_requirement.requirement
         return requirement.required_credit
+
 
 class ProgressSerializer(serializers.ModelSerializer):
     major_name = serializers.SerializerMethodField()

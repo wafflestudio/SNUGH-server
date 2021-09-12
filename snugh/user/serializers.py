@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from user.models import Major
 
+
 class UserSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField()
     email = serializers.CharField()
@@ -33,6 +34,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_status(self, user):
         return user.userprofile.status
+
 
 class MajorSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField()

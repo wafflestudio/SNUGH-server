@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.db import models
 
+
 class UserProfile(models.Model):
     ACTIVE = 'active'
     INACTIVE = 'inactive'
@@ -15,6 +16,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, related_name='userprofile', on_delete=models.CASCADE)
     entrance_year = models.IntegerField(default=0)
     status = models.CharField(max_length=50, choices=STUDENT_STATUS, default=ACTIVE)
+
 
 class Major(models.Model):
     MAJOR = 'major'
@@ -45,6 +47,7 @@ class Major(models.Model):
 
     major_name = models.CharField(max_length=50, db_index=True)
     major_type = models.CharField(max_length=100, choices=MAJOR_TYPE)
+
 
 class UserMajor(models.Model):
     user = models.ForeignKey(User, related_name='usermajor', on_delete=models.CASCADE)

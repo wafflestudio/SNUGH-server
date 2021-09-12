@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from faq.models import FAQ
 from faq.serializers import FAQSerializer
 
+
 class FAQViewSet(viewsets.GenericViewSet):
     queryset = FAQ.objects.all()
     serializer_class = FAQSerializer

@@ -2,6 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import SimpleRouter
 from faq.views import FAQViewSet
 
+
 app_name = 'faq'
 
 router = SimpleRouter() 

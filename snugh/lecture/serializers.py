@@ -1,6 +1,7 @@
 from rest_framework import serializers 
 from lecture.models import *
 
+
 class PlanSerializer(serializers.ModelSerializer):
     majors = serializers.SerializerMethodField()
     semesters = serializers.SerializerMethodField()
@@ -29,6 +30,7 @@ class PlanSerializer(serializers.ModelSerializer):
     def get_semesters(self, plan):
         semesters = plan.semester.all().order_by('year', 'semester_type')
         return SemesterSerializer(semesters, many=True).data # plan_id에 해당하는 모든 semester들
+
 
 class SemesterSerializer(serializers.ModelSerializer):
     lectures = serializers.SerializerMethodField()
@@ -72,12 +74,15 @@ class SemesterSerializer(serializers.ModelSerializer):
             })
         return ls 
 
+
 class LectureSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lecture 
         fields = '__all__'
     
+
 class SemesterLectureSerializer(serializers.ModelSerializer):
     class Meta:
         model = SemesterLecture 
         fields = '__all__'
+        
