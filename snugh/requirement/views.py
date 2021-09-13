@@ -353,7 +353,8 @@ class RequirementViewSet(viewsets.GenericViewSet):
         for major in majors:
             major_all_requirement = Requirement.objects.get(planrequirement__plan=plan,
                                                             requirement_type=Requirement.MAJOR_ALL, major=major)
-            major_all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=major_all_requirement)
+            major_all_planrequirement = PlanRequirement.objects.get(plan=plan,
+                                                                    requirement=major_all_requirement)
 
             major_requirement_requirement = Requirement.objects.get(planrequirement__plan=plan,
                                                                     requirement_type=Requirement.MAJOR_REQUIREMENT,
