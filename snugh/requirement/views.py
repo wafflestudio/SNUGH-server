@@ -14,12 +14,10 @@ class RequirementViewSet(viewsets.GenericViewSet):
     queryset = Requirement.objects.all()
     serializer_class = RequirementSerializer
 
-    # POST /requirement/
+    # POST /requirement
     @transaction.atomic
     def create(self, request):
         user = request.user
-
-        # err response
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
@@ -56,15 +54,13 @@ class RequirementViewSet(viewsets.GenericViewSet):
         body = {"majors": MajorSerializer(majors, many=True).data}
         return Response(body, status=status.HTTP_201_CREATED)
 
-    # GET /requirement/
+    # GET /requirement
     def list(self, request):
         user = request.user
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
-        plan_id = request.query_params.get('plan_id', None)
-        if plan_id is None:
-            return Response({"error": "plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)
+        plan_id = request.query_params.get('plan_id')
         plan = get_object_or_404(Plan, pk=plan_id)
         majors = Major.objects.filter(planmajor__plan=plan)
 
@@ -112,6 +108,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
 
         for sl in sl_list:
             credit = sl.lecture.credit
+
             # all
             all_earned_credit+=credit
 
@@ -119,16 +116,14 @@ class RequirementViewSet(viewsets.GenericViewSet):
             if sl.lecture_type1 == Lecture.GENERAL:
                 general_earned_credit +=credit
 
-            # major_all, major_requirement
+            # major_all, major_requirement (주의: 만약 plan의 major가 아닌데 전필/전선으로 되어 있으면 에러뜸)
             elif sl.lecture_type1 == Lecture.MAJOR_REQUIREMENT or sl.lecture_type1 == Lecture.MAJOR_ELECTIVE:
                 major_earned_credit+=credit
-                # 주의: 만약 plan의 major가 아닌데 전필/전선으로 되어 있으면 에러뜸
                 major_all_pr_list[sl.recognized_major1].earned_credit += credit
                 major_all_pr_list[sl.recognized_major1].save()
                 if sl.lecture_type1 == Lecture.MAJOR_REQUIREMENT:
                     major_requirement_pr_list[sl.recognized_major1].earned_credit += credit
                     major_requirement_pr_list[sl.recognized_major1].save()
-
                 if sl.recognized_major2.id != Major.DEFAULT_MAJOR_ID:
                     if sl.lecture_type2 == Lecture.MAJOR_REQUIREMENT or sl.lecture_type2 == Lecture.MAJOR_ELECTIVE:
                         major_all_pr_list[sl.recognized_major2].earned_credit += credit
@@ -197,7 +192,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
                                 "major": major_requirement,
                                 "general": general_requirement,
                                 "other": other_requirement,
-                                "current_planmajors": MajorSerializer(majors, many=True).data # 에러나면 여기
+                                "current_planmajors": MajorSerializer(majors, many=True).data
                                 }
 
         # calculate major progress
@@ -227,21 +222,18 @@ class RequirementViewSet(viewsets.GenericViewSet):
                                    "major_requirement_credit": major_requirement_required_credit,
                                    "major_all_credit": major_all_required_credit})
 
-        # # calculate general progress
-        # general_progress = general_requirement
-
         data = {"all_progress": all_progress_summary,
                 "major_progress": major_progress}
         return Response(data, status=status.HTTP_200_OK)
 
-    # GET /requirement/{plan_id}/loading/
+    # GET /requirement/{plan_id}/loading
     @action(methods=['GET'], detail=True)
     def loading(self, request, pk=None):
-        plan = Plan.objects.get(pk=pk)
+        plan = get_object_or_404(Plan, pk)
         majors = Major.objects.filter(planmajor__plan=plan)
         is_necessary = False
 
-        # 자유전공학부 때문에 filter => 자전 외에는 major가 두개인 경우는 없어야 정상
+        # 자유전공학부 때문에 filter (자전 외에는 major가 두개인 경우는 없어야 정상)
         all_requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=Requirement.ALL).order_by('-required_credit').first()
         all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=all_requirement)
         if all_planrequirement.required_credit == 0:
@@ -288,7 +280,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
 
-    # PUT /requirement/{plan_id}/setting/
+    # PUT /requirement/{plan_id}/setting
     @action(methods=['PUT'], detail=True)
     @transaction.atomic
     def setting(self, request, pk=None):
@@ -304,7 +296,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
         general_credit = request.data.get('general')
 
         # update all&general planrequirements
-        # 자유전공학부 때문에 filter => 자전 외에는 major가 두개인 경우는 없어야 정상
+        # 자유전공학부 때문에 filter (자전 외에는 major가 두개인 경우는 없어야 정상)
         all_requirement = Requirement.objects.filter(planrequirement__plan=plan,
                                                      requirement_type=Requirement.ALL).order_by('-required_credit').first()
         all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=all_requirement)
@@ -347,7 +339,6 @@ class RequirementViewSet(viewsets.GenericViewSet):
                 major_requirement_planrequirement.required_credit = major_credit["major_requirement_credit"]
                 major_requirement_planrequirement.save()
 
-        # response for debugging
         major_requirement_list = []
 
         for major in majors:

@@ -15,28 +15,25 @@ class PlanViewSet(viewsets.GenericViewSet):
     queryset = Plan.objects.all()
     serializer_class = PlanSerializer 
 
-    # POST /plan/
+    # POST /plan
     @transaction.atomic
     def create(self, request):
         user = request.user
-
-        # err response
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
-        data = request.data.copy()
-        plan_name = data.get("plan_name", None)
-        majors = data.get("majors", None)
+        data = request.data
+        plan_name = data.get("plan_name")
+        majors = data.get("majors")
 
-        # err response
-        if majors is None:
+        # error case
+        if not majors:
             return Response({"error": "majors missing"}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            for major in majors:
-                searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-        except Major.DoesNotExist:
-            return Response({"error": "major not_exist"}, status=status.HTTP_404_NOT_FOUND)
+        for major in majors:
+                if not Major.objects.filter(major_name=major['major_name'], major_type=major['major_type']).exists():
+                    return Response({"error": "major not_exist"}, status=status.HTTP_404_NOT_FOUND)
 
+        # plan
         plan = Plan.objects.create(user=user, plan_name=plan_name)
 
         # planmajor
@@ -50,8 +47,8 @@ class PlanViewSet(viewsets.GenericViewSet):
 
         # planrequirement
         for major in majors:
-            curr_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-            requirements = Requirement.objects.filter(major=curr_major,
+            searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
+            requirements = Requirement.objects.filter(major=searched_major,
                                                       start_year__lte=user.userprofile.entrance_year,
                                                       end_year__gte=user.userprofile.entrance_year)
             for requirement in requirements:
@@ -60,51 +57,43 @@ class PlanViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    # PUT /plan/(int)/
+    # PUT /plan/(int)
     @transaction.atomic
     def update(self, request, pk=None):
         user = request.user
-
-        # err response
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
-        data = request.data.copy()
-        plan = Plan.objects.get(pk=pk)
+        data = request.data
+        plan = get_object_or_404(Plan, pk=pk)
         serializer = self.get_serializer(plan, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.update(plan, serializer.validated_data)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
-    # DEL /plan/(int)/
+    # DEL /plan/(int)
     def destroy(self, request, pk=None):
         user = request.user
-
-        # err response
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
-        plan = Plan.objects.get(pk=pk)
+        plan = get_object_or_404(Plan, pk=pk)
         plan.delete()
         return Response(status=status.HTTP_200_OK)
 
-    # GET /plan/(int)/
+    # GET /plan/(int)
     def retrieve(self, request, pk=None):
         user = request.user
-
-        # err response
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
-        plan = Plan.objects.get(pk=pk)
+        plan = get_object_or_404(Plan, pk=pk)
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # GET /plan/
+    # GET /plan
     def list(self, request):
         user = request.user
-
-        # err response
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
@@ -112,17 +101,15 @@ class PlanViewSet(viewsets.GenericViewSet):
         return Response(self.get_serializer(plans, many=True).data, status=status.HTTP_200_OK)
 
     # 강의구분 자동계산
-    # PUT /plan/(int)/calculate/
+    # PUT /plan/(int)/calculate
     @action(detail=True, methods=['PUT'])
     @transaction.atomic
     def calculate(self, request, pk=None):
         user = request.user
-
-        # err response
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
-        plan = Plan.objects.get(pk=pk)
+        plan = get_object_or_404(Plan, pk=pk)
 
         semesters = Semester.objects.filter(plan=plan)
         semesterlectures =SemesterLecture.objects.filter(semester__in=semesters)
@@ -300,7 +287,7 @@ class PlanViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # PUT /plan/{plan_id}/major/
+    # PUT /plan/{plan_id}/major
     @action(detail=True, methods=['PUT'])
     @transaction.atomic
     def major(self, request, pk=None):
@@ -361,7 +348,7 @@ class PlanViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # PUT /plan/{plan_id}/copy/
+    # PUT /plan/{plan_id}/copy
     @action(detail=True, methods=['POST'])
     @transaction.atomic
     def copy(self, request, pk=None):
@@ -409,54 +396,54 @@ class SemesterViewSet(viewsets.GenericViewSet):
     queryset = Semester.objects.all()
     serializer_class = SemesterSerializer
 
-    # POST /semester/
+    # POST /semester
     @transaction.atomic
     def create(self, request): 
         user = request.user
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
-        plan = request.data.get('plan', None)
-        year = request.data.get('year', None)
-        semester_type = request.data.get('semester_type', None)
-        is_complete = request.data.get('is_complete', False)
+        plan = request.data.get('plan')
+        year = request.data.get('year')
+        semester_type = request.data.get('semester_type')
 
-        if plan is None:
+        if not plan:
             return Response({"error": "plan missing"}, status=status.HTTP_400_BAD_REQUEST)
-        if year is None:
+        if not year:
             return Response({"error": "year missing"}, status=status.HTTP_400_BAD_REQUEST)
-        if semester_type is None:
+        if not semester_type:
             return Response({"error": "semester_type missing"}, status=status.HTTP_400_BAD_REQUEST)
         if Semester.objects.filter(plan=plan, year=year, semester_type=semester_type).exists():
             return Response({"error": "semester already_exist"}, status=status.HTTP_403_FORBIDDEN)
         
-        data = request.data.copy()
+        data = request.data
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    # PUT /semester/(int)/
+    # PUT /semester/(int)
     @transaction.atomic
     def update(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+        data = request.data
+
         semester = self.get_object()
-        data = request.data.copy()
-
         plan = semester.plan
-        year = data.get('year', None)
-        semester_type = data.get('semester_type', None)
-        is_complete = data.get('is_complete', None)
+        year = data.get('year')
+        semester_type = data.get('semester_type')
+        is_complete = data.get('is_complete')
 
-        if (is_complete is None) and (year is None) and (semester_type is None):
+        if (not is_complete) and (not year) and (not semester_type):
             return Response({"error": "body is empty"}, status=status.HTTP_403_FORBIDDEN)
 
-        if (is_complete is None) == ((year is None) and (semester_type is None)):
+        if (not is_complete) == ((not year) and (not semester_type)):
             return Response({"error": "is_complete should be none"}, status=status.HTTP_403_FORBIDDEN)
 
-        if is_complete is None:
+        if not is_complete:
             if Semester.objects.filter(plan=plan, year=year, semester_type=semester_type).exists():
                 return Response({"error": "semester already_exist"}, status=status.HTTP_403_FORBIDDEN)
 
@@ -465,7 +452,7 @@ class SemesterViewSet(viewsets.GenericViewSet):
         serializer.update(semester, serializer.validated_data)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
-    # DEL /semester/(int)/
+    # DEL /semester/(int)
     def destroy(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
@@ -474,6 +461,7 @@ class SemesterViewSet(viewsets.GenericViewSet):
         semester = self.get_object()
         plan = semester.plan
         semester.delete()
+        # TODO: update plan info when delete semester
         # update_plan_info(plan=plan)
         return Response(status=status.HTTP_200_OK)
     
@@ -482,6 +470,7 @@ class SemesterViewSet(viewsets.GenericViewSet):
         user = request.user
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
+
         semester = self.get_object() 
         serializer = SemesterSerializer(semester)
         return Response(serializer.data, status=status.HTTP_200_OK) 
@@ -491,7 +480,7 @@ class LectureViewSet(viewsets.GenericViewSet):
     queryset = SemesterLecture.objects.all()
     serializer_class = SemesterLectureSerializer
 
-    # POST /lecture/
+    # POST /lecture
     @transaction.atomic
     def create(self, request): 
         user = request.user
@@ -560,7 +549,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         data = SemesterSerializer(semester).data
         return Response(data, status=status.HTTP_201_CREATED)
     
-    # PUT /lecture/(int)/position/
+    # PUT /lecture/(int)/position
     @action(methods=['PUT'], detail=True)
     @transaction.atomic
     def position(self, request, pk=None):
@@ -603,7 +592,7 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
 
-    # PUT /lecture/{semesterlecture_id}/recognized_major/
+    # PUT /lecture/{semesterlecture_id}/recognized_major
     @action(methods=['PUT'], detail=True)
     @transaction.atomic
     def recognized_major(self, request, pk=None):
@@ -678,17 +667,14 @@ class LectureViewSet(viewsets.GenericViewSet):
         else:
             return Response({"error": "wrong lecture_type"}, status=status.HTTP_400_BAD_REQUEST)
 
-    # DEL /lecture/(int)/
+    # DEL /lecture/(int)
     @transaction.atomic
     def destroy(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
-        try:
-            semesterlecture = SemesterLecture.objects.get(pk=pk)
-        except SemesterLecture.DoesNotExist:
-            return Response({"error": "semesterlecture not_exist"}, status=status.HTTP_404_NOT_FOUND)
+        semesterlecture = get_object_or_404(SemesterLecture, pk=pk)
         subtract_credits(semesterlecture)
         semesterlecture.delete()
         return Response(status=status.HTTP_200_OK) 
@@ -696,18 +682,20 @@ class LectureViewSet(viewsets.GenericViewSet):
     # GET /lecture/?search_type=(string)&search_keyword=(string)&major=(string)&credit=(string)
     def list(self, request):
         user = request.user
+        if not user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
 
         # Pagination Parameter
         page = request.GET.get('page', '1')
 
         # Query Params
-        search_type = request.query_params.get("search_type", None)
+        search_type = request.query_params.get("search_type")
         if not search_type:
             return Response({ "error": "search_type missing" }, status=status.HTTP_400_BAD_REQUEST)
 
         # Case 1: major requirement or major elective
         if search_type == 'major_requirement' or search_type == 'major_elective':
-            major_name = request.query_params.get("major_name", None)
+            major_name = request.query_params.get("major_name")
             if major_name:
                 lectures = Lecture.objects.filter(open_major=major_name, lecture_type=search_type)
                 serializer = LectureSerializer(lectures, many=True)
@@ -722,8 +710,8 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         # Case 2: general
         elif search_type == 'general': 
-            credit = request.query_params.get("credit", None)
-            search_keyword = request.query_params.get("search_keyword", None)
+            credit = request.query_params.get("credit")
+            search_keyword = request.query_params.get("search_keyword")
             if credit and search_keyword:
                 lectures = Lecture.objects.filter(credit=credit, lecture_name__icontains=search_keyword) 
                 serializer = LectureSerializer(lectures, many=True)
@@ -733,7 +721,7 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         # Case 3: keyword
         else:
-            search_keyword = request.query_params.get("search_keyword", None)
+            search_keyword = request.query_params.get("search_keyword")
             if search_keyword:
                 lectures = Lecture.objects.filter(lecture_name__icontains=search_keyword)
                 lectures = Paginator(lectures, 20).get_page(page)
