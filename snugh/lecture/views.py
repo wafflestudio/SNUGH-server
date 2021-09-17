@@ -312,8 +312,7 @@ class PlanViewSet(viewsets.GenericViewSet):
             selected_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
             PlanMajor.objects.create(plan=plan, major=selected_major)
 
-        majors = Major.objects.filter(planmajor__plan=plan)
-        majors = list(majors)
+        majors = list(Major.objects.filter(planmajor__plan=plan))
         if len(majors) == 1:
             if majors[0].major_type == Major.MAJOR:
                 PlanMajor.objects.get(plan=plan, major=majors[0]).delete()
