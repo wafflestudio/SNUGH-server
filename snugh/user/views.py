@@ -146,11 +146,11 @@ class UserViewSet(viewsets.GenericViewSet):
     def retrieve(self, request, pk=None):
         user = request.user
 
-        #error case 1
+        # error case 1
         if not request.user.is_authenticated:
             return Response({'error':'no_token'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        #error case 2
+        # error case 2
         if pk != 'me':
             return Response( {'error': 'pk≠me'}, status=status.HTTP_403_FORBIDDEN)
 
