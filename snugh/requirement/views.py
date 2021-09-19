@@ -137,7 +137,6 @@ class RequirementViewSet(viewsets.GenericViewSet):
         general_planrequirement.earned_credit = general_earned_credit
         general_planrequirement.save()
 
-        # calculate all progress
         all_requirement = {"required_credit": 0,
                            "earned_credit": 0,
                            "progress": 0}
