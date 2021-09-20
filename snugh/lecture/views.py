@@ -26,7 +26,7 @@ class PlanViewSet(viewsets.GenericViewSet):
         plan_name = data.get("plan_name")
         majors = data.get("majors")
 
-        # error case
+        # error case 1
         if not majors:
             return Response({"error": "majors missing"}, status=status.HTTP_400_BAD_REQUEST)
         for major in majors:
@@ -65,7 +65,7 @@ class PlanViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    # PUT /plan/(int)
+    # PUT /plan/:planId
     @transaction.atomic
     def update(self, request, pk=None):
         user = request.user
@@ -79,7 +79,7 @@ class PlanViewSet(viewsets.GenericViewSet):
         serializer.update(plan, serializer.validated_data)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
-    # DEL /plan/(int)
+    # DEL /plan/:planId
     def destroy(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
@@ -89,7 +89,7 @@ class PlanViewSet(viewsets.GenericViewSet):
         plan.delete()
         return Response(status=status.HTTP_200_OK)
 
-    # GET /plan/(int)
+    # GET /plan/:planId
     def retrieve(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
@@ -109,7 +109,7 @@ class PlanViewSet(viewsets.GenericViewSet):
         return Response(self.get_serializer(plans, many=True).data, status=status.HTTP_200_OK)
 
     # 강의구분 자동계산
-    # PUT /plan/(int)/calculate
+    # PUT /plan/:planId/calculate
     @action(detail=True, methods=['PUT'])
     @transaction.atomic
     def calculate(self, request, pk=None):
@@ -295,7 +295,7 @@ class PlanViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # PUT /plan/{plan_id}/major
+    # PUT /plan/:planId/major
     @action(detail=True, methods=['PUT'])
     @transaction.atomic
     def major(self, request, pk=None):
@@ -355,7 +355,7 @@ class PlanViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # PUT /plan/{plan_id}/copy
+    # PUT /plan/:planId/copy
     @action(detail=True, methods=['POST'])
     @transaction.atomic
     def copy(self, request, pk=None):
@@ -429,7 +429,7 @@ class SemesterViewSet(viewsets.GenericViewSet):
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    # PUT /semester/(int)
+    # PUT /semester/:semesterId
     @transaction.atomic
     def update(self, request, pk=None):
         user = request.user
@@ -459,7 +459,7 @@ class SemesterViewSet(viewsets.GenericViewSet):
         serializer.update(semester, serializer.validated_data)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
-    # DEL /semester/(int)
+    # DEL /semester/:semesterId
     def destroy(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
@@ -472,7 +472,7 @@ class SemesterViewSet(viewsets.GenericViewSet):
         # update_plan_info(plan=plan)
         return Response(status=status.HTTP_200_OK)
     
-    # GET /semester/(int)/
+    # GET /semester/:semesterId
     def retrieve(self, request, pk=None):
         user = request.user
         if not user.is_authenticated:
@@ -556,7 +556,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         data = SemesterSerializer(semester).data
         return Response(data, status=status.HTTP_201_CREATED)
     
-    # PUT /lecture/(int)/position
+    # PUT /lecture/:lectureId/position
     @action(methods=['PUT'], detail=True)
     @transaction.atomic
     def position(self, request, pk=None):
@@ -599,7 +599,7 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
 
-    # PUT /lecture/{semesterlecture_id}/recognized_major
+    # PUT /lecture/:semesterLectureId/recognized_major
     @action(methods=['PUT'], detail=True)
     @transaction.atomic
     def recognized_major(self, request, pk=None):
@@ -674,7 +674,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         else:
             return Response({"error": "wrong lecture_type"}, status=status.HTTP_400_BAD_REQUEST)
 
-    # DEL /lecture/(int)
+    # DEL /lecture/:lectureId
     @transaction.atomic
     def destroy(self, request, pk=None):
         user = request.user

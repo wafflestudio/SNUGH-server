@@ -226,7 +226,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
                 "major_progress": major_progress}
         return Response(data, status=status.HTTP_200_OK)
 
-    # GET /requirement/{plan_id}/loading
+    # GET /requirement/:planId/loading
     @action(methods=['GET'], detail=True)
     def loading(self, request, pk=None):
         plan = get_object_or_404(Plan, pk)
@@ -280,7 +280,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
 
-    # PUT /requirement/{plan_id}/setting
+    # PUT /requirement/:planId/setting
     @action(methods=['PUT'], detail=True)
     @transaction.atomic
     def setting(self, request, pk=None):

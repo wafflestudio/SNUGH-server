@@ -10,6 +10,7 @@ class FAQViewSet(viewsets.GenericViewSet):
     queryset = FAQ.objects.all()
     serializer_class = FAQSerializer
 
+    # POST /faq
     def create(self, request):
         body = request.data
         question = body.get('question')
@@ -18,6 +19,7 @@ class FAQViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(faq)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    # GET /faq
     def list(self, request):
         page = request.GET.get('page', '1')
         faqs = self.get_queryset().order_by('created_at')
@@ -25,6 +27,7 @@ class FAQViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(faqs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    # DELETE /faq/:faqId
     def delete(self, request, pk=None):
         faq = get_object_or_404(FAQ, pk=pk)
         faq.delete()

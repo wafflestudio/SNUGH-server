@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'lecture.apps.LectureConfig',
     'requirement.apps.RequirementConfig',
     'faq.apps.FAQConfig',
+    'bug_report.apps.BugReportConfig',
 ]
 
 MIDDLEWARE = [
