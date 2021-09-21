@@ -313,18 +313,20 @@ class PlanViewSet(viewsets.GenericViewSet):
         # update planmajor
         for major in delete_list:
             selected_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-            selected_planmajor = PlanMajor.objects.get(plan=plan, major=selected_major)
-            selected_planmajor.delete()
+            PlanMajor.objects.get(plan=plan, major=selected_major).delete()
 
         for major in post_list:
             selected_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
             PlanMajor.objects.create(plan=plan, major=selected_major)
 
+        # update major type
         majors = list(Major.objects.filter(planmajor__plan=plan))
+
         if len(majors) == 1:
-            if majors[0].major_type == Major.MAJOR:
-                PlanMajor.objects.get(plan=plan, major=majors[0]).delete()
-                new_type_major = Major.objects.get(major_name=majors[0].major_name, major_type=Major.SINGLE_MAJOR)
+            major = majors[0]
+            if major.major_type == Major.MAJOR:
+                PlanMajor.objects.get(plan=plan, major=major).delete()
+                new_type_major = Major.objects.get(major_name=major.major_name, major_type=Major.SINGLE_MAJOR)
                 PlanMajor.objects.create(plan=plan, major=new_type_major)
         else:
             for major in majors:
@@ -336,22 +338,22 @@ class PlanViewSet(viewsets.GenericViewSet):
         # update planrequirement
         for major in post_list:
             curr_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-            requirements = Requirement.objects.filter(major=curr_major, start_year__lte=user.userprofile.entrance_year,
+            requirements = Requirement.objects.filter(major=curr_major,
+                                                      start_year__lte=user.userprofile.entrance_year,
                                                       end_year__gte=user.userprofile.entrance_year)
             for requirement in list(requirements):
-                PlanRequirement.objects.create(plan=plan, requirement=requirement, required_credit = requirement.required_credit)
+                PlanRequirement.objects.create(plan=plan, requirement=requirement, required_credit=requirement.required_credit)
 
         for major in delete_list:
             curr_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-            requirements = Requirement.objects.filter(major=curr_major, start_year__lte=user.userprofile.entrance_year,
+            requirements = Requirement.objects.filter(major=curr_major,
+                                                      start_year__lte=user.userprofile.entrance_year,
                                                       end_year__gte=user.userprofile.entrance_year)
             for requirement in list(requirements):
-                selected_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=requirement)
-                selected_planrequirement.delete()
+                PlanRequirement.objects.get(plan=plan, requirement=requirement).delete()
 
-        self.calculate(request, pk)
+        self.calculate(request, pk=pk)
 
-        plan = get_object_or_404(Plan, pk=pk)
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
