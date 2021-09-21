@@ -737,7 +737,8 @@ class LectureViewSet(viewsets.GenericViewSet):
             else:
                 return Response({"error": "search_keyword missing"}, status=status.HTTP_400_BAD_REQUEST)
 
-# 공용 함수 모음
+
+# Common Functions
 def update_plan_info(plan):
     # SemesterLecture 모델의 lecture_type 관련 값 업데이트
     majors = Major.objects.filter(planmajor__plan=plan)
@@ -873,7 +874,7 @@ def cal_priority_lt(lecture_type):
         SemesterLecture.GENERAL: 2,
         SemesterLecture.GENERAL_ELECTIVE: 1
     }
-    return switcher.get(lecture_type, -1)
+    return switcher.get(lecture_type, -1) # -1 is error
 
 def lecture_type_to_int(semesterlecture):
     switcher = {
@@ -883,7 +884,7 @@ def lecture_type_to_int(semesterlecture):
         SemesterLecture.GENERAL : 4,
         SemesterLecture.GENERAL_ELECTIVE : 5
     }
-    return switcher.get(semesterlecture, -1) # -1은 에러
+    return switcher.get(semesterlecture, -1) # -1 is error
 
 def add_credits(semesterlecture):
     semester = semesterlecture.semester
