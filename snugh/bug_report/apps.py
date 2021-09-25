@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class BugReportConfig(AppConfig):
-    name = 'bug'
+    name = 'bug_report'
