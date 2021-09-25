@@ -722,7 +722,7 @@ class LectureViewSet(viewsets.GenericViewSet):
             credit = request.query_params.get("credit")
             search_keyword = request.query_params.get("search_keyword")
             if credit and search_keyword:
-                lectures = Lecture.objects.filter(credit=credit, lecture_name__icontains=search_keyword) 
+                lectures = Lecture.objects.filter(credit=credit, lecture_name__search=search_keyword)
                 serializer = LectureSerializer(lectures, many=True)
                 return Response(serializer.data, status=status.HTTP_200_OK)
             else:
@@ -732,7 +732,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         else:
             search_keyword = request.query_params.get("search_keyword")
             if search_keyword:
-                lectures = Lecture.objects.filter(lecture_name__icontains=search_keyword)
+                lectures = Lecture.objects.filter(lecture_name__search=search_keyword)
                 lectures = Paginator(lectures, 20).get_page(page)
                 serializer = LectureSerializer(lectures, many=True)
                 return Response(serializer.data, status=status.HTTP_200_OK)
