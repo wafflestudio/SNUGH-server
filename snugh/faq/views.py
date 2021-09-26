@@ -22,13 +22,12 @@ class FAQViewSet(viewsets.GenericViewSet):
     # GET /faq
     def list(self, request):
         default_order = '-read_count'
-
         page = request.GET.get('page', '1')
         order = request.GET.get('order', default_order)
         category = request.GET.get('category')
 
         faqs = self.get_queryset().order_by(order)
-        if category is not None:
+        if category:
             faqs = faqs.filter(category=category)
         faqs = Paginator(faqs, 5).get_page(page)
         serializer = self.get_serializer(faqs, many=True)
