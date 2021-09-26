@@ -282,7 +282,7 @@ class MajorViewSet(viewsets.GenericViewSet):
     def list(self, request):
         search_keyword = request.query_params.get('search_keyword')
         if search_keyword:
-            majors = self.get_queryset().filter(major_name__contains=search_keyword)
+            majors = self.get_queryset().filter(major_name__search=search_keyword)
         else:
             majors = self.get_queryset().all()
 
