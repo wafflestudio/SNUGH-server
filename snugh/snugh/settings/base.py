@@ -1,11 +1,12 @@
+from os import getenv
 from pathlib import Path
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'a6ejp$*!cz7+5zd00nz6$10%ph!877_0hp%02z((eet_2xof$%'
+SECRET_KEY = getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -100,39 +101,16 @@ WSGI_APPLICATION = 'snugh.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'snugh',
-        'USER': 'snugh',
-        'PASSWORD': 'babyammo',
-        'HOST': 'wafflestudio-mysql-202107.caxwrw8c4qqq.ap-northeast-2.rds.amazonaws.com',
+        'NAME': getenv('DB_NAME', 'snugh'),
+        'USER': getenv('DB_USER', 'snugh'),
+        'PASSWORD': getenv('DB_PASSWORD'),
+        'HOST': getenv('DB_HOST'),
         'PORT': '3306',
         'OPTIONS': {
             'init_command': 'SET sql_mode="STRICT_TRANS_TABLES"'
         }
     }
 }
-
-# Temporary Local Database
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'snugh_tmp',
-#         'USER': 'admin',
-#         'PASSWORD': 'babyammo',
-#         'HOST': 'localhost',
-#         'PORT': '',
-#     },
-#     'remote':  {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'snugh',
-#         'USER': 'snugh',
-#         'PASSWORD': 'babyammo',
-#         'HOST': 'wafflestudio-mysql-202107.caxwrw8c4qqq.ap-northeast-2.rds.amazonaws.com',
-#         'PORT': '3306',
-#         'OPTIONS': {
-#             'init_command': 'SET sql_mode="STRICT_TRANS_TABLES"'
-#         }
-#     }
-# }
 
 CACHES = {
         "default": {
