@@ -761,9 +761,6 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         # Case 3: lecture_type를 general_elective로 변경 
         elif lecture_type == 'general_elective':
-            past_recognized_majors = [semesterlecture.recognized_major1, semesterlecture.recognized_major2]
-            past_lecture_types = []
-
             data = {
                 "lecture_type": lecture_type,
                 "recognized_major1": SemesterLecture.DEFAULT_MAJOR_ID,
