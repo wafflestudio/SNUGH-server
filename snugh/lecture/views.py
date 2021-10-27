@@ -615,6 +615,8 @@ class LectureViewSet(viewsets.GenericViewSet):
             past_recognized_majors = [semesterlecture.recognized_major1, semesterlecture.recognized_major2]
             past_lecture_types = [semesterlecture.lecture_type1, semesterlecture.lecture_type2]
 
+            # Create lecturechangehistory: major = default_major_id, curr_lecture_type = general or general_elective
+            # lecturechangehistory의 major가 default major 인 유일한 경우
             if semesterlecture.lecture_type != lecture_type:
                 lecturechangehistory = LectureChangeHistory.objects.filter(major=Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID),
                                                                         lecture=semesterlecture.lecture,
@@ -631,6 +633,7 @@ class LectureViewSet(viewsets.GenericViewSet):
                     lecturechangehistory.count += 1
                     lecturechangehistory.save()
 
+            # Create major = past_major_id, curr_lecture_type = none
             for i in len(2):
                 past_recognized_major = past_recognized_majors[i]
                 past_lecture_type = past_lecture_types[i]
@@ -679,6 +682,7 @@ class LectureViewSet(viewsets.GenericViewSet):
             lecture_type1 = request.data.get('lecture_type1', SemesterLecture.NONE) 
             lecture_type2 = request.data.get('lecture_type2', SemesterLecture.NONE)
 
+            # 새롭게 만들어진 lecturehistory의 major 는 default major 가 될 수 없음
             past_recognized_major_check = [False, False]
             curr_recognized_major_check = [False, False]
             past_recognized_majors = [semesterlecture.recognized_major1, semesterlecture.recognized_major2]
@@ -689,11 +693,12 @@ class LectureViewSet(viewsets.GenericViewSet):
             for i in len(2):
                 past_recognized_major = past_recognized_majors[i]
                 for j in len(2):
-                    if recognized_major_check[j] == False:
+                    if curr_recognized_major_check[j] == False:
                         curr_recognized_major = curr_recognized_majors[j]
-                        if past_recognized_major.equals(curr_recognized_major):
+                        if past_recognized_major.equals(curr_recognized_major) and past_recognized_major.id != Major.DEFAULT_MAJOR_ID:
                             curr_recognized_major_check[j] = True
                             past_recognized_major_check[i] = True
+                            # Create lecturechangehistory: major = past_major = curr_major
                             if past_lecture_types[i] != curr_lecture_types[j]:
                                 lecturechangehistory = LectureChangeHistory.objects.filter(major=past_recognized_major,
                                                                                         lecture=semesterlecture.lecture,
@@ -709,7 +714,11 @@ class LectureViewSet(viewsets.GenericViewSet):
                                 else:
                                     lecturechangehistory.count += 1
                                     lecturechangehistory.save()
-                if past_recognized_major_check[i] == False:
+
+                # 단일인정, none -> 복수인정, 새로운 과에서 복수인정, 복수인정 -> 단일인정, none
+                # past_recognized major에서 더이상 major_elective, major_requirement 아님
+                if past_recognized_major_check[i] == False and past_recognized_major.id != Major.DEFAULT_MAJOR_ID:
+                    # Create lecturechangehistory: major = past_major, curr_lecture_type = none
                     lecturechangehistory = LectureChangeHistory.objects.filter(major=past_recognized_major,
                                                                                lecture=semesterlecture.lecture,
                                                                                entrance_year=user.userprofile.entrance_year,
@@ -724,9 +733,10 @@ class LectureViewSet(viewsets.GenericViewSet):
                     else:
                         lecturechangehistory.count += 1
                         lecturechangehistory.save()
-
+            # curr_major에서 새롭게 major_elective, major_requirement 인
             for i in len(2):
-                if curr_recognized_major_check[i] == False:
+                # Create lecturechangehistory: major = curr_major, curr_lecture_type = major_elective or major_requirement
+                if curr_recognized_major_check[i] == False and curr_recognized_majors[i].id != Major.DEFAULT_MAJOR_ID:
                     lecturechangehistory = LectureChangeHistory.objects.filter(major=curr_recognized_majors[i],
                                                                                lecture=semesterlecture.lecture,
                                                                                entrance_year=user.userprofile.entrance_year,
