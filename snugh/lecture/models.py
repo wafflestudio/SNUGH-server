@@ -91,7 +91,7 @@ class LectureChangeHistory(models.Model):
     past_lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
     curr_lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
     created_at = models.DateField(auto_now_add = True)
-    count = models.IntegerField(default=0)
+    change_count = models.IntegerField(default=1)
 
 
 class Plan(models.Model):
