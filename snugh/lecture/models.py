@@ -65,6 +65,35 @@ class Lecture(models.Model):
     recent_open_year = models.IntegerField(default=0)
 
 
+class LectureChangeHistory(models.Model):
+    # 구분 없음
+    NONE = 'none'
+
+    # Lecture Type
+    MAJOR_REQUIREMENT = 'major_requirement'  # 전공 필수
+    MAJOR_ELECTIVE = 'major_elective'  # 전공 선택
+    GENERAL = 'general'  # 교양
+    GENERAL_ELECTIVE = 'general_elective'  # 일반 선택
+    TEACHING = 'teaching'  # 교직
+
+    LECTURE_TYPE = (
+        (NONE, "none"),
+        (MAJOR_REQUIREMENT, 'major_requirement'),
+        (MAJOR_ELECTIVE, 'major_elective'),
+        (GENERAL, 'general'),
+        (GENERAL_ELECTIVE, 'general_elective'),
+        (TEACHING, 'teaching'),
+    )
+
+    major = models.ForeignKey(Major, related_name='lecturehistory', on_delete=models.CASCADE)
+    lecture = models.ForeignKey(Lecture, related_name='lecturehistory', on_delete=models.CASCADE)
+    entrance_year = models.IntegerField(default=0)
+    past_lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
+    curr_lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
+    created_at = models.DateField(auto_now_add = True)
+    change_count = models.IntegerField(default=1)
+
+
 class Plan(models.Model):
     user = models.ForeignKey(User, related_name='plan', on_delete=models.CASCADE, default=5)
     plan_name = models.CharField(max_length=50, db_index=True, default="새로운 계획")
