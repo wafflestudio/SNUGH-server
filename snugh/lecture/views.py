@@ -822,7 +822,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         else:
             return Response({"error": "wrong lecture_type"}, status=status.HTTP_400_BAD_REQUEST)
 
-    # DEL /lecture/:lectureId
+    # DEL /lecture/:semlectureId
     @transaction.atomic
     def destroy(self, request, pk=None):
         user = request.user
