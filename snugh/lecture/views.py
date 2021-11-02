@@ -372,7 +372,7 @@ class PlanViewSet(viewsets.GenericViewSet):
 
         requirements = Requirement.objects.filter(planrequirement__plan=plan)
         for requirement in list(requirements):
-            PlanRequirement.objects.create(plan=new_plan, requirement=requirement)
+            PlanRequirement.objects.create(plan=new_plan, requirement=requirement, required_credit=requirement.required_credit)
 
         semesters = Semester.objects.filter(plan=plan)
         for semester in list(semesters):
@@ -394,6 +394,7 @@ class PlanViewSet(viewsets.GenericViewSet):
                                                lecture_type1=sl.lecture_type1,
                                                recognized_major2=sl.recognized_major2,
                                                lecture_type2=sl.lecture_type2,
+                                               credit=sl.credit,
                                                recent_sequence=sl.recent_sequence,
                                                is_modified=sl.is_modified)
 
@@ -539,6 +540,7 @@ class LectureViewSet(viewsets.GenericViewSet):
                                                         lecture_type=lecture_type,
                                                         recognized_major1=recognized_major,
                                                         lecture_type1=lecture_type,
+                                                        credit=lecture.credit,
                                                         recent_sequence=n_lectures+i)
             semlecture.save()
 
@@ -601,6 +603,79 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
 
+    # PUT /lecture/:semesterLectureId/credit
+    @action(methods=['PUT'], detail=True)
+    @transaction.atomic
+    def credit(self, request, pk=None):
+        semesterlecture = self.get_object()
+        credit = request.data.get('credit', 0)
+
+        if credit != 1 and credit != 2 and credit !=3 and credit !=4:
+            return Response({"error": "enter valid credit"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if credit == semesterlecture.credit:
+            return Response(SemesterLectureSerializer(semesterlecture).data, status=status.HTTP_200_OK)
+
+        # create creditchangehistory
+        # lecture_type = general or general_elective
+        if semesterlecture.lecture_type == SemesterLecture.GENERAL or semesterlecture.lecture_type == SemesterLecture.GENERAL_ELECTIVE:
+            creditchangehistory = CreditChangeHistory.objects.filter(major=Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID),
+                                                                    lecture=semesterlecture.lecture,
+                                                                    entrance_year=user.userprofile.entrance_year,
+                                                                    past_credit=semesterlecture.credit,
+                                                                    curr_credit=credit)
+            if creditchangehistory.count() == 0:
+                CreditChangeHistory.objects.create(major=Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID),
+                                                    lecture=semesterlecture.lecture,
+                                                    entrance_year=user.userprofile.entrance_year,
+                                                    past_credit=semesterlecture.credit,
+                                                    curr_credit=credit)
+            else:
+                creditchangehistory = CreditChangeHistory.objects.get(major=Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID),
+                                                                    lecture=semesterlecture.lecture,
+                                                                    entrance_year=user.userprofile.entrance_year,
+                                                                    past_credit=semesterlecture.credit,
+                                                                    curr_credit=credit)
+                creditchangehistory.change_count += 1
+                creditchangehistory.save()
+        # lecture_type = major_requirement or major_elective
+        else:
+            recognized_majors = [semesterlecture.recognized_major1, semesterlecture.recognized_major2]
+            for i in range(2):
+                if recognized_majors[i].id != Major.DEFAULT_MAJOR_ID:
+                    creditchangehistory = CreditChangeHistory.objects.filter(major=recognized_majors[i],
+                                                                            lecture=semesterlecture.lecture,
+                                                                            entrance_year=user.userprofile.entrance_year,
+                                                                            past_credit=semesterlecture.credit,
+                                                                            curr_credit=credit)
+                    if creditchangehistory.count() == 0:
+                        CreditChangeHistory.objects.create(major=recognized_majors[i],
+                                                           lecture=semesterlecture.lecture,
+                                                           entrance_year=user.userprofile.entrance_year,
+                                                           past_credit=semesterlecture.credit,
+                                                           curr_credit=credit)
+                    else:
+                        creditchangehistory = CreditChangeHistory.objects.get(major=recognized_majors[i],
+                                                                            lecture=semesterlecture.lecture,
+                                                                            entrance_year=user.userprofile.entrance_year,
+                                                                            past_credit=semesterlecture.credit,
+                                                                            curr_credit=credit)
+                        creditchangehistory.change_count += 1
+                        creditchangehistory.save()
+
+        # update semesterlecture
+        subtract_credits(semesterlecture)
+
+        semesterlecture.credit = credit
+        semesterlecture.is_modified = True
+        semesterlecture.save()
+
+        add_credits(semesterlecture)
+
+        data = SemesterLectureSerializer(semesterlecture).data
+        return Response(data, status=status.HTTP_200_OK)
+
+
     # PUT /lecture/:semesterLectureId/recognized_major
     @action(methods=['PUT'], detail=True)
     @transaction.atomic
@@ -616,30 +691,30 @@ class LectureViewSet(viewsets.GenericViewSet):
             past_recognized_majors = [semesterlecture.recognized_major1, semesterlecture.recognized_major2]
             past_lecture_types = [semesterlecture.lecture_type1, semesterlecture.lecture_type2]
 
-            # Create lecturechangehistory: major = default_major_id, curr_lecture_type = general or general_elective
-            # lecturechangehistory의 major가 default major 인 유일한 경우 --??
+            # Create lecturetypechangehistory: major = default_major_id, curr_lecture_type = general or general_elective
+            # lecturetypechangehistory의 major가 default major 인 유일한 경우 --??
             # 일선으로 바꿀 때는 저장 안함.
             if semesterlecture.lecture_type != lecture_type and lecture_type != SemesterLecture.GENERAL_ELECTIVE:
-                lecturechangehistory = LectureChangeHistory.objects.filter(major=Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID),
+                lecturetypechangehistory = LectureTypeChangeHistory.objects.filter(major=Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID),
                                                                         lecture=semesterlecture.lecture,
                                                                         entrance_year=user.userprofile.entrance_year,
                                                                         past_lecture_type=semesterlecture.NONE,
                                                                         curr_lecture_type=lecture_type)
-                if lecturechangehistory.count() == 0:
-                    LectureChangeHistory.objects.create(major=Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID),
+                if lecturetypechangehistory.count() == 0:
+                    LectureTypeChangeHistory.objects.create(major=Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID),
                                                         lecture=semesterlecture.lecture,
                                                         entrance_year=user.userprofile.entrance_year,
                                                         past_lecture_type=semesterlecture.NONE,
                                                         curr_lecture_type=lecture_type)
                 else:
-                    lecturechangehistory = LectureChangeHistory.objects.get(
+                    lecturetypechangehistory = LectureTypeChangeHistory.objects.get(
                         major=Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID),
                         lecture=semesterlecture.lecture,
                         entrance_year=user.userprofile.entrance_year,
                         past_lecture_type=semesterlecture.NONE,
                         curr_lecture_type=lecture_type)
-                    lecturechangehistory.change_count += 1
-                    lecturechangehistory.save()
+                    lecturetypechangehistory.change_count += 1
+                    lecturetypechangehistory.save()
 
             # Create major = past_major_id, curr_lecture_type = none
             for i in range(2):
@@ -647,25 +722,25 @@ class LectureViewSet(viewsets.GenericViewSet):
                 past_lecture_type = past_lecture_types[i]
 
                 if past_recognized_major.id != SemesterLecture.DEFAULT_MAJOR_ID:
-                    lecturechangehistory = LectureChangeHistory.objects.filter(major=past_recognized_major,
+                    lecturetypechangehistory = LectureTypeChangeHistory.objects.filter(major=past_recognized_major,
                                                                                lecture=semesterlecture.lecture,
                                                                                entrance_year=user.userprofile.entrance_year,
                                                                                past_lecture_type=past_lecture_type,
-                                                                               curr_lecture_type=LectureChangeHistory.NONE)
-                    if lecturechangehistory.count() == 0:
-                        LectureChangeHistory.objects.create(major=past_recognized_major,
+                                                                               curr_lecture_type=LectureTypeChangeHistory.NONE)
+                    if lecturetypechangehistory.count() == 0:
+                        LectureTypeChangeHistory.objects.create(major=past_recognized_major,
                                                             lecture=semesterlecture.lecture,
                                                             entrance_year=user.userprofile.entrance_year,
                                                             past_lecture_type=past_lecture_type,
-                                                            curr_lecture_type=LectureChangeHistory.NONE)
+                                                            curr_lecture_type=LectureTypeChangeHistory.NONE)
                     else:
-                        lecturechangehistory = LectureChangeHistory.objects.get(major=past_recognized_major,
+                        lecturetypechangehistory = LectureTypeChangeHistory.objects.get(major=past_recognized_major,
                                                                                    lecture=semesterlecture.lecture,
                                                                                    entrance_year=user.userprofile.entrance_year,
                                                                                    past_lecture_type=past_lecture_type,
-                                                                                   curr_lecture_type=LectureChangeHistory.NONE)
-                        lecturechangehistory.change_count += 1
-                        lecturechangehistory.save()
+                                                                                   curr_lecture_type=LectureTypeChangeHistory.NONE)
+                        lecturetypechangehistory.change_count += 1
+                        lecturetypechangehistory.save()
 
         # Case 1: lecture_type을 교양으로 변경
         if lecture_type == 'general':
@@ -711,77 +786,77 @@ class LectureViewSet(viewsets.GenericViewSet):
                         if past_recognized_major.id == curr_recognized_major.id:
                             curr_recognized_major_check[j] = True
                             past_recognized_major_check[i] = True
-                            # Create lecturechangehistory: major = past_major = curr_major
+                            # Create lecturetypechangehistory: major = past_major = curr_major
                             if past_lecture_types[i] != curr_lecture_types[j] and past_recognized_major.id != Major.DEFAULT_MAJOR_ID:
-                                lecturechangehistory = LectureChangeHistory.objects.filter(major=past_recognized_major,
+                                lecturetypechangehistory = LectureTypeChangeHistory.objects.filter(major=past_recognized_major,
                                                                                         lecture=semesterlecture.lecture,
                                                                                         entrance_year=user.userprofile.entrance_year,
                                                                                         past_lecture_type=past_lecture_types[i],
                                                                                         curr_lecture_type=curr_lecture_types[j])
-                                if lecturechangehistory.count() == 0:
-                                    LectureChangeHistory.objects.create(major=past_recognized_major,
+                                if lecturetypechangehistory.count() == 0:
+                                    LectureTypeChangeHistory.objects.create(major=past_recognized_major,
                                                                         lecture=semesterlecture.lecture,
                                                                         entrance_year=user.userprofile.entrance_year,
                                                                         past_lecture_type=past_lecture_types[i],
                                                                         curr_lecture_type=curr_lecture_types[j])
                                 else:
-                                    lecturechangehistory = LectureChangeHistory.objects.get(
+                                    lecturetypechangehistory = LectureTypeChangeHistory.objects.get(
                                         major=past_recognized_major,
                                         lecture=semesterlecture.lecture,
                                         entrance_year=user.userprofile.entrance_year,
                                         past_lecture_type=past_lecture_types[i],
                                         curr_lecture_type=curr_lecture_types[j])
-                                    lecturechangehistory.change_count += 1
-                                    lecturechangehistory.save()
+                                    lecturetypechangehistory.change_count += 1
+                                    lecturetypechangehistory.save()
 
                 # 단일인정, none -> 복수인정, 새로운 과에서 복수인정, 복수인정 -> 단일인정, none
                 # past_recognized major에서 더이상 major_elective, major_requirement 아님
                 if past_recognized_major_check[i] == False and past_lecture_types[i] != SemesterLecture.NONE and past_lecture_types[i] != SemesterLecture.GENERAL_ELECTIVE:
-                    # Create lecturechangehistory: major = past_major, curr_lecture_type = none
-                    lecturechangehistory = LectureChangeHistory.objects.filter(major=past_recognized_major,
+                    # Create lecturetypechangehistory: major = past_major, curr_lecture_type = none
+                    lecturetypechangehistory = LectureTypeChangeHistory.objects.filter(major=past_recognized_major,
                                                                                lecture=semesterlecture.lecture,
                                                                                entrance_year=user.userprofile.entrance_year,
                                                                                past_lecture_type=past_lecture_types[i],
-                                                                               curr_lecture_type=LectureChangeHistory.NONE)
-                    if lecturechangehistory.count() == 0:
-                        LectureChangeHistory.objects.create(major=past_recognized_major,
+                                                                               curr_lecture_type=LectureTypeChangeHistory.NONE)
+                    if lecturetypechangehistory.count() == 0:
+                        LectureTypeChangeHistory.objects.create(major=past_recognized_major,
                                                             lecture=semesterlecture.lecture,
                                                             entrance_year=user.userprofile.entrance_year,
                                                             past_lecture_type=past_lecture_types[i],
-                                                            curr_lecture_type=LectureChangeHistory.NONE)
+                                                            curr_lecture_type=LectureTypeChangeHistory.NONE)
                     else:
-                        lecturechangehistory = LectureChangeHistory.objects.get(major=past_recognized_major,
+                        lecturetypechangehistory = LectureTypeChangeHistory.objects.get(major=past_recognized_major,
                                                                                    lecture=semesterlecture.lecture,
                                                                                    entrance_year=user.userprofile.entrance_year,
                                                                                    past_lecture_type=past_lecture_types[
                                                                                        i],
-                                                                                   curr_lecture_type=LectureChangeHistory.NONE)
-                        lecturechangehistory.change_count += 1
-                        lecturechangehistory.save()
+                                                                                   curr_lecture_type=LectureTypeChangeHistory.NONE)
+                        lecturetypechangehistory.change_count += 1
+                        lecturetypechangehistory.save()
             # curr_major에서 새롭게 major_elective, major_requirement 인
             for i in range(2):
-                # Create lecturechangehistory: major = curr_major, curr_lecture_type = major_elective or major_requirement
+                # Create lecturetypechangehistory: major = curr_major, curr_lecture_type = major_elective or major_requirement
                 if curr_recognized_major_check[i] == False and curr_lecture_types[i] != SemesterLecture.NONE and curr_lecture_types[i] != SemesterLecture.GENERAL_ELECTIVE:
-                    lecturechangehistory = LectureChangeHistory.objects.filter(major=curr_recognized_majors[i],
+                    lecturetypechangehistory = LectureTypeChangeHistory.objects.filter(major=curr_recognized_majors[i],
                                                                                lecture=semesterlecture.lecture,
                                                                                entrance_year=user.userprofile.entrance_year,
-                                                                               past_lecture_type=LectureChangeHistory.NONE,
+                                                                               past_lecture_type=LectureTypeChangeHistory.NONE,
                                                                                curr_lecture_type=curr_lecture_types[i])
-                    if lecturechangehistory.count() == 0:
-                        LectureChangeHistory.objects.create(major=curr_recognized_majors[i],
+                    if lecturetypechangehistory.count() == 0:
+                        LectureTypeChangeHistory.objects.create(major=curr_recognized_majors[i],
                                                            lecture=semesterlecture.lecture,
                                                            entrance_year=user.userprofile.entrance_year,
-                                                           past_lecture_type=LectureChangeHistory.NONE,
+                                                           past_lecture_type=LectureTypeChangeHistory.NONE,
                                                            curr_lecture_type=curr_lecture_types[i])
                     else:
-                        lecturechangehistory = LectureChangeHistory.objects.get(major=curr_recognized_majors[i],
+                        lecturetypechangehistory = LectureTypeChangeHistory.objects.get(major=curr_recognized_majors[i],
                                                                                    lecture=semesterlecture.lecture,
                                                                                    entrance_year=user.userprofile.entrance_year,
-                                                                                   past_lecture_type=LectureChangeHistory.NONE,
+                                                                                   past_lecture_type=LectureTypeChangeHistory.NONE,
                                                                                    curr_lecture_type=curr_lecture_types[
                                                                                        i])
-                        lecturechangehistory.change_count += 1
-                        lecturechangehistory.save()
+                        lecturetypechangehistory.change_count += 1
+                        lecturetypechangehistory.save()
 
             data = {
                 "lecture_type": lecture_type, 
@@ -835,6 +910,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         return Response(status=status.HTTP_200_OK) 
 
     # GET /lecture/?search_type=(string)&search_keyword=(string)&major=(string)&credit=(string)
+    # TODO: recent_open_year 최근순 정렬, filter
     def list(self, request):
         user = request.user
         if not user.is_authenticated:
@@ -887,6 +963,39 @@ class LectureViewSet(viewsets.GenericViewSet):
 
 
 # Common Functions
+def add_credits(semesterlecture):
+    semester = semesterlecture.semester
+
+    if semesterlecture.lecture_type == SemesterLecture.MAJOR_REQUIREMENT:
+        semester.major_requirement_credit += semesterlecture.credit
+    elif semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
+        semester.major_requirement_credit += semesterlecture.credit
+    elif semesterlecture.lecture_type == SemesterLecture.MAJOR_ELECTIVE or semesterlecture.lecture_type == SemesterLecture.TEACHING:
+        semester.major_elective_credit += semesterlecture.credit
+    elif semesterlecture.lecture_type == SemesterLecture.GENERAL:
+        semester.general_credit += semesterlecture.credit
+    elif semesterlecture.lecture_type == SemesterLecture.GENERAL_ELECTIVE:
+        semester.general_elective_credit += semesterlecture.credit
+
+    semester.save()
+
+def subtract_credits(semesterlecture):
+    semester = semesterlecture.semester
+
+    if semesterlecture.lecture_type == SemesterLecture.MAJOR_REQUIREMENT:
+        semester.major_requirement_credit -= semesterlecture.credit
+    elif semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
+        semester.major_requirement_credit -= semesterlecture.credit
+    elif semesterlecture.lecture_type == SemesterLecture.MAJOR_ELECTIVE or semesterlecture.lecture_type == SemesterLecture.TEACHING:
+        semester.major_elective_credit -= semesterlecture.credit
+    elif semesterlecture.lecture_type == SemesterLecture.GENERAL:
+        semester.general_credit -= semesterlecture.credit
+    elif semesterlecture.lecture_type == SemesterLecture.GENERAL_ELECTIVE:
+        semester.general_elective_credit -= semesterlecture.credit
+
+    semester.save()
+
+# Deprecated Common Functions
 def update_plan_info(plan):
     # SemesterLecture 모델의 lecture_type 관련 값 업데이트
     majors = Major.objects.filter(planmajor__plan=plan)
@@ -1034,34 +1143,3 @@ def lecture_type_to_int(semesterlecture):
     }
     return switcher.get(semesterlecture, -1) # -1 is error
 
-def add_credits(semesterlecture):
-    semester = semesterlecture.semester
-
-    if semesterlecture.lecture_type == SemesterLecture.MAJOR_REQUIREMENT:
-        semester.major_requirement_credit += semesterlecture.lecture.credit
-    elif semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
-        semester.major_requirement_credit += semesterlecture.lecture.credit
-    elif semesterlecture.lecture_type == SemesterLecture.MAJOR_ELECTIVE or semesterlecture.lecture_type == SemesterLecture.TEACHING:
-        semester.major_elective_credit += semesterlecture.lecture.credit
-    elif semesterlecture.lecture_type == SemesterLecture.GENERAL:
-        semester.general_credit += semesterlecture.lecture.credit
-    elif semesterlecture.lecture_type == SemesterLecture.GENERAL_ELECTIVE:
-        semester.general_elective_credit += semesterlecture.lecture.credit
-
-    semester.save()
-
-def subtract_credits(semesterlecture):
-    semester = semesterlecture.semester
-
-    if semesterlecture.lecture_type == SemesterLecture.MAJOR_REQUIREMENT:
-        semester.major_requirement_credit -= semesterlecture.lecture.credit
-    elif semesterlecture.lecture_type2 == SemesterLecture.MAJOR_REQUIREMENT:
-        semester.major_requirement_credit -= semesterlecture.lecture.credit
-    elif semesterlecture.lecture_type == SemesterLecture.MAJOR_ELECTIVE or semesterlecture.lecture_type == SemesterLecture.TEACHING:
-        semester.major_elective_credit -= semesterlecture.lecture.credit
-    elif semesterlecture.lecture_type == SemesterLecture.GENERAL:
-        semester.general_credit -= semesterlecture.lecture.credit
-    elif semesterlecture.lecture_type == SemesterLecture.GENERAL_ELECTIVE:
-        semester.general_elective_credit -= semesterlecture.lecture.credit
-
-    semester.save()
