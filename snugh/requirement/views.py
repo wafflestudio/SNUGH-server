@@ -228,7 +228,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
     # GET /requirement/:planId/loading
     @action(methods=['GET'], detail=True)
     def loading(self, request, pk=None):
-        plan = get_object_or_404(Plan, pk)
+        plan = get_object_or_404(Plan, id=pk)
         majors = Major.objects.filter(planmajor__plan=plan)
         is_necessary = False
 
