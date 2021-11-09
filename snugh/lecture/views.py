@@ -609,6 +609,7 @@ class LectureViewSet(viewsets.GenericViewSet):
     def credit(self, request, pk=None):
         semesterlecture = self.get_object()
         credit = request.data.get('credit', 0)
+        year_taken = semesterlecture.semester.year
 
         if credit != 1 and credit != 2 and credit !=3 and credit !=4:
             return Response({"error": "enter valid credit"}, status=status.HTTP_400_BAD_REQUEST)
@@ -622,17 +623,20 @@ class LectureViewSet(viewsets.GenericViewSet):
             creditchangehistory = CreditChangeHistory.objects.filter(major=Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID),
                                                                     lecture=semesterlecture.lecture,
                                                                     entrance_year=user.userprofile.entrance_year,
+                                                                    year_taken = year_taken,
                                                                     past_credit=semesterlecture.credit,
                                                                     curr_credit=credit)
             if creditchangehistory.count() == 0:
                 CreditChangeHistory.objects.create(major=Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID),
                                                     lecture=semesterlecture.lecture,
                                                     entrance_year=user.userprofile.entrance_year,
+                                                    year_taken=year_taken,
                                                     past_credit=semesterlecture.credit,
                                                     curr_credit=credit)
             else:
                 creditchangehistory = CreditChangeHistory.objects.get(major=Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID),
                                                                     lecture=semesterlecture.lecture,
+                                                                    year_taken=year_taken,
                                                                     entrance_year=user.userprofile.entrance_year,
                                                                     past_credit=semesterlecture.credit,
                                                                     curr_credit=credit)
@@ -646,18 +650,21 @@ class LectureViewSet(viewsets.GenericViewSet):
                     creditchangehistory = CreditChangeHistory.objects.filter(major=recognized_majors[i],
                                                                             lecture=semesterlecture.lecture,
                                                                             entrance_year=user.userprofile.entrance_year,
+                                                                            year_taken=year_taken,
                                                                             past_credit=semesterlecture.credit,
                                                                             curr_credit=credit)
                     if creditchangehistory.count() == 0:
                         CreditChangeHistory.objects.create(major=recognized_majors[i],
                                                            lecture=semesterlecture.lecture,
                                                            entrance_year=user.userprofile.entrance_year,
+                                                           year_taken=year_taken,
                                                            past_credit=semesterlecture.credit,
                                                            curr_credit=credit)
                     else:
                         creditchangehistory = CreditChangeHistory.objects.get(major=recognized_majors[i],
                                                                             lecture=semesterlecture.lecture,
                                                                             entrance_year=user.userprofile.entrance_year,
+                                                                            year_taken=year_taken,
                                                                             past_credit=semesterlecture.credit,
                                                                             curr_credit=credit)
                         creditchangehistory.change_count += 1
@@ -961,8 +968,97 @@ class LectureViewSet(viewsets.GenericViewSet):
             else:
                 return Response({"error": "search_keyword missing"}, status=status.HTTP_400_BAD_REQUEST)
 
+    # Data Generation
+    # POST /lecture/generate_lecturecredit/
+    @action(methods=['POST'], detail=False)
+    @transaction.atomic
+    def generate_lecturecredit(self, request):
+        lectures = Lecture.objects.all()
+        id_cnt = 0 # 이전 item의 id
+        for lecture in lectures:
+            lecture_code = lecture.lecture_code
+            lecturecredits = LectureTmp.objects.filter(lecture_code=lecture_code).order_by('id')
+            if lecturecredits.count() == 0:
+                return Response({"error": "lecture missing"}, status=status.HTTP_400_BAD_REQUEST)
+            elif lecturecredits.count() == 1:
+                LectureCredit.objects.create(lecture=lecture,
+                                             credit=lecturecredits.first().credit,
+                                             start_year=lecturecredits.first().open_year,
+                                             end_year = 10000)
+                id_cnt+=1;
+            else:
+                cnt = 0
+                for lecturecredit in lecturecredits:
+                    LectureCredit.objects.create(lecture=lecture,
+                                                 credit=lecturecredit.credit,
+                                                 start_year=lecturecredit.open_year,
+                                                 end_year=10000)
+                    if cnt !=0:
+                        pre_lecturecredit = LectureCredit.objects.get(id=id_cnt)
+                        pre_lecturecredit.end_year = lecturecredit.open_year -1
+                        pre_lecturecredit.save()
+                    cnt +=1
+                    id_cnt+=1
+        return Response(status=status.HTTP_200_OK)
 
-# Common Functions
+        # POST /lecture/combine_majorlecture/
+        # noinspection PyUnreachableCode
+        # 수집된 데이터와 수강신청 사이트의 데이터 합치기(수강신청 사이트 데이터에 없는 강의만 추가)
+        @action(methods=['POST'], detail=False)
+        @transaction.atomic
+        def combine_majorlecture(self, request):
+            cnt_created=0
+            majors = Major.objects.exclude(major_type = Major.SINGLE_MAJOR).exclude(major_type=Major.DOUBLE_MAJOR).exclude(major_type=Major.MINOR)
+            for major in majors:
+                majorlectures_auto_lectures = LectureTmp.objects.filter(open_major=major.major_name).values_list('lecture_code', flat=True).distinct()
+                majorlectures_collected = MajorLectureTmp.objects.filter(major_name=major.major_name)
+                for ml in majorlectures_collected:
+                    if ml.lecture_code not in majorlectures_auto_lectures:
+                        LectureTmp.objects.create(lecture_code=ml.lecture_code,
+                                                  lecture_name='',
+                                                  open_major=ml.major_name,
+                                                  open_year=ml.start_year,
+                                                  lecture_type=ml.lecture_type,
+                                                  is_added=True)
+                        cnt_created+=1
+            return Response(cnt_created, status=status.HTTP_200_OK)
+
+
+        # POST /lecture/generate_majorlecture/
+        @action(methods=['POST'], detail=False)
+        @transaction.atomic
+        def generate_majorlecture(self, request):
+            lectures = Lecture.objects.all()
+            id_cnt = 0  # 이전 item의 id
+            for lecture in lectures:
+                lecture_code = lecture.lecture_code
+                majorlectures = LectureTmp.objects.filter(lecture_code=lecture_code).order_by('id')
+                if majorlectures.count() == 0:
+                    return Response({"error": "lecture missing"}, status=status.HTTP_400_BAD_REQUEST)
+                elif majorlectures.count() == 1:
+                    majorlectures.objects.create(lecture=lecture,
+                                                 credit=lecturecredits.first().credit,
+                                                 start_year=lecturecredits.first().open_year,
+                                                 end_year=10000)
+                    id_cnt += 1;
+                else:
+                    cnt = 0
+                    for lecturecredit in lecturecredits:
+                        LectureCredit.objects.create(lecture=lecture,
+                                                     credit=lecturecredit.credit,
+                                                     start_year=lecturecredit.open_year,
+                                                     end_year=10000)
+                        if cnt != 0:
+                            pre_lecturecredit = LectureCredit.objects.get(id=id_cnt)
+                            pre_lecturecredit.end_year = lecturecredit.open_year - 1
+                            pre_lecturecredit.save()
+                        cnt += 1
+                        id_cnt += 1
+            return Response(status=status.HTTP_200_OK)
+
+
+
+    # Common Functions
 def add_credits(semesterlecture):
     semester = semesterlecture.semester
 

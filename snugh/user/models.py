@@ -27,6 +27,7 @@ class Major(models.Model):
     SINGLE_MAJOR = 'single_major'
     INTERDISCIPLINARY_MAJOR_FOR_TEACHER = 'interdisciplinary_major_for_teacher'
     STUDENT_DIRECTED_MAJOR = 'student_directed_major'
+    INTERDISCIPLINARY_PROGRAM = 'interdisciplinary_program'
 
     MAJOR_TYPE = (
         (MAJOR, 'major'),
@@ -37,6 +38,7 @@ class Major(models.Model):
         (SINGLE_MAJOR, 'single_major'),  # 단일전공
         (INTERDISCIPLINARY_MAJOR_FOR_TEACHER, 'interdisciplinary_major_for_teacher'),  # 교직연합전공
         (STUDENT_DIRECTED_MAJOR, 'student_directed_major'),  # 학생설계전공
+        (INTERDISCIPLINARY_PROGRAM, 'interdisciplinary_program'),  # 협동과정
     )
 
     # TODO: Modify Default Major ID from 31 to 0
@@ -48,6 +50,17 @@ class Major(models.Model):
     major_name = models.CharField(max_length=50, db_index=True)
     major_type = models.CharField(max_length=100, choices=MAJOR_TYPE)
 
+class Department(models.Model):
+    department_name = models.CharField(max_length=50, db_index=True)
+
+class MajorDepartment(models.Model):
+    major = models.ForeignKey(Major, related_name='majordepartment', on_delete=models.CASCADE)
+    department = models.ForeignKey(Department, related_name='majordepartment', on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = (
+            ('department', 'major')
+        )
 
 class UserMajor(models.Model):
     user = models.ForeignKey(User, related_name='usermajor', on_delete=models.CASCADE)

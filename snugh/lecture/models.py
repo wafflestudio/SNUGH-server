@@ -64,7 +64,7 @@ class Lecture(models.Model):
     prev_lecture_name = models.CharField(max_length=50, null=True)
     recent_open_year = models.IntegerField(default=0)
 
-class LectureHistory(models.Model):
+class LectureTmp(models.Model):
     # 구분 없음
     NONE = 'none'
 
@@ -109,7 +109,34 @@ class LectureHistory(models.Model):
     lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
     credit = models.PositiveIntegerField(default=0)
     grade = models.PositiveSmallIntegerField(null=True, blank=True)
-    professor_name = models.CharField(max_length=50, null=True)
+    is_added =  models.BooleanField(default=False)
+
+class MajorLectureTmp(models.Model):
+    # 구분 없음
+    NONE = 'none'
+
+    # Lecture Type
+    MAJOR_REQUIREMENT = 'major_requirement'  # 전공 필수
+    MAJOR_ELECTIVE = 'major_elective'  # 전공 선택
+    GENERAL = 'general'  # 교양
+    GENERAL_ELECTIVE = 'general_elective'  # 일반 선택
+    TEACHING = 'teaching'  # 교직
+
+    LECTURE_TYPE = (
+        (MAJOR_REQUIREMENT, 'major_requirement'),
+        (MAJOR_ELECTIVE, 'major_elective'),
+        (GENERAL, 'general'),
+        (GENERAL_ELECTIVE, 'general_elective'),
+        (TEACHING, 'teaching')
+    )
+
+    major_name = models.CharField(max_length=50, default="")
+    major_type = models.CharField(max_length=50, default="")
+    lecture_code = models.CharField(max_length=50, default="")
+    start_year = models.PositiveSmallIntegerField()
+    end_year = models.PositiveSmallIntegerField()
+    is_required = models.BooleanField(default=False)
+    lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
 
 class LectureTypeChangeHistory(models.Model):
     # 구분 없음
@@ -144,6 +171,7 @@ class CreditChangeHistory(models.Model):
     major = models.ForeignKey(Major, related_name='creditchangehistory', on_delete=models.CASCADE)
     lecture = models.ForeignKey(Lecture, related_name='creditchangehistory', on_delete=models.CASCADE)
     entrance_year = models.IntegerField(default=0)
+    year_taken = models.IntegerField(default=0)
     past_credit = models.PositiveIntegerField(default=0)
     curr_credit = models.PositiveIntegerField(default=0)
     created_at = models.DateField(auto_now_add=True)
@@ -255,4 +283,10 @@ class MajorLecture(models.Model):
     end_year = models.PositiveSmallIntegerField()
     is_required = models.BooleanField(default=False)
     lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
+
+
+class LectureCredit(models.Model):
+    lecture = models.ForeignKey(Lecture, related_name='lecturecredit', on_delete=models.CASCADE)
     credit = models.PositiveIntegerField(default=0)
+    start_year = models.PositiveSmallIntegerField()
+    end_year = models.PositiveSmallIntegerField()
