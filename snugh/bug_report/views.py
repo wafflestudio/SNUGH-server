@@ -16,14 +16,20 @@ class BugReportViewSet(viewsets.GenericViewSet):
         user = request.user
         title = body.get('title')
         description = body.get('description')
-        bug_report = BugReport.objects.create(user=request.user, title=title, description=description)
+        category = body.get('category')
+        bug_report = BugReport.objects.create(user=user, title=title, description=description, category=category)
         serializer = self.get_serializer(bug_report)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     # GET /bug
     def list(self, request):
         page = request.GET.get('page', '1')
+        category = request.GET.get('category')
+
         bug_reports = self.get_queryset().order_by('created_at')
+        if category:
+            bug_reports.filter(category=category)
+
         bug_reports = Paginator(bug_reports, 5).get_page(page)
         serializer = self.get_serializer(bug_reports, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
