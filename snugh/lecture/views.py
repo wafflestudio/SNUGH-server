@@ -307,6 +307,7 @@ class PlanViewSet(viewsets.GenericViewSet):
         post_list = request.data.get("post_list", [])
         delete_list = request.data.get("delete_list", [])
 
+        # error case 1
         if len(list(PlanMajor.objects.filter(plan=plan))) - len(delete_list) + len(post_list) <= 0:
             return Response({"error": "The number of majors cannot be zero or minus."}, status=status.HTTP_400_BAD_REQUEST)
 
