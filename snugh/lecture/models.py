@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from user.models import Major
+from datetime import datetime
 
 
 class Search(models.Lookup):
@@ -164,6 +165,7 @@ class LectureTypeChangeHistory(models.Model):
     past_lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
     curr_lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
     created_at = models.DateField(auto_now_add = True)
+    updated_at = models.DateField(auto_now = True)
     change_count = models.IntegerField(default=1)
 
 
@@ -175,6 +177,7 @@ class CreditChangeHistory(models.Model):
     past_credit = models.PositiveIntegerField(default=0)
     curr_credit = models.PositiveIntegerField(default=0)
     created_at = models.DateField(auto_now_add=True)
+    updated_at = models.DateField(auto_now=True)
     change_count = models.IntegerField(default=1)
 
 
@@ -283,6 +286,8 @@ class MajorLecture(models.Model):
     end_year = models.PositiveSmallIntegerField()
     is_required = models.BooleanField(default=False)
     lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
+    created_at = models.DateField(auto_now_add=True)
+    updated_at = models.DateField(auto_now=True)
 
 
 class LectureCredit(models.Model):
@@ -290,3 +295,5 @@ class LectureCredit(models.Model):
     credit = models.PositiveIntegerField(default=0)
     start_year = models.PositiveSmallIntegerField()
     end_year = models.PositiveSmallIntegerField()
+    created_at = models.DateField(auto_now_add=True)
+    updated_at = models.DateField(auto_now=True)
