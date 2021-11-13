@@ -1,6 +1,5 @@
 version: '3'
 services:
-
     nginx:
         container_name: nginx
         build: ./nginx
@@ -13,7 +12,6 @@ services:
           - ./log:/var/log/nginx
         depends_on:
           - django
-
     django:
         container_name: django
         build: ./snugh
