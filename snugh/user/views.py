@@ -281,19 +281,25 @@ class MajorViewSet(viewsets.GenericViewSet):
     # GET /major
     def list(self, request):
         search_keyword = request.query_params.get('search_keyword')
+        major_type = request.query_params.get('major_type')
+        
+        majors = self.get_queryset().all()
+        
+        # filtering
         if search_keyword:
-            majors = self.get_queryset().filter(major_name__search=search_keyword)
-        else:
-            majors = self.get_queryset().all()
+            majors = majors.filter(major_name__icontains=search_keyword)
+        if major_type:
+            majors = majors.filter(major_type=major_type)
 
+        # remove duplicated major
         unique_major_list = []
         for major in majors:
             if major.major_name not in unique_major_list:
                 unique_major_list.append(major.major_name)
 
+        # remove default major
         if 'none' in unique_major_list:
             unique_major_list.remove('none')
 
-        unique_major_list = sorted(unique_major_list)
-        body = {'majors': unique_major_list}
+        body = { 'majors': sorted(unique_major_list) }
         return Response(body, status=status.HTTP_200_OK)
