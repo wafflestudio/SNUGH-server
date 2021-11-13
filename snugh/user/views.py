@@ -1,6 +1,6 @@
 from django.contrib.auth import authenticate, login, logout
 from django.db import transaction
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from rest_framework import status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
@@ -8,6 +8,7 @@ from rest_framework.decorators import action
 from django.contrib.auth.models import User
 from user.models import *
 from user.serializers import *
+from django.core.mail.message import EmailMessage
 
 
 class UserViewSet(viewsets.GenericViewSet):
@@ -273,6 +274,9 @@ class UserViewSet(viewsets.GenericViewSet):
             return Response(body, status=status.HTTP_201_CREATED)
         else:
             return Response(body, status=status.HTTP_200_OK)
+        
+    def login_redirect(request):
+        return redirect('http://snugh.s3-website.ap-northeast-2.amazonaws.com')
 
 
 class MajorViewSet(viewsets.GenericViewSet):
