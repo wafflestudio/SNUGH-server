@@ -15,7 +15,8 @@ class FAQViewSet(viewsets.GenericViewSet):
         body = request.data
         question = body.get('question')
         answer = body.get('answer')
-        faq = FAQ.objects.create(question=question, answer=answer)
+        category = body.get('category')
+        faq = FAQ.objects.create(question=question, answer=answer, category=category)
         serializer = self.get_serializer(faq)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -29,6 +30,7 @@ class FAQViewSet(viewsets.GenericViewSet):
         faqs = self.get_queryset().order_by(order)
         if category:
             faqs = faqs.filter(category=category)
+            
         faqs = Paginator(faqs, 5).get_page(page)
         serializer = self.get_serializer(faqs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
