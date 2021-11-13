@@ -1,6 +1,6 @@
 from django.contrib.auth import authenticate, login, logout
 from django.db import transaction
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from rest_framework import status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
@@ -8,6 +8,7 @@ from rest_framework.decorators import action
 from django.contrib.auth.models import User
 from user.models import *
 from user.serializers import *
+from django.core.mail.message import EmailMessage
 
 
 class UserViewSet(viewsets.GenericViewSet):
@@ -273,6 +274,9 @@ class UserViewSet(viewsets.GenericViewSet):
             return Response(body, status=status.HTTP_201_CREATED)
         else:
             return Response(body, status=status.HTTP_200_OK)
+        
+    def login_redirect(request):
+        return redirect('http://snugh.s3-website.ap-northeast-2.amazonaws.com')
 
 
 class MajorViewSet(viewsets.GenericViewSet):
@@ -281,19 +285,25 @@ class MajorViewSet(viewsets.GenericViewSet):
     # GET /major
     def list(self, request):
         search_keyword = request.query_params.get('search_keyword')
+        major_type = request.query_params.get('major_type')
+        
+        majors = self.get_queryset().all()
+        
+        # filtering
         if search_keyword:
-            majors = self.get_queryset().filter(major_name__search=search_keyword)
-        else:
-            majors = self.get_queryset().all()
+            majors = majors.filter(major_name__icontains=search_keyword)
+        if major_type:
+            majors = majors.filter(major_type=major_type)
 
+        # remove duplicated major
         unique_major_list = []
         for major in majors:
             if major.major_name not in unique_major_list:
                 unique_major_list.append(major.major_name)
 
+        # remove default major
         if 'none' in unique_major_list:
             unique_major_list.remove('none')
 
-        unique_major_list = sorted(unique_major_list)
-        body = {'majors': unique_major_list}
+        body = { 'majors': sorted(unique_major_list) }
         return Response(body, status=status.HTTP_200_OK)
