@@ -33,15 +33,28 @@ class Requirement(models.Model):
     required_credit = models.PositiveSmallIntegerField(default=0)
     requirement_type = models.CharField(max_length=50, choices=REQUIREMENT_TYPE)
     is_auto_generated = models.BooleanField(default=False)
+    created_at = models.DateField(auto_now_add=True)
+    updated_at = models.DateField(auto_now=True)
 
     class Meta:
         ordering = ['-end_year', '-start_year']
+
+
+class RequirementChangeHistory(models.Model):
+    requirement = models.ForeignKey(Requirement, related_name='requirementchangehistory', on_delete=models.CASCADE)
+    entrance_year = models.IntegerField(default=0)
+    past_required_credit = models.PositiveIntegerField(default=0)
+    curr_required_credit = models.PositiveIntegerField(default=0)
+    created_at = models.DateField(auto_now_add=True)
+    updated_at = models.DateField(auto_now=True)
+    change_count = models.IntegerField(default=1)
 
 
 class PlanRequirement(models.Model):
     plan = models.ForeignKey(Plan, related_name='planrequirement', on_delete=models.CASCADE)
     requirement = models.ForeignKey(Requirement, related_name='planrequirement', on_delete=models.CASCADE)
     required_credit = models.PositiveSmallIntegerField(default=0)
-    is_fulfilled = models.BooleanField(default=False)
+#    is_fulfilled = models.BooleanField(default=False)
     earned_credit = models.PositiveSmallIntegerField(default=0)
     auto_calculate = models.BooleanField(default=False)
+    is_updated_by_user = models.BooleanField(default=False)

@@ -2,7 +2,7 @@ from rest_framework import status, viewsets, filters
 from rest_framework.response import Response
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-from requirement.models import Requirement, PlanRequirement
+from requirement.models import *
 from requirement.serializers import RequirementSerializer, ProgressSerializer
 from user.models import *
 from user.serializers import *
@@ -15,18 +15,19 @@ class RequirementViewSet(viewsets.GenericViewSet):
     serializer_class = RequirementSerializer
 
     # POST /requirement
+    # 1회성 generating api
     @transaction.atomic
     def create(self, request):
-        user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        # user = request.user
+        # if not user.is_authenticated:
+        #     return Response(status=status.HTTP_401_UNAUTHORIZED)
 
         all_majors = Major.objects.all()
         requirement_missing_major_ids = []
 
         for major in all_majors:
             cnt = 0
-            if major.major_type != Major.DOUBLE_MAJOR and major.major_type != Major.MINOR:
+            if major.major_type == Major.MAJOR or major.major_type == Major.SINGLE_MAJOR:
                 all_requirement = Requirement.objects.filter(major=major, requirement_type = Requirement.ALL)
                 if not all_requirement.exists():
                     Requirement.objects.create(major=major, requirement_type=Requirement.ALL, is_auto_generated = True)
@@ -107,7 +108,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
         sl_list = list(SemesterLecture.objects.filter(semester__plan=plan))
 
         for sl in sl_list:
-            credit = sl.lecture.credit
+            credit = sl.credit
 
             # all
             all_earned_credit+=credit
@@ -235,12 +236,12 @@ class RequirementViewSet(viewsets.GenericViewSet):
         # 자유전공학부 때문에 filter (자전 외에는 major가 두개인 경우는 없어야 정상)
         all_requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=Requirement.ALL).order_by('-required_credit').first()
         all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=all_requirement)
-        if all_planrequirement.required_credit == 0:
+        if all_requirement.is_auto_generated == True and all_planrequirement.is_updated_by_user == False:
             is_necessary = True
 
         general_requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=Requirement.GENERAL).order_by('-required_credit').first()
         general_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=general_requirement)
-        if general_planrequirement.required_credit == 0:
+        if general_requirement.is_auto_generated == True and general_planrequirement.is_updated_by_user == False:
             is_necessary = True
 
         major_requirement_list = []
@@ -248,12 +249,12 @@ class RequirementViewSet(viewsets.GenericViewSet):
         for major in majors:
             major_all_requirement = Requirement.objects.get(planrequirement__plan=plan, requirement_type=Requirement.MAJOR_ALL, major=major)
             major_all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=major_all_requirement)
-            if major_all_planrequirement.required_credit == 0:
+            if major_all_requirement.is_auto_generated == True and major_all_planrequirement.is_updated_by_user == False:
                 is_necessary = True
 
             major_requirement_requirement = Requirement.objects.get(planrequirement__plan=plan, requirement_type=Requirement.MAJOR_REQUIREMENT, major=major)
             major_requirement_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=major_requirement_requirement)
-            if major_requirement_planrequirement.required_credit == 0:
+            if major_requirement_requirement.is_auto_generated == True and major_requirement_planrequirement.is_updated_by_user == False:
                 is_necessary = True
 
             data = {
@@ -299,14 +300,24 @@ class RequirementViewSet(viewsets.GenericViewSet):
         all_requirement = Requirement.objects.filter(planrequirement__plan=plan,
                                                      requirement_type=Requirement.ALL).order_by('-required_credit').first()
         all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=all_requirement)
-        all_planrequirement.required_credit = all_credit
-        all_planrequirement.save()
+        if all_planrequirement.required_credit != all_credit:
+            # requirementchangehistory
+            check_requirement_change_history(all_requirement, all_credit, user.userprofile.entrance_year)
+            # update
+            all_planrequirement.required_credit = all_credit
+            all_planrequirement.is_updated_by_user = True
+            all_planrequirement.save()
 
         general_requirement = Requirement.objects.filter(planrequirement__plan=plan,
                                                          requirement_type=Requirement.GENERAL).order_by('-required_credit').first()
         general_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=general_requirement)
-        general_planrequirement.required_credit = general_credit
-        general_planrequirement.save()
+        if general_planrequirement.required_credit != general_credit:
+            # requirementchangehistory
+            check_requirement_change_history(general_requirement, general_credit, user.userprofile.entrance_year)
+            # update
+            general_planrequirement.required_credit = general_credit
+            general_planrequirement.is_updated_by_user = True
+            general_planrequirement.save()
 
         # update major planrequirements
         for major_credit in major_credit_list:
@@ -317,8 +328,11 @@ class RequirementViewSet(viewsets.GenericViewSet):
             major_all_requirement = Requirement.objects.get(planrequirement__plan=plan,
                                                             requirement_type=Requirement.MAJOR_ALL, major=major)
             major_all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=major_all_requirement)
-            major_all_planrequirement.required_credit = major_credit["major_credit"]
-            major_all_planrequirement.save()
+            if major_all_planrequirement.required_credit != major_credit["major_credit"]:
+                check_requirement_change_history(major_all_requirement, major_credit["major_credit"],user.userprofile.entrance_year)
+                major_all_planrequirement.required_credit = major_credit["major_credit"]
+                major_all_planrequirement.is_updated_by_user = True
+                major_all_planrequirement.save()
 
             major_requirement_requirement = Requirement.objects.get(planrequirement__plan=plan,
                                                                     requirement_type=Requirement.MAJOR_REQUIREMENT,
@@ -332,11 +346,18 @@ class RequirementViewSet(viewsets.GenericViewSet):
                                                     majorlecture__end_year__gte=user.userprofile.entrance_year)
                 for mr_lecture in mr_lectures:
                     major_requirement_credit += mr_lecture.credit
-                major_requirement_planrequirement.required_credit = major_requirement_credit
-                major_requirement_planrequirement.save()
+
+                if major_requirement_planrequirement.required_credit != major_requirement_credit:
+                    check_requirement_change_history(major_requirement_requirement, major_requirement_credit, user.userprofile.entrance_year)
+                    major_requirement_planrequirement.required_credit = major_requirement_credit
+                    major_requirement_planrequirement.is_updated_by_user = True
+                    major_requirement_planrequirement.save()
             else:
-                major_requirement_planrequirement.required_credit = major_credit["major_requirement_credit"]
-                major_requirement_planrequirement.save()
+                if major_requirement_planrequirement.required_credit != major_credit["major_requirement_credit"]:
+                    check_requirement_change_history(major_requirement_requirement, major_credit["major_requirement_credit"], user.userprofile.entrance_year)
+                    major_requirement_planrequirement.required_credit = major_credit["major_requirement_credit"]
+                    major_requirement_planrequirement.is_updated_by_user = True
+                    major_requirement_planrequirement.save()
 
         major_requirement_list = []
 
@@ -370,21 +391,42 @@ class RequirementViewSet(viewsets.GenericViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
 
-    @transaction.atomic
-    def put(self, request):
-        user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
+# Common Functions
+def check_requirement_change_history(requirement, changed_credit, entrance_year):
+    requirementchangehistory = RequirementChangeHistory.objects.filter(requirement=requirement,
+                                                                       entrance_year=entrance_year,
+                                                                       past_required_credit=requirement.required_credit,
+                                                                       curr_required_credit=changed_credit)
+    if requirementchangehistory.count() == 0:
+        RequirementChangeHistory.objects.create(requirement=requirement,
+                                               entrance_year=entrance_year,
+                                               past_required_credit=requirement.required_credit,
+                                               curr_required_credit=changed_credit)
+    else:
+        requirementchangehistory = RequirementChangeHistory.objects.get(requirement=requirement,
+                                                                       entrance_year=entrance_year,
+                                                                       past_required_credit=requirement.required_credit,
+                                                                       curr_required_credit=changed_credit)
+        requirementchangehistory.change_count += 1
+        requirementchangehistory.save()
 
-        update_list = request.data.copy()
-        for curr_request in update_list:
-            plan_id = curr_request['plan_id']
-            requirement_id = curr_request['requirement_id']
-            is_fulfilled = curr_request['is_fulfilled']
 
-            plan = Plan.objects.get(pk=plan_id)
-            requirement = Requirement.objects.get(pk=requirement_id)
-            planrequirement = PlanRequirement.objects.filter(plan=plan, requirement=requirement)
-            planrequirement.update(is_fulfilled=is_fulfilled)
-
-        return Response(status=status.HTTP_200_OK)
+# Deprecated
+#     @transaction.atomic
+#     def put(self, request):
+#         user = request.user
+#         if not user.is_authenticated:
+#             return Response(status=status.HTTP_401_UNAUTHORIZED)
+#
+#         update_list = request.data.copy()
+#         for curr_request in update_list:
+#             plan_id = curr_request['plan_id']
+#             requirement_id = curr_request['requirement_id']
+#             is_fulfilled = curr_request['is_fulfilled']
+#
+#             plan = Plan.objects.get(pk=plan_id)
+#             requirement = Requirement.objects.get(pk=requirement_id)
+#             planrequirement = PlanRequirement.objects.filter(plan=plan, requirement=requirement)
+#             planrequirement.update(is_fulfilled=is_fulfilled)
+#
+#         return Response(status=status.HTTP_200_OK)
