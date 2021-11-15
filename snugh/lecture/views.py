@@ -1,5 +1,6 @@
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
+from django.db.models import Case, When
 from django.db import transaction
 from rest_framework import status, viewsets, filters
 from rest_framework.response import Response
@@ -122,18 +123,26 @@ class PlanViewSet(viewsets.GenericViewSet):
         semesters = Semester.objects.filter(plan=plan)
         semesterlectures =SemesterLecture.objects.filter(semester__in=semesters)
 
-        # order majors by major_type_list
-        major_type_list = [major.SINGLE_MAJOR, major.MAJOR, major.GRADUATE_MAJOR, major.DOUBLE_MAJOR, major.MINOR, major.INTERDISCIPLINARY, major.INTERDISCIPLINARY_MAJOR, major.INTERDISCIPLINARY_MAJOR_FOR_TEACHER, major.INTERDISCIPLINARY_PROGRAM]
-        ordering = 'FIELD(`major_type`, %s)' % ','.join(str(major_type) for major_type in major_type_list)
-        majors = Major.objects.filter(planmajor__plan=plan).extra(
-            select = {
-                'ordering': ordering
-            }, order_by = ('ordering',)
-        )
+        # order majors(기준: 졸업요구 전공학점 높은 순서)
+        majors = Major.objects.filter(planmajor__plan=plan)\
+            .annotate(custom_order=Case(When(major_type=Major.SINGLE_MAJOR, then=models.Value(0)),
+                                        When(major_type=Major.MAJOR, then=models.Value(1)),
+                                        When(major_type=Major.GRADUATE_MAJOR, then=models.Value(2)),
+                                        When(major_type=Major.INTERDISCIPLINARY_MAJOR, then=models.Value(3)),
+                                        When(major_type=Major.INTERDISCIPLINARY_MAJOR_FOR_TEACHER, then=models.Value(4)),
+                                        When(major_type=Major.DOUBLE_MAJOR, then=models.Value(5)),
+                                        When(major_type=Major.INTERDISCIPLINARY, then=models.Value(6)),
+                                        When(major_type=Major.MINOR, then=models.Value(7)),
+                                        When(major_type=Major.INTERDISCIPLINARY_PROGRAM, then=models.Value(8)),
+                                        default=models.Value(9),
+                                        output_field=models.IntegerField(), ))\
+            .order_by('custom_order')
+        # debug
+        print(majors)
 
         for semesterlecture in semesterlectures:
             # exclude is_modified = True
-            if semesterlecture.is_modified == False:
+            if not semesterlecture.is_modified:
                 # subtract credits
                 subtract_credits(semesterlecture)
 
@@ -203,15 +212,21 @@ class PlanViewSet(viewsets.GenericViewSet):
                         semesterlecture.save()
 
                 # calculate credit for each semesterlecture
-                lecturecredits = LectureCredit.objects.filter(lecture=lecture,
-                                                              start_year__lte=user.userprofile.entrance_year,
-                                                              end_year__gte=user.userprofile.entrance_year)
-                if lecturecredits.count() == 0:
-                    lecturecredits = LectureCredit.objects.filter(lecture=lecture,
-                                                                  start_year__lte=semester.year,
-                                                                  end_year__gte=semester.year)
 
-                if lecturecredits.count > 0:
+                # lecturecredits = LectureCredit.objects.filter(lecture=lecture,
+                #                                               start_year__lte=user.userprofile.entrance_year,
+                #                                               end_year__gte=user.userprofile.entrance_year)
+                # if lecturecredits.count() == 0:
+                #     lecturecredits = LectureCredit.objects.filter(lecture=lecture,
+                #                                                   start_year__lte=semester.year,
+                #                                                   end_year__gte=semester.year)
+                lecturecredits = LectureCredit.objects.filter(lecture=lecture,
+                                                              start_year__lte=semester.year,
+                                                              end_year__gte=semester.year)
+                # debug
+                print(lecturecredits)
+
+                if lecturecredits.count() > 0:
                     semesterlecture.credit = lecturecredits.first().credit
                     semesterlecture.save()
 
