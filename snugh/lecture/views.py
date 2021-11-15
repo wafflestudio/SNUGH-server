@@ -137,8 +137,6 @@ class PlanViewSet(viewsets.GenericViewSet):
                                         default=models.Value(9),
                                         output_field=models.IntegerField(), ))\
             .order_by('custom_order')
-        # debug
-        print(majors)
 
         for semesterlecture in semesterlectures:
             # exclude is_modified = True
@@ -223,8 +221,6 @@ class PlanViewSet(viewsets.GenericViewSet):
                 lecturecredits = LectureCredit.objects.filter(lecture=lecture,
                                                               start_year__lte=semester.year,
                                                               end_year__gte=semester.year)
-                # debug
-                print(lecturecredits)
 
                 if lecturecredits.count() > 0:
                     semesterlecture.credit = lecturecredits.first().credit
