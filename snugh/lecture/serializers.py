@@ -60,7 +60,7 @@ class SemesterSerializer(serializers.ModelSerializer):
                 "lecture_id": lecture.id,
                 "lecture_code": lecture.lecture_code,
                 "lecture_name": lecture.lecture_name,
-                "credit": lecture.credit, 
+                "credit": semesterlecture.credit,
                 "open_semester": lecture.open_semester,
                 "lecture_type": semesterlecture.lecture_type,
                 "recognized_major_name1": semesterlecture.recognized_major1.major_name,

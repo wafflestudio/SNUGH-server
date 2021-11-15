@@ -222,6 +222,10 @@ class RequirementViewSet(viewsets.GenericViewSet):
                                    "major_requirement_credit": major_requirement_required_credit,
                                    "major_all_credit": major_all_required_credit})
 
+        if plan.is_first_simulation:
+            plan.is_first_simulation = False
+            plan.save()
+
         data = {"all_progress": all_progress_summary,
                 "major_progress": major_progress}
         return Response(data, status=status.HTTP_200_OK)
@@ -274,9 +278,6 @@ class RequirementViewSet(viewsets.GenericViewSet):
             "is_first_simulation": plan.is_first_simulation,
             "is_necessary": is_necessary
         }
-        if plan.is_first_simulation:
-            plan.is_first_simulation = False
-            plan.save()
 
         return Response(data, status=status.HTTP_200_OK)
 

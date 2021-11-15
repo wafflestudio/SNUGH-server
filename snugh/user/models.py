@@ -43,8 +43,7 @@ class Major(models.Model):
         (GRADUATE_MAJOR, 'graduate_major'),  # 대학원
     )
 
-    # TODO: Modify Default Major ID from 31 to 0
-    DEFAULT_MAJOR_ID = 31
+    DEFAULT_MAJOR_ID = 1
 
     DEFAULT_MAJOR_NAME = 'none'
     DEFAULT_MAJOR_TYPE = 'major'
