@@ -877,7 +877,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         if search_type == 'major_requirement' or search_type == 'major_elective':
             major_name = request.query_params.get("major_name")
             if major_name:
-                lectures = Lecture.objects.filter(open_major=major_name, lecture_type=search_type)
+                lectures = Lecture.objects.filter(open_major=major_name, lecture_type=search_type).order_by('recent_open_year')
                 serializer = LectureSerializer(lectures, many=True)
 
                 data = serializer.data
@@ -893,7 +893,7 @@ class LectureViewSet(viewsets.GenericViewSet):
             credit = request.query_params.get("credit")
             search_keyword = request.query_params.get("search_keyword")
             if credit and search_keyword:
-                lectures = Lecture.objects.filter(credit=credit, lecture_name__search=search_keyword)
+                lectures = Lecture.objects.filter(credit=credit, lecture_name__search=search_keyword).order_by('-recent_open_year')
                 serializer = LectureSerializer(lectures, many=True)
                 return Response(serializer.data, status=status.HTTP_200_OK)
             else:
@@ -903,7 +903,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         else:
             search_keyword = request.query_params.get("search_keyword")
             if search_keyword:
-                lectures = Lecture.objects.filter(lecture_name__search=search_keyword)
+                lectures = Lecture.objects.filter(lecture_name__search=search_keyword).order_by('-recent_open_year')
                 lectures = Paginator(lectures, 20).get_page(page)
                 serializer = LectureSerializer(lectures, many=True)
                 return Response(serializer.data, status=status.HTTP_200_OK)
