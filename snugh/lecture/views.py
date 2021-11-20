@@ -1027,8 +1027,8 @@ class LectureViewSet(viewsets.GenericViewSet):
                     MajorLecture.objects.create(major=major,
                                                 lecture=null_majorlecture.lecture,
                                                 start_year=null_majorlecture.start_year,
-                                                end_year=null_majorlecture.start_year,
-                                                lecture_type=null_majorlecture.start_year)
+                                                end_year=null_majorlecture.end_year,
+                                                lecture_type=null_majorlecture.lecture_type)
                     auto_generated_cnt += 1
             null_majorlecture.delete()
             deleted_cnt += 1
