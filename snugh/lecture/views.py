@@ -139,6 +139,8 @@ class PlanViewSet(viewsets.GenericViewSet):
             .order_by('custom_order')
 
         for semesterlecture in semesterlectures:
+            # create variable tmp_majors for use only in loop(1 semesterlecture)
+            tmp_majors = majors
             # exclude is_modified = True
             if not semesterlecture.is_modified:
                 # subtract credits
@@ -151,7 +153,7 @@ class PlanViewSet(viewsets.GenericViewSet):
                 # search majorlecture by entrance_year
                 if semesterlecture.lecture_type != SemesterLecture.GENERAL:
                     major_count = 0
-                    for major in majors:
+                    for major in tmp_majors:
                         if major_count > 1:
                             break
 
@@ -160,6 +162,7 @@ class PlanViewSet(viewsets.GenericViewSet):
                                                                               end_year__gte=user.userprofile.entrance_year)\
                             .exclude(lecture_type=MajorLecture.GENERAL).exclude(lecture_type = MajorLecture.GENERAL_ELECTIVE)\
                             .order_by('-lecture_type')
+
                         if candidate_majorlectures.count() !=0:
                             if major_count == 0:
                                 semesterlecture.lecture_type = candidate_majorlectures.first().lecture_type
@@ -174,9 +177,9 @@ class PlanViewSet(viewsets.GenericViewSet):
 
                     if major_count != 2:
                         if major_count == 1:
-                            majors = majors.exclude(id=semesterlecture.recognized_major1.id)
+                            tmp_majors = tmp_majors.exclude(id=semesterlecture.recognized_major1.id)
                         # search majorlecture by semester.year
-                        for major in majors:
+                        for major in tmp_majors:
                             if major_count > 1:
                                 break
 
