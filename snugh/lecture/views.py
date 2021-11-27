@@ -882,12 +882,18 @@ class LectureViewSet(viewsets.GenericViewSet):
         if not search_year:
             return Response({ "error": "search_year missing" }, status=status.HTTP_400_BAD_REQUEST)
 
+        plan_id = request.query_params.get("plan_id")
+        if not plan_id:
+            return Response({"error": "plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)
+
+        existing_lectures = Lecture.objects.filter(semesterlecture__semester__plan = Plan.objects.get(id=plan_id)).values_list('id', flat=True)
+
         # Case 1: major requirement or major elective
         if search_type == 'major_requirement' or search_type == 'major_elective':
             major_name = request.query_params.get("major_name")
             if major_name:
                 lectures = Lecture.objects.filter(open_major=major_name, lecture_type=search_type, recent_open_year__gte=user.userprofile.entrance_year)\
-                    .order_by('lecture_name', 'recent_open_year')
+                    .exclude(id__in=existing_lectures).order_by('lecture_name', 'recent_open_year')
                 serializer = LectureSerializer(lectures, many=True)
 
                 data = serializer.data
@@ -916,6 +922,7 @@ class LectureViewSet(viewsets.GenericViewSet):
                 # past lectures
                 if int(search_year) < Lecture.UPDATED_YEAR:
                     lectures = Lecture.objects.search(search_keyword).filter(recent_open_year__gte = search_year)\
+                        .exclude(id__in=existing_lectures)\
                         .annotate(first_letter=Case(When(lecture_name__startswith=search_keyword[0], then=models.Value(0)),
                                                 default=models.Value(1),
                                                 output_field=models.IntegerField(),))\
@@ -928,6 +935,7 @@ class LectureViewSet(viewsets.GenericViewSet):
                 # future lectures
                 else:
                     lectures = Lecture.objects.search(search_keyword).filter(recent_open_year__gte=Lecture.UPDATED_YEAR-2) \
+                        .exclude(id__in=existing_lectures) \
                         .annotate(first_letter=Case(When(lecture_name__startswith=search_keyword[0], then=models.Value(0)),
                                           default=models.Value(1),
                                           output_field=models.IntegerField(), )) \
