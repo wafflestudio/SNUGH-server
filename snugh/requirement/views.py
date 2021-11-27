@@ -240,26 +240,18 @@ class RequirementViewSet(viewsets.GenericViewSet):
         # 자유전공학부 때문에 filter (자전 외에는 major가 두개인 경우는 없어야 정상)
         all_requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=Requirement.ALL).order_by('-required_credit').first()
         all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=all_requirement)
-        if all_requirement.is_auto_generated == True and all_planrequirement.is_updated_by_user == False:
-            is_necessary = True
 
         general_requirement = Requirement.objects.filter(planrequirement__plan=plan, requirement_type=Requirement.GENERAL).order_by('-required_credit').first()
         general_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=general_requirement)
-        if general_requirement.is_auto_generated == True and general_planrequirement.is_updated_by_user == False:
-            is_necessary = True
 
         major_requirement_list = []
 
         for major in majors:
             major_all_requirement = Requirement.objects.get(planrequirement__plan=plan, requirement_type=Requirement.MAJOR_ALL, major=major)
             major_all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=major_all_requirement)
-            if major_all_requirement.is_auto_generated == True and major_all_planrequirement.is_updated_by_user == False:
-                is_necessary = True
 
             major_requirement_requirement = Requirement.objects.get(planrequirement__plan=plan, requirement_type=Requirement.MAJOR_REQUIREMENT, major=major)
             major_requirement_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=major_requirement_requirement)
-            if major_requirement_requirement.is_auto_generated == True and major_requirement_planrequirement.is_updated_by_user == False:
-                is_necessary = True
 
             data = {
                 "major_name": major.major_name,
@@ -306,7 +298,6 @@ class RequirementViewSet(viewsets.GenericViewSet):
             check_requirement_change_history(all_requirement, all_credit, user.userprofile.entrance_year)
             # update
             all_planrequirement.required_credit = all_credit
-            all_planrequirement.is_updated_by_user = True
             all_planrequirement.save()
 
         general_requirement = Requirement.objects.filter(planrequirement__plan=plan,
@@ -317,7 +308,6 @@ class RequirementViewSet(viewsets.GenericViewSet):
             check_requirement_change_history(general_requirement, general_credit, user.userprofile.entrance_year)
             # update
             general_planrequirement.required_credit = general_credit
-            general_planrequirement.is_updated_by_user = True
             general_planrequirement.save()
 
         # update major planrequirements
@@ -332,7 +322,6 @@ class RequirementViewSet(viewsets.GenericViewSet):
             if major_all_planrequirement.required_credit != major_credit["major_credit"]:
                 check_requirement_change_history(major_all_requirement, major_credit["major_credit"],user.userprofile.entrance_year)
                 major_all_planrequirement.required_credit = major_credit["major_credit"]
-                major_all_planrequirement.is_updated_by_user = True
                 major_all_planrequirement.save()
 
             major_requirement_requirement = Requirement.objects.get(planrequirement__plan=plan,
@@ -351,13 +340,11 @@ class RequirementViewSet(viewsets.GenericViewSet):
                 if major_requirement_planrequirement.required_credit != major_requirement_credit:
                     check_requirement_change_history(major_requirement_requirement, major_requirement_credit, user.userprofile.entrance_year)
                     major_requirement_planrequirement.required_credit = major_requirement_credit
-                    major_requirement_planrequirement.is_updated_by_user = True
                     major_requirement_planrequirement.save()
             else:
                 if major_requirement_planrequirement.required_credit != major_credit["major_requirement_credit"]:
                     check_requirement_change_history(major_requirement_requirement, major_credit["major_requirement_credit"], user.userprofile.entrance_year)
                     major_requirement_planrequirement.required_credit = major_credit["major_requirement_credit"]
-                    major_requirement_planrequirement.is_updated_by_user = True
                     major_requirement_planrequirement.save()
 
         major_requirement_list = []

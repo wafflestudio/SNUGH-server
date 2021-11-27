@@ -311,9 +311,9 @@ class PlanViewSet(viewsets.GenericViewSet):
         for major in list(majors):
             PlanMajor.objects.create(plan=new_plan, major=major)
 
-        requirements = Requirement.objects.filter(planrequirement__plan=plan)
-        for requirement in list(requirements):
-            PlanRequirement.objects.create(plan=new_plan, requirement=requirement, required_credit=requirement.required_credit)
+        planrequirements = PlanRequirement.objects.filter(plan=plan)
+        for planrequirement in list(planrequirements):
+            PlanRequirement.objects.create(plan=new_plan, requirement=planrequirement.requirement, required_credit=planrequirement.required_credit)
 
         semesters = Semester.objects.filter(plan=plan)
         for semester in list(semesters):
