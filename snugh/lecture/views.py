@@ -304,7 +304,7 @@ class PlanViewSet(viewsets.GenericViewSet):
     def copy(self, request, pk=None):
         plan = get_object_or_404(Plan, pk=pk)
         new_plan = Plan.objects.create(user=plan.user,
-                                       plan_name=plan.plan_name+'(복사본)',
+                                       plan_name=plan.plan_name+' (복사본)',
                                        recent_scroll=0)
 
         majors = Major.objects.filter(planmajor__plan=plan)
