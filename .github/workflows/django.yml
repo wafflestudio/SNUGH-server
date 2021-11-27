@@ -27,4 +27,4 @@ jobs:
         pip install -r ./snugh/requirements.txt
     - name: Run Tests
       run: |
-        python manage.py test
+        python ./snugh/manage.py test
