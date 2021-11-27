@@ -14,6 +14,8 @@ class LectureQuerySet(models.QuerySet):
     
 
 class Lecture(models.Model):
+    UPDATED_YEAR = 2021
+
     # 구분 없음
     NONE = 'none'
 
