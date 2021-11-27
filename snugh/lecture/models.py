@@ -4,19 +4,14 @@ from user.models import Major
 from datetime import datetime
 
 
-class Search(models.Lookup):
-    lookup_name = 'search'
-
-    def as_mysql(self, compiler, connection):
-        lhs, lhs_params = self.process_lhs(compiler, connection)
-        rhs, rhs_params = self.process_rhs(compiler, connection)
-        params = lhs_params + rhs_params
-        return 'MATCH (%s) AGAINST (%s IN NATURAL LANGUAGE MODE)' % (lhs, rhs), params
-
-
-models.CharField.register_lookup(Search)
-models.TextField.register_lookup(Search)
-
+class LectureQuerySet(models.QuerySet):
+    
+    def search(self, keyword):
+        result = self.all()
+        for c in keyword:
+            result = result.filter(lecture_name__contains=c)
+        return result
+    
 
 class Lecture(models.Model):
     # 구분 없음
@@ -64,6 +59,9 @@ class Lecture(models.Model):
     grade = models.PositiveSmallIntegerField(null=True, blank=True)
     prev_lecture_name = models.CharField(max_length=50, null=True)
     recent_open_year = models.IntegerField(default=0)
+    
+    objects = LectureQuerySet.as_manager()
+    
 
 class LectureTmp(models.Model):
     # 구분 없음
