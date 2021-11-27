@@ -864,7 +864,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         return Response(status=status.HTTP_200_OK) 
 
     # GET /lecture/?search_type=(string)&search_keyword=(string)&major=(string)&credit=(string)
-    # TODO: recent_open_year 최근순 정렬, filter
+    # TODO: n-gram 서치 고도화
     def list(self, request):
         user = request.user
         if not user.is_authenticated:
