@@ -57,4 +57,4 @@ class PlanRequirement(models.Model):
 #    is_fulfilled = models.BooleanField(default=False)
     earned_credit = models.PositiveSmallIntegerField(default=0)
     auto_calculate = models.BooleanField(default=False)
-    is_updated_by_user = models.BooleanField(default=False)
+#    is_updated_by_user = models.BooleanField(default=False)
