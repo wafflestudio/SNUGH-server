@@ -914,18 +914,6 @@ class LectureViewSet(viewsets.GenericViewSet):
             search_keyword = request.query_params.get("search_keyword")
             if search_keyword:
                 # past lectures
-                # .annotate(custom_order=Case(When(major_type=Major.SINGLE_MAJOR, then=models.Value(0)),
-                #                             When(major_type=Major.MAJOR, then=models.Value(1)),
-                #                             When(major_type=Major.GRADUATE_MAJOR, then=models.Value(2)),
-                #                             When(major_type=Major.INTERDISCIPLINARY_MAJOR, then=models.Value(3)),
-                #                             When(major_type=Major.INTERDISCIPLINARY_MAJOR_FOR_TEACHER,
-                #                                  then=models.Value(4)),
-                #                             When(major_type=Major.DOUBLE_MAJOR, then=models.Value(5)),
-                #                             When(major_type=Major.INTERDISCIPLINARY, then=models.Value(6)),
-                #                             When(major_type=Major.MINOR, then=models.Value(7)),
-                #                             When(major_type=Major.INTERDISCIPLINARY_PROGRAM, then=models.Value(8)),
-                #                             default=models.Value(9),
-                #                             output_field=models.IntegerField(), )) \
                 if int(search_year) < Lecture.UPDATED_YEAR:
                     lectures = Lecture.objects.search(search_keyword).filter(recent_open_year__gte = search_year)\
                         .annotate(first_letter=Case(When(lecture_name__startswith=search_keyword[0], then=models.Value(0)),
