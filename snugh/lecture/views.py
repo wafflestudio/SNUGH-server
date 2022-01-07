@@ -10,6 +10,8 @@ from lecture.serializers import *
 from user.models import *
 from requirement.models import *
 from django.core.paginator import Paginator
+from django.db.models.functions import Length
+from django.db.models import F
 
 
 class PlanViewSet(viewsets.GenericViewSet):
@@ -862,7 +864,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         return Response(status=status.HTTP_200_OK) 
 
     # GET /lecture/?search_type=(string)&search_keyword=(string)&major=(string)&credit=(string)
-    # TODO: recent_open_year 최근순 정렬, filter
+    # TODO: n-gram 서치 고도화
     def list(self, request):
         user = request.user
         if not user.is_authenticated:
@@ -876,11 +878,22 @@ class LectureViewSet(viewsets.GenericViewSet):
         if not search_type:
             return Response({ "error": "search_type missing" }, status=status.HTTP_400_BAD_REQUEST)
 
+        search_year = request.query_params.get("search_year")
+        if not search_year:
+            return Response({ "error": "search_year missing" }, status=status.HTTP_400_BAD_REQUEST)
+
+        plan_id = request.query_params.get("plan_id")
+        if not plan_id:
+            return Response({"error": "plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)
+
+        existing_lectures = Lecture.objects.filter(semesterlecture__semester__plan = Plan.objects.get(id=plan_id)).values_list('id', flat=True)
+
         # Case 1: major requirement or major elective
         if search_type == 'major_requirement' or search_type == 'major_elective':
             major_name = request.query_params.get("major_name")
             if major_name:
-                lectures = Lecture.objects.filter(open_major=major_name, lecture_type=search_type).order_by('recent_open_year')
+                lectures = Lecture.objects.filter(open_major=major_name, lecture_type=search_type, recent_open_year__gte=user.userprofile.entrance_year)\
+                    .exclude(id__in=existing_lectures).order_by('lecture_name', 'recent_open_year')
                 serializer = LectureSerializer(lectures, many=True)
 
                 data = serializer.data
@@ -906,7 +919,32 @@ class LectureViewSet(viewsets.GenericViewSet):
         else:
             search_keyword = request.query_params.get("search_keyword")
             if search_keyword:
-                lectures = Lecture.objects.search(search_keyword).order_by('-recent_open_year')
+                # past lectures
+                if int(search_year) < Lecture.UPDATED_YEAR:
+                    lectures = Lecture.objects.search(search_keyword).filter(recent_open_year__gte = search_year)\
+                        .exclude(id__in=existing_lectures)\
+                        .annotate(first_letter=Case(When(lecture_name__startswith=search_keyword[0], then=models.Value(0)),
+                                                default=models.Value(1),
+                                                output_field=models.IntegerField(),))\
+                        .annotate(icontains_priority=Case(When(lecture_name__icontains=search_keyword, then=models.Value(0)),
+                                                default=models.Value(1),
+                                                output_field=models.IntegerField(),))\
+                        .annotate(priority = F('first_letter')+F('icontains_priority'))\
+                        .annotate(match_rate=Length('lecture_name'))\
+                        .order_by('priority', 'match_rate', 'recent_open_year', 'lecture_name')
+                # future lectures
+                else:
+                    lectures = Lecture.objects.search(search_keyword).filter(recent_open_year__gte=Lecture.UPDATED_YEAR-2) \
+                        .exclude(id__in=existing_lectures) \
+                        .annotate(first_letter=Case(When(lecture_name__startswith=search_keyword[0], then=models.Value(0)),
+                                          default=models.Value(1),
+                                          output_field=models.IntegerField(), )) \
+                        .annotate(icontains_priority=Case(When(lecture_name__icontains=search_keyword, then=models.Value(0)),
+                                                default=models.Value(1),
+                                                output_field=models.IntegerField(), )) \
+                        .annotate(priority=F('first_letter') + F('icontains_priority')) \
+                        .annotate(match_rate=Length('lecture_name'))\
+                        .order_by('priority', 'match_rate', '-recent_open_year', 'lecture_name')
                 lectures = Paginator(lectures, 20).get_page(page)
                 serializer = LectureSerializer(lectures, many=True)
                 return Response(serializer.data, status=status.HTTP_200_OK)
