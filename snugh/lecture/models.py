@@ -9,7 +9,7 @@ class LectureQuerySet(models.QuerySet):
     def search(self, keyword):
         result = self.all()
         for c in keyword:
-            result = result.filter(lecture_name__contains=c)
+            result = result.filter(lecture_name__icontains=c)
         return result
     
 
