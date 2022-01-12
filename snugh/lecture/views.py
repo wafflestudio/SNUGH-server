@@ -956,7 +956,7 @@ class LectureViewSet(viewsets.GenericViewSet):
                 serializer = LectureSerializer(lectures, many=True)
                 return Response(serializer.data, status=status.HTTP_200_OK)
             else:
-                return Response({"error": "search_keyword missing"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response([], status=status.HTTP_200_OK)
 
     # Data Generation
     # POST /lecture/generate_lecturecredit/
