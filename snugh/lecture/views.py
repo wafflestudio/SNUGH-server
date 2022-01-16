@@ -917,7 +917,7 @@ class LectureViewSet(viewsets.GenericViewSet):
                 if MajorEquivalent.objects.filter(major_name=major_name).count() != 0:
                     equivalent_majors = MajorEquivalent.objects.filter(major_name=major_name)
                     for equivalent_major in equivalent_majors:
-                        lectures |= (Lecture.objects.filter(open_major=equivalent_majors.equivalent_major_name, lecture_type=search_type,
+                        lectures |= (Lecture.objects.filter(open_major=equivalent_major.equivalent_major_name, lecture_type=search_type,
                                                   recent_open_year__gte = year_standard)
                                         .order_by('lecture_name', 'recent_open_year'))
 
