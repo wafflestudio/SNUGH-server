@@ -280,7 +280,10 @@ class PlanViewSet(viewsets.GenericViewSet):
 
         # update planrequirement
         for major in post_list:
-            curr_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
+            curr_major_type = major['major_type']
+            if len(majors) == 1:
+                curr_major_type = Major.SINGLE_MAJOR
+            curr_major = Major.objects.get(major_name=major['major_name'], major_type= curr_major_type)
             requirements = Requirement.objects.filter(major=curr_major,
                                                       start_year__lte=user.userprofile.entrance_year,
                                                       end_year__gte=user.userprofile.entrance_year)
