@@ -1,4 +1,5 @@
 from rest_framework import serializers 
+from django.db import models
 from lecture.models import *
 
 
@@ -28,7 +29,13 @@ class PlanSerializer(serializers.ModelSerializer):
         return ls 
 
     def get_semesters(self, plan):
-        semesters = plan.semester.all().order_by('year', 'semester_type')
+        semesters = plan.semester.annotate(semester_value=models.Case(
+            models.When(semester_type=Semester.FIRST, then=0),
+            models.When(semester_type=Semester.SUMMER, then=1),
+            models.When(semester_type=Semester.SECOND, then=2),
+            models.When(semester_type=Semester.WINTER, then=3),
+            output_field=models.IntegerField()
+        )).order_by('year', 'semester_value')
         return SemesterSerializer(semesters, many=True).data
 
 
