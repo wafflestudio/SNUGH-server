@@ -916,15 +916,13 @@ class LectureViewSet(viewsets.GenericViewSet):
                     department_name = DepartmentEquivalent.objects.get(major_name=major_name).department_name
                     # TODO: |= inefficient
                     lectures |= (Lecture.objects.filter(open_department=department_name, lecture_type=search_type,
-                                                  recent_open_year__gte = year_standard)
-                                    .order_by('lecture_name', 'recent_open_year'))
+                                                  recent_open_year__gte = year_standard).order_by('lecture_name', 'recent_open_year'))
 
                 if MajorEquivalent.objects.filter(major_name=major_name).count() != 0:
                     equivalent_majors = MajorEquivalent.objects.filter(major_name=major_name)
                     for equivalent_major in equivalent_majors:
                         lectures |= (Lecture.objects.filter(open_major=equivalent_major.equivalent_major_name, lecture_type=search_type,
-                                                  recent_open_year__gte = year_standard)
-                                        .order_by('lecture_name', 'recent_open_year'))
+                                                  recent_open_year__gte = year_standard).order_by('lecture_name', 'recent_open_year'))
 
                 serializer = LectureSerializer(lectures, many=True)
 
