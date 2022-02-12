@@ -885,18 +885,19 @@ class LectureViewSet(viewsets.GenericViewSet):
         if not search_type:
             return Response({ "error": "search_type missing" }, status=status.HTTP_400_BAD_REQUEST)
 
-        search_year = request.query_params.get("search_year")
-        if not search_year:
-            return Response({ "error": "search_year missing" }, status=status.HTTP_400_BAD_REQUEST)
-
-        plan_id = request.query_params.get("plan_id")
-        if not plan_id:
-            return Response({"error": "plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)
-
 #        existing_lectures = Lecture.objects.filter(semesterlecture__semester__plan = Plan.objects.get(id=plan_id)).values_list('id', flat=True)
 
         # Case 1: major requirement or major elective
         if search_type == 'major_requirement' or search_type == 'major_elective':
+
+            search_year = request.query_params.get("search_year")
+            if not search_year:
+                return Response({"error": "search_year missing"}, status=status.HTTP_400_BAD_REQUEST)
+
+            plan_id = request.query_params.get("plan_id")
+            if not plan_id:
+                return Response({"error": "plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)
+
             major_name = request.query_params.get("major_name")
             if major_name:
 
