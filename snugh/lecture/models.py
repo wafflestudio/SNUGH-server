@@ -11,7 +11,7 @@ class LectureQuerySet(models.QuerySet):
         for c in keyword:
             result = result.filter(lecture_name__icontains=c)
         return result
-    
+
 
 class Lecture(models.Model):
     UPDATED_YEAR = 2021

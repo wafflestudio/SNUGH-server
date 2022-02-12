@@ -899,11 +899,31 @@ class LectureViewSet(viewsets.GenericViewSet):
         if search_type == 'major_requirement' or search_type == 'major_elective':
             major_name = request.query_params.get("major_name")
             if major_name:
+
+                if int(search_year) < Lecture.UPDATED_YEAR:
+                    year_standard = search_year
+                else:
+                    year_standard = Lecture.UPDATED_YEAR-2
+
                 lectures = Lecture.objects.filter(open_major=major_name, lecture_type=search_type,
-                                                  recent_open_year__gte=user.userprofile.entrance_year) \
+                                                  recent_open_year__gte = year_standard) \
                     .order_by('lecture_name', 'recent_open_year')
                 # lectures = Lecture.objects.filter(open_major=major_name, lecture_type=search_type, recent_open_year__gte=user.userprofile.entrance_year)\
                 #     .exclude(id__in=existing_lectures).order_by('lecture_name', 'recent_open_year')
+                if DepartmentEquivalent.objects.filter(major_name=major_name).count() != 0:
+                    department_name = DepartmentEquivalent.objects.get(major_name=major_name).department_name
+                    # TODO: |= inefficient
+                    lectures |= (Lecture.objects.filter(open_department=department_name, lecture_type=search_type,
+                                                  recent_open_year__gte = year_standard)
+                                    .order_by('lecture_name', 'recent_open_year'))
+
+                if MajorEquivalent.objects.filter(major_name=major_name).count() != 0:
+                    equivalent_majors = MajorEquivalent.objects.filter(major_name=major_name)
+                    for equivalent_major in equivalent_majors:
+                        lectures |= (Lecture.objects.filter(open_major=equivalent_major.equivalent_major_name, lecture_type=search_type,
+                                                  recent_open_year__gte = year_standard)
+                                        .order_by('lecture_name', 'recent_open_year'))
+
                 serializer = LectureSerializer(lectures, many=True)
 
                 data = serializer.data
@@ -914,7 +934,7 @@ class LectureViewSet(viewsets.GenericViewSet):
             else: 
                 return Response({"error": "major_name missing"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Case 2: general
+        # Case 2: general -- deprecated
         elif search_type == 'general': 
             credit = request.query_params.get("credit")
             search_keyword = request.query_params.get("search_keyword")
