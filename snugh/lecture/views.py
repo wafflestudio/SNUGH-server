@@ -901,7 +901,7 @@ class LectureViewSet(viewsets.GenericViewSet):
             if major_name:
                 # 시연에서만
                 search_year = 2019
-                
+
                 if int(search_year) < Lecture.UPDATED_YEAR:
                     year_standard = search_year
                 else:
@@ -949,6 +949,15 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         # Case 3: keyword
         else:
+            # 시연에서만
+            search_year = request.query_params.get("search_year")
+            if not search_year:
+                return Response({"error": "search_year missing"}, status=status.HTTP_400_BAD_REQUEST)
+
+            plan_id = request.query_params.get("plan_id")
+            if not plan_id:
+                return Response({"error": "plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)
+
             search_keyword = request.query_params.get("search_keyword")
             if search_keyword:
                 # past lectures
