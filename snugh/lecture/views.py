@@ -899,7 +899,9 @@ class LectureViewSet(viewsets.GenericViewSet):
         if search_type == 'major_requirement' or search_type == 'major_elective':
             major_name = request.query_params.get("major_name")
             if major_name:
-
+                # 시연에서만
+                search_year = 2019
+                
                 if int(search_year) < Lecture.UPDATED_YEAR:
                     year_standard = search_year
                 else:
