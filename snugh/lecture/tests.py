@@ -1,3 +1,4 @@
+from sqlite3 import DataError
 from django.test import TestCase
 from user.models import User, Major, UserMajor, UserProfile
 from rest_framework import status
@@ -10,7 +11,14 @@ from .models import Lecture, Plan, PlanMajor, Semester, SemesterLecture
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-class LectureListDeleteTestCase(TestCase):
+class LectureTestCase(TestCase):
+    """
+    # Test
+
+    [GET] lecture/
+    [DELETE] lecture/
+    [PUT] lecture/<lecture_id>/position/
+    """
 
     @classmethod
     def setUpTestData(cls):
@@ -58,7 +66,7 @@ class LectureListDeleteTestCase(TestCase):
             recognized_majors=[cls.major]*5
         )
         
-    # GET /lecture/
+    # GET lecture/
     def test_lecture_list(self):
 
         # 과거 기준 전필 조회
@@ -334,7 +342,7 @@ class LectureListDeleteTestCase(TestCase):
         self.assertEqual(data['error'], "plan_id missing")
         
         
-    # DELETE /lecture/
+    # DELETE lecture/
     def test_lecture_delete(self):
         
         self.assertEqual(
@@ -436,4 +444,91 @@ class LectureListDeleteTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
 
+class SemesterTestCase(TestCase):
+    """
+    # Test 
+
+    [GET] semester/<semester_id>/
+    [DELETE] semester/<semester_id>/
+    """
     
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = UserFactory.create()
+        cls.user_token = "Token " + str(cls.user.auth_token)
+        
+        cls.plan = Plan.objects.create(user=cls.user, plan_name="test")
+
+        cls.semesters = SemesterFactory.create(
+            semesters=[
+                {
+                    "plan":cls.plan,
+                    "year":2016,
+                    "semester_type":"first",
+                    "major_requirement_credit":6,
+                    "major_elective_credit":9
+                },
+                {
+                    "plan":cls.plan,
+                    "year":2021,
+                    "semester_type":"first"
+                }
+            ]
+        )
+        
+        # bulk_create()가 mysql에서는 id가 none인 저장 안된 object들을 retrieve하기 때문에
+        # .get으로 별도로 retrieve 해줬습니다. 
+        cls.semester_2016 = Semester.objects.get(year=2016, semester_type="first")
+        cls.semester_2021 = Semester.objects.get(year=2021, semester_type="first")
+        cls.major = Major.objects.get(major_name="경영학과", major_type="major")
+        cls.planmajor = PlanMajor.objects.create(major=cls.major, plan=cls.plan)
+        cls.lectures_list_2016 = [
+            "경영과학", 
+            "고급회계",
+            "공급사슬관리",
+            "국제경영",
+            "디자인 사고와 혁신" 
+        ]
+        cls.lectures_2016 = Lecture.objects.filter(lecture_name__in=cls.lectures_list_2016)
+
+        cls.semesterlectures_2016 = SemesterLectureFactory.create(
+            semester=cls.semester_2016,
+            lectures=cls.lectures_2016,
+            recognized_majors=[cls.major]*5
+        )
+
+    # GET semester/<semester_id>/
+    def test_semester_retrieve(self):
+
+        # semester retrieve
+        response = self.client.get(
+            f"/semester/{self.semester_2016.id}/",
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.user_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+
+        self.assertEqual(data['id'], self.semester_2016.id)
+        self.assertEqual(data['plan'], self.plan.id)
+        self.assertEqual(data['year'], self.semester_2016.year)
+        self.assertEqual(data['semester_type'], self.semester_2016.semester_type)
+        self.assertEqual(data['major_requirement_credit'], self.semester_2016.major_requirement_credit)
+        self.assertEqual(data['major_elective_credit'], self.semester_2016.major_elective_credit)
+        self.assertEqual(data['general_credit'], self.semester_2016.general_credit)
+        self.assertEqual(data['general_elective_credit'], self.semester_2016.general_elective_credit)
+
+        for i, lecture in enumerate(data['lectures']):
+            self.assertEqual(lecture['lecture_name'], self.lectures_list_2016[i])
+
+        # semester retrieve 404 error
+        response = self.client.get(
+            "/semester/9999/",
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.user_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+    # DELETE semester/<semester_id>/
+    def test_semester_delete(self):
+        pass

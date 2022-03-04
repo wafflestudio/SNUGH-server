@@ -9,7 +9,15 @@ from django.db.models import Count
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-class MajorTestCase(TestCase):
+class UserMajorTestCase(TestCase):
+    """
+    # Test
+
+    [GET] major/
+    [POST] user/major/
+    [DELETE] user/major/
+    """
+
 
     @classmethod
     def setUpTestData(cls):
