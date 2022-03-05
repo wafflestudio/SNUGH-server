@@ -479,7 +479,10 @@ class SemesterTestCase(TestCase):
         # bulk_create()가 mysql에서는 id가 none인 저장 안된 object들을 retrieve하기 때문에
         # .get으로 별도로 retrieve 해줬습니다. 
         cls.semester_2016 = Semester.objects.get(year=2016, semester_type="first")
+        
+        # for testing deletion
         cls.semester_2021 = Semester.objects.get(year=2021, semester_type="first")
+        
         cls.major = Major.objects.get(major_name="경영학과", major_type="major")
         cls.planmajor = PlanMajor.objects.create(major=cls.major, plan=cls.plan)
         cls.lectures_list_2016 = [
@@ -493,6 +496,12 @@ class SemesterTestCase(TestCase):
 
         cls.semesterlectures_2016 = SemesterLectureFactory.create(
             semester=cls.semester_2016,
+            lectures=cls.lectures_2016,
+            recognized_majors=[cls.major]*5
+        )
+
+        cls.semesterlectures_2021 = SemesterLectureFactory.create(
+            semester=cls.semester_2021,
             lectures=cls.lectures_2016,
             recognized_majors=[cls.major]*5
         )
@@ -531,4 +540,15 @@ class SemesterTestCase(TestCase):
     
     # DELETE semester/<semester_id>/
     def test_semester_delete(self):
-        pass
+
+        # semester delete
+        response = self.client.delete(
+            f"/semester/{self.semester_2021.id}/",
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.user_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        semester_2021 = Semester.objects.filter(plan=self.plan, year=2021, semester_type='first').exists()
+        self.assertEqual(semester_2021, False)
+
