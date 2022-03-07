@@ -200,17 +200,31 @@ class UserTestCase(TestCase):
         self.assertIn("token", body)
 
     def test_logout(self):
-        response = self.client.get('/user/logout/', HTTP_AUTHORIZATION=self.user_token)
+        response = self.client.get('/user/logout/', HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_retrieve_me(self):
-        response = self.client.get('/user/me/', HTTP_AUTHORIZATION=self.user_token)
+        response = self.client.get('/user/me/', HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         body = response.json()
         self.assertIn("id", body)
         self.assertEqual(body["email"], "testuser@test.com")
         self.assertEqual(body["entrance_year"], 2022)
+        self.assertEqual(body["full_name"], "홍길동")
+        self.assertIn("majors", body)
+        self.assertEqual(len(body["majors"]), 2)
+        self.assertEqual(body["status"], "active")
+
+    def test_update_me(self):
+        data = {'entrance_year': 2021}
+        response = self.client.put('/user/me/', data=data, HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        body = response.json()
+        self.assertIn("id", body)
+        self.assertEqual(body["email"], "testuser@test.com")
+        self.assertEqual(body["entrance_year"], 2021)
         self.assertEqual(body["full_name"], "홍길동")
         self.assertIn("majors", body)
         self.assertEqual(len(body["majors"]), 2)
