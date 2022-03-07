@@ -1,3 +1,3 @@
 from local import *
 
-TEST_RUNNER = 'snugh.settings.test_runner.TestRunner'
+TEST_RUNNER = 'snugh.test_runner.TestRunner'
