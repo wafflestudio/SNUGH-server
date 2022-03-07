@@ -73,7 +73,7 @@ class CreateUserTestCase(TestCase):
             'status': 'active'
         }
 
-    def test_create_user_lacking_requirements(self):
+    def test_create_user_missing_requirements(self):
         data = {'email': 'test@test.com'}
         response = self.client.post('/user/', data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -152,10 +152,103 @@ class CreateUserTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         body = response.json()
-        self.assertIn("id", data)
+        self.assertIn("id", body)
         self.assertEqual(body["email"], "user@test.com")
         self.assertEqual(body["entrance_year"], 2022)
         self.assertEqual(body["full_name"], "아무개")
+        self.assertIn("majors", body)
+        self.assertEqual(len(body["majors"]), 2)
         self.assertEqual(body["status"], "active")
         self.assertIn("token", body)
 
+
+class LoginTestCase(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = UserFactory(
+            email='test@test.com',
+            password='password',
+            entrance_year=2022,
+            full_name='홍길동',
+            majors=[
+                {
+                    "major_name": "컴퓨터공학부",
+                    "major_type": "major"
+                },
+                {
+                    "major_name": "경영학과",
+                    "major_type": "double_major"
+                }
+            ],
+            status='active'
+        )
+
+        cls.put_data = {
+            'email': 'test@test.com',
+            'password': 'password',
+        }
+
+    def test_login_missing_requirements(self):
+        data = {'email': 'test@test.com'}
+        response = self.client.put('/user/login/', data=data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        body = response.json()
+        self.assertEqual(body['error'], "password missing")
+
+    def test_login_wrong_request(self):
+        data = self.put_data.copy()
+        data.update({'password': "false"})
+        response = self.client.put('/user/login/', data=data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        body = response.json()
+        self.assertEqual(body['error'], "username or password wrong")
+
+    def test_login(self):
+        data = self.put_data
+        response = self.client.put('/user/login/', data=data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        body = response.json()
+        self.assertIn("id", body)
+        self.assertEqual(body["email"], "test@test.com")
+        self.assertEqual(body["entrance_year"], 2022)
+        self.assertEqual(body["full_name"], "홍길동")
+        self.assertIn("majors", body)
+        self.assertEqual(len(body["majors"]), 2)
+        self.assertEqual(body["status"], "active")
+        self.assertIn("token", body)
+
+
+class LogoutTestCase(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = UserFactory(
+            email='test@test.com',
+            password='password',
+            entrance_year=2022,
+            full_name='홍길동',
+            majors=[
+                {
+                    "major_name": "컴퓨터공학부",
+                    "major_type": "major"
+                },
+                {
+                    "major_name": "경영학과",
+                    "major_type": "double_major"
+                }
+            ],
+            status='active'
+        )
+
+        cls.put_data = {
+            'email': 'test@test.com',
+            'password': 'password',
+        }
+
+    def test_logout(self):
+        data = self.put_data
+        response = self.client.put('/user/login/', data=data)
+        token = response.json()["token"]
+
+        response = self.client.get('/user/logout/', Authorization=token)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
