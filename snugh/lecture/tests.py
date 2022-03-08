@@ -96,14 +96,10 @@ class SemesterTestCase(TestCase):
 
         cls.plan = Plan.objects.create(user=cls.user, plan_name="example plan")
 
-        cls.semesters = SemesterFactory(
-            semesters=[
-                {
-                    "plan": cls.plan,
-                    "year": 2022,
-                    "semester_type": Semester.FIRST
-                }
-            ]
+        cls.semester = SemesterFactory(
+            plan=cls.plan,
+            year=2022,
+            semester_type=Semester.FIRST
         )
 
     def test_create_semester_wrong_input(self):
@@ -145,14 +141,62 @@ class LectureTestCase(TestCase):
 
         cls.plan = Plan.objects.create(user=cls.user, plan_name="example plan")
 
-        cls.semesters = SemesterFactory(
-            semesters=[
-                {
-                    "plan": cls.plan,
-                    "year": 2022,
-                    "semester_type": Semester.FIRST
-                }
-            ]
+        cls.semester = SemesterFactory(
+            plan=cls.plan,
+            year=2022,
+            semester_type=Semester.FIRST
         )
 
+        cls.post_data = {
+            "semester_id": cls.semester.id,
+            "lecture_id": [
+                11085,
+                8224,
+                12061,
+                12058,
+                12052,
+                12301
+            ],
+            "lecture_type": [
+                "major_elective",
+                "general",
+                "major_requirement",
+                "major_requirement",
+                "major_requirement",
+                "major_requirement"
+            ],
+            "recognized_major_names": [
+                "컴퓨터공학부",
+                "",
+                "컴퓨터공학부",
+                "컴퓨터공학부",
+                "컴퓨터공학부",
+                "경영학과"
+            ]
+        }
 
+    def test_create_lecture_wrong_request(self):
+        data = self.post_data
+        data.update({"lecture_id": [1, 1, 1, 1, 1, 1]})
+        response = self.client.post('/lecture/', data=data, HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        body = response.json()
+        self.assertEqual(body['error'], "identical lectures in lecture_id_list")
+
+    def test_create_lecture(self):
+        data = self.post_data
+        response = self.client.post('/lecture/', data=data, HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        body = response.json()
+        self.assertIn("id", body)
+        self.assertEqual(body["plan"], self.plan.id)
+        self.assertEqual(body["year"], 2022)
+        self.assertEqual(body["semester_type"], "first")
+        self.assertEqual(body["is_complete"], False)
+        self.assertEqual(body["major_requirement_credit"], 0)
+        self.assertEqual(body["major_elective_credit"], 0)
+        self.assertEqual(body["general_credit"], 2)
+        self.assertEqual(body["general_elective_credit"], 17)
+        self.assertIn("lectures", body)
+        self.assertEqual(len(body["lectures"]), 6)
