@@ -1,38 +1,7 @@
-from factory.django import DjangoModelFactory
+from .utils import UserTestFactory
 
 from django.test import TestCase
 from rest_framework import status
-from rest_framework.authtoken.models import Token
-
-from django.contrib.auth.models import User
-from user.models import UserProfile, Major, UserMajor
-
-class UserTestFactory(DjangoModelFactory):
-    class Meta:
-        model = UserProfile
-
-    @classmethod
-    def create(cls, **kwargs):
-        email = kwargs.get('email')
-        password = kwargs.get('password')
-        entrance_year = kwargs.get('entrance_year')
-        full_name = kwargs.get('full_name')
-        major_list = kwargs.get('majors')
-        student_status = kwargs.get('status')
-        user = User.objects.create_user(username=email, email=email, password=password, first_name=full_name)
-        user.set_password(kwargs.get('password', ''))
-        user.save()
-
-        for major in major_list:
-            searched_major = Major.objects.get_or_create(major_name=major['major_name'], major_type=major['major_type'])
-            UserMajor.objects.create(user=user, major=searched_major[0])
-
-        userprofile = UserProfile.objects.create(user=user, entrance_year=entrance_year, status=student_status)
-        userprofile.save()
-
-        token, created = Token.objects.get_or_create(user=user)
-
-        return user
 
 
 class UserTestCase(TestCase):
@@ -80,6 +49,8 @@ class UserTestCase(TestCase):
             'email': 'testuser@test.com',
             'password': 'password',
         }
+
+    # POST /user/
 
     def test_create_user_missing_requirements(self):
         data = {'email': 'test@test.com'}
@@ -169,6 +140,8 @@ class UserTestCase(TestCase):
         self.assertEqual(body["status"], "active")
         self.assertIn("token", body)
 
+    # PUT /user/login/
+
     def test_login_missing_requirements(self):
         data = {'email': 'member@test.com'}
         response = self.client.put('/user/login/', data=data, content_type="application/json")
@@ -198,6 +171,8 @@ class UserTestCase(TestCase):
         self.assertEqual(len(body["majors"]), 2)
         self.assertEqual(body["status"], "active")
         self.assertIn("token", body)
+
+    # GET /user/logout/
 
     def test_logout(self):
         response = self.client.get('/user/logout/', HTTP_AUTHORIZATION=self.user_token, content_type="application/json")

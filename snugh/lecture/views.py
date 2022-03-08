@@ -33,8 +33,8 @@ class PlanViewSet(viewsets.GenericViewSet):
         if not majors:
             return Response({"error": "majors missing"}, status=status.HTTP_400_BAD_REQUEST)
         for major in majors:
-                if not Major.objects.filter(major_name=major['major_name'], major_type=major['major_type']).exists():
-                    return Response({"error": "major not_exist"}, status=status.HTTP_404_NOT_FOUND)
+            if not Major.objects.filter(major_name=major['major_name'], major_type=major['major_type']).exists():
+                return Response({"error": "major not_exist"}, status=status.HTTP_404_NOT_FOUND)
 
         # plan
         plan = Plan.objects.create(user=user, plan_name=plan_name)
