@@ -1,4 +1,4 @@
-from .utils import UserTestFactory
+from .utils import UserFactory
 
 from django.test import TestCase
 from rest_framework import status
@@ -7,7 +7,7 @@ from rest_framework import status
 class UserTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.user = UserTestFactory(
+        cls.user = UserFactory(
             email='testuser@test.com',
             password='password',
             entrance_year=2022,

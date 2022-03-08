@@ -13,7 +13,7 @@ class UserFactory(DjangoModelFactory):
     idx = 0
 
     @classmethod
-    def create(cls, **kwargs):
+    def auto_create(cls, **kwargs):
         fake = Faker("ko_KR")
         email = kwargs.get("email", f"test{cls.idx}@snu.ac.kr")
 
@@ -36,6 +36,29 @@ class UserFactory(DjangoModelFactory):
         cls.idx += 1
         return user
 
+    @classmethod
+    def create(cls, **kwargs):
+        email = kwargs.get('email')
+        password = kwargs.get('password')
+        entrance_year = kwargs.get('entrance_year')
+        full_name = kwargs.get('full_name')
+        major_list = kwargs.get('majors')
+        student_status = kwargs.get('status')
+        user = User.objects.create_user(username=email, email=email, password=password, first_name=full_name)
+        user.set_password(kwargs.get('password', ''))
+        user.save()
+
+        for major in major_list:
+            searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
+            UserMajor.objects.create(user=user, major=searched_major)
+
+        userprofile = UserProfile.objects.create(user=user, entrance_year=entrance_year, status=student_status)
+        userprofile.save()
+
+        token, created = Token.objects.get_or_create(user=user)
+
+        return user
+
 
 class UserMajorFactory(DjangoModelFactory):
     class Meta:
@@ -51,31 +74,3 @@ class UserMajorFactory(DjangoModelFactory):
             return UserMajor.objects.bulk_create(usermajors)
 
         return None
-
-
-class UserTestFactory(DjangoModelFactory):
-    class Meta:
-        model = UserProfile
-
-    @classmethod
-    def create(cls, **kwargs):
-        email = kwargs.get('email')
-        password = kwargs.get('password')
-        entrance_year = kwargs.get('entrance_year')
-        full_name = kwargs.get('full_name')
-        major_list = kwargs.get('majors')
-        student_status = kwargs.get('status')
-        user = User.objects.create_user(username=email, email=email, password=password, first_name=full_name)
-        user.set_password(kwargs.get('password', ''))
-        user.save()
-
-        for major in major_list:
-            searched_major = Major.objects.get_or_create(major_name=major['major_name'], major_type=major['major_type'])
-            UserMajor.objects.create(user=user, major=searched_major[0])
-
-        userprofile = UserProfile.objects.create(user=user, entrance_year=entrance_year, status=student_status)
-        userprofile.save()
-
-        token, created = Token.objects.get_or_create(user=user)
-
-        return user

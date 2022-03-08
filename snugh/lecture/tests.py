@@ -1,17 +1,17 @@
-from factory.django import DjangoModelFactory
 from user.utils import UserFactory, UserMajorFactory
+from .utils import SemesterFactory, SemesterLectureFactory
 
 from django.test import TestCase
 from rest_framework import status
 
-from .models import Plan, PlanMajor, Major
+from .models import Plan, PlanMajor, Major, Semester
 from requirement.models import PlanRequirement
 
 
 class PlanTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.user = UserFactory()
+        cls.user = UserFactory.auto_create()
         cls.user_token = "Token " + str(cls.user.auth_token)
 
         cls.post_data = {
@@ -86,3 +86,73 @@ class PlanTestCase(TestCase):
         self.assertIn("majors", body)
         self.assertEqual(len(body["majors"]), 1)
         self.assertIn("semesters", body)
+
+
+class SemesterTestCase(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = UserFactory.auto_create()
+        cls.user_token = "Token " + str(cls.user.auth_token)
+
+        cls.plan = Plan.objects.create(user=cls.user, plan_name="example plan")
+
+        cls.semesters = SemesterFactory(
+            semesters=[
+                {
+                    "plan": cls.plan,
+                    "year": 2022,
+                    "semester_type": Semester.FIRST
+                }
+            ]
+        )
+
+    def test_create_semester_wrong_input(self):
+        data = {"plan": self.plan.id}
+        response = self.client.post('/semester/', data=data, HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        body = response.json()
+        self.assertEqual(body['error'], "year missing")
+
+        data = {"plan": self.plan.id, "year": 2022, "semester_type": Semester.FIRST}
+        response = self.client.post('/semester/', data=data, HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        body = response.json()
+        self.assertEqual(body['error'], "semester already_exist")
+
+    def test_create_sememster(self):
+        data = {"plan": self.plan.id, "year": 2022, "semester_type": Semester.SECOND}
+        response = self.client.post('/semester/', data=data, HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        body = response.json()
+        self.assertIn("id", body)
+        self.assertEqual(body["plan"], self.plan.id)
+        self.assertEqual(body["year"], 2022)
+        self.assertEqual(body["semester_type"], "second")
+        self.assertEqual(body["is_complete"], False)
+        self.assertEqual(body["major_requirement_credit"], 0)
+        self.assertEqual(body["major_elective_credit"], 0)
+        self.assertEqual(body["general_credit"], 0)
+        self.assertEqual(body["general_elective_credit"], 0)
+        self.assertIn("lectures", body)
+
+
+class LectureTestCase(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = UserFactory.auto_create()
+        cls.user_token = "Token " + str(cls.user.auth_token)
+
+        cls.plan = Plan.objects.create(user=cls.user, plan_name="example plan")
+
+        cls.semesters = SemesterFactory(
+            semesters=[
+                {
+                    "plan": cls.plan,
+                    "year": 2022,
+                    "semester_type": Semester.FIRST
+                }
+            ]
+        )
+
+
