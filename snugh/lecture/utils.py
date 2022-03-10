@@ -1,5 +1,5 @@
 from factory.django import DjangoModelFactory
-from .models import Semester, Lecture, Semester, SemesterLecture, Major
+from .models import Plan, Semester, Lecture, Semester, SemesterLecture, Major
 
 class SemesterFactory(DjangoModelFactory):
     class Meta:
@@ -70,3 +70,5 @@ class SemesterLectureFactory(DjangoModelFactory):
             return SemesterLecture.objects.bulk_create(lectures_created)
 
         return None
+
+
