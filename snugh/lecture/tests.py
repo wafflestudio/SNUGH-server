@@ -719,6 +719,35 @@ class PlanTestCase(TestCase):
         self.assertEqual(plan_2['semesters'][1]['major_elective_credit'], self.p2_semester_2.major_elective_credit)
         self.assertEqual(len(plan_2['semesters'][1]['lectures']), 1)
 
+    # GET plan/<plan_id>/
+    def test_plan_retrieve(self):
+
+        response = self.client.get(
+            f"/plan/{self.plan_1.id}/",
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.user_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+
+        self.assertEqual(data['plan_name'], self.plan_1.plan_name)
+        self.assertEqual(len(data['majors']), 1)
+        self.assertEqual(data['majors'][0]['major_name'], self.major_1.major_name)
+        self.assertEqual(data['majors'][0]['major_type'], self.major_1.major_type)
+        
+        self.assertEqual(len(data['semesters']), 2)
+        self.assertEqual(data['semesters'][0]['year'], self.p1_semester_1.year)
+        self.assertEqual(data['semesters'][0]['semester_type'], self.p1_semester_1.semester_type)
+        self.assertEqual(data['semesters'][0]['major_requirement_credit'], self.p1_semester_1.major_requirement_credit)
+        self.assertEqual(data['semesters'][0]['major_elective_credit'], self.p1_semester_1.major_elective_credit)
+        self.assertEqual(len(data['semesters'][0]['lectures']), 3)
+
+        self.assertEqual(data['semesters'][1]['year'], self.p1_semester_2.year)
+        self.assertEqual(data['semesters'][1]['semester_type'], self.p1_semester_2.semester_type)
+        self.assertEqual(data['semesters'][1]['major_requirement_credit'], self.p1_semester_2.major_requirement_credit)
+        self.assertEqual(data['semesters'][1]['major_elective_credit'], self.p1_semester_2.major_elective_credit)
+        self.assertEqual(len(data['semesters'][1]['lectures']), 3)
+
     # DELETE plan/<plan_id>/
     def test_plan_delete(self):
 
