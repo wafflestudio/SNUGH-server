@@ -759,6 +759,35 @@ class PlanTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(self.user.plan.filter(plan_name="test_deleted").exists(), False)
 
+    # PUT plan/<plan_id>/copy/
+    def test_plan_update(self):
+
+        response = self.client.put(
+            f"/plan/{self.plan_2.id}/",
+            data={
+                "plan_name": "test_2_modified"
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.user_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+
+        self.assertEqual(data['plan_name'], "test_2_modified")
+
+        response = self.client.put(
+            f"/plan/{self.plan_2.id}/",
+            data={
+                "plan_name": "test_2"
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.user_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+
+        self.assertEqual(data['plan_name'], "test_2")
+
 
 
 
