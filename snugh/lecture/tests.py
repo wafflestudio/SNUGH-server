@@ -759,7 +759,7 @@ class PlanTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(self.user.plan.filter(plan_name="test_deleted").exists(), False)
 
-    # PUT plan/<plan_id>/copy/
+    # PUT plan/<plan_id>/
     def test_plan_update(self):
 
         response = self.client.put(
@@ -787,6 +787,40 @@ class PlanTestCase(TestCase):
         data = response.json()
 
         self.assertEqual(data['plan_name'], "test_2")
+
+    # POST plan/<plan_id>/copy/
+    def test_plan_copy(self):
+
+        response = self.client.post(
+            f"/plan/{self.plan_2.id}/copy/",
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.user_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        data = response.json()
+
+        self.assertEqual(data['plan_name'], f"{self.plan_2.plan_name} (복사본)")
+
+        self.assertEqual(len(data['majors']), 2)
+        self.assertEqual(data['majors'][0]['major_name'], self.major_1.major_name)
+        self.assertEqual(data['majors'][0]['major_type'], self.major_1.major_type)
+        self.assertEqual(data['majors'][1]['major_name'], self.major_2.major_name)
+        self.assertEqual(data['majors'][1]['major_type'], self.major_2.major_type)
+        
+        self.assertEqual(len(data['semesters']), 2)
+        self.assertEqual(data['semesters'][0]['year'], self.p2_semester_1.year)
+        self.assertEqual(data['semesters'][0]['semester_type'], self.p2_semester_1.semester_type)
+        self.assertEqual(data['semesters'][0]['major_requirement_credit'], self.p2_semester_1.major_requirement_credit)
+        self.assertEqual(data['semesters'][0]['major_elective_credit'], self.p2_semester_1.major_elective_credit)
+        self.assertEqual(len(data['semesters'][0]['lectures']), 1)
+
+        self.assertEqual(data['semesters'][1]['year'], self.p2_semester_2.year)
+        self.assertEqual(data['semesters'][1]['semester_type'], self.p2_semester_2.semester_type)
+        self.assertEqual(data['semesters'][1]['major_requirement_credit'], self.p2_semester_2.major_requirement_credit)
+        self.assertEqual(data['semesters'][1]['major_elective_credit'], self.p2_semester_2.major_elective_credit)
+        self.assertEqual(len(data['semesters'][1]['lectures']), 1)
+
+        
 
 
 
