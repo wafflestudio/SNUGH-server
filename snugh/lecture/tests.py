@@ -66,8 +66,10 @@ class LectureTestCase(TestCase):
             recognized_majors=[cls.major]*5
         )
         
-    # GET lecture/
     def test_lecture_list(self):
+        """
+        Test [GET] lecture/
+        """
 
         # 과거 기준 전필 조회
         body = {
@@ -242,6 +244,9 @@ class LectureTestCase(TestCase):
             self.assertNotIn(data[i]["lecture_name"], self.my_lectures)
 
     def test_lecture_list_error(self):
+        """
+        Test error [GET] lecture/ 
+        """
 
         wrong_body = {
             "search_type": "", 
@@ -342,8 +347,10 @@ class LectureTestCase(TestCase):
         self.assertEqual(data['error'], "plan_id missing")
         
         
-    # DELETE lecture/
     def test_lecture_delete(self):
+        """
+        Test [DELETE] lecture/
+        """
         
         self.assertEqual(
             self.semester_2016.semesterlecture.filter(
@@ -371,6 +378,9 @@ class LectureTestCase(TestCase):
 
     # PUT lecture/<lecture_id>/position
     def test_lecture_position(self):
+        """
+        Test [PUT] lecture/<lecture_id>/position
+        """
 
         lectures_2016 = self.lectures
         target_lecture = lectures_2016.get(lecture_name="경영과학")
@@ -450,6 +460,7 @@ class SemesterTestCase(TestCase):
 
     [GET] semester/<semester_id>/
     [DELETE] semester/<semester_id>/
+    [PUT] semester/<semester_id>/
     """
     
     @classmethod
@@ -472,6 +483,11 @@ class SemesterTestCase(TestCase):
                     "plan":cls.plan,
                     "year":2021,
                     "semester_type":"first"
+                },
+                {
+                    "plan":cls.plan,
+                    "year":2021,
+                    "semester_type":"second"
                 }
             ]
         )
@@ -506,8 +522,11 @@ class SemesterTestCase(TestCase):
             recognized_majors=[cls.major]*5
         )
 
-    # GET semester/<semester_id>/
+
     def test_semester_retrieve(self):
+        """
+        Test [GET] semester/<semester_id>/
+        """
 
         # semester retrieve
         response = self.client.get(
@@ -538,8 +557,10 @@ class SemesterTestCase(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
     
-    # DELETE semester/<semester_id>/
     def test_semester_delete(self):
+        """
+        Test [DELETE] semester/<semester_id>/
+        """
 
         # semester delete
         response = self.client.delete(
@@ -552,11 +573,115 @@ class SemesterTestCase(TestCase):
         semester_2021 = Semester.objects.filter(plan=self.plan, year=2021, semester_type='first').exists()
         self.assertEqual(semester_2021, False)
 
+    
+    def test_semester_update(self):
+        """
+        Test [PUT] semester/<semester_id>/
+        """
+
+        body = {
+            "year": 2019,
+            "semester_type": "second"
+        }
+
+        # semester update
+        response = self.client.put(
+            f"/semester/{self.semester_2016.id}/",
+            data=body,
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.user_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+
+        self.assertEqual(data['id'], self.semester_2016.id)
+        self.assertEqual(data['plan'], self.plan.id)
+        self.assertEqual(data['year'], 2019)
+        self.assertEqual(data['semester_type'], "second")
+        self.assertEqual(data['major_requirement_credit'], self.semester_2016.major_requirement_credit)
+        self.assertEqual(data['major_elective_credit'], self.semester_2016.major_elective_credit)
+        self.assertEqual(data['general_credit'], self.semester_2016.general_credit)
+        self.assertEqual(data['general_elective_credit'], self.semester_2016.general_elective_credit)
+
+        for i, lecture in enumerate(data['lectures']):
+            self.assertEqual(lecture['lecture_name'], self.lectures_list_2016[i])
+
+        # semester update 403 errors
+        body = {}
+        response = self.client.put(
+            f"/semester/{self.semester_2016.id}/",
+            data=body,
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.user_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        data = response.json()
+        self.assertEqual(data["error"], "body is empty")
+
+        body = {
+            "year": 2021,
+            "semester_type": "second"
+        }
+        response = self.client.put(
+            f"/semester/{self.semester_2016.id}/",
+            data=body,
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.user_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        data = response.json()
+        self.assertEqual(data["error"], "semester already_exist")
+
+        # semester partial update
+        body = {
+            "year": 2016,
+        }
+
+        # semester update
+        response = self.client.put(
+            f"/semester/{self.semester_2016.id}/",
+            data=body,
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.user_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+
+        self.assertEqual(data['id'], self.semester_2016.id)
+        self.assertEqual(data['plan'], self.plan.id)
+        self.assertEqual(data['year'], 2016)
+        self.assertEqual(data['semester_type'], "second")
+
+        body = {
+            "semester_type":"first"
+        }
+
+        # semester update
+        response = self.client.put(
+            f"/semester/{self.semester_2016.id}/",
+            data=body,
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.user_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+
+        self.assertEqual(data['id'], self.semester_2016.id)
+        self.assertEqual(data['plan'], self.plan.id)
+        self.assertEqual(data['year'], 2016)
+        self.assertEqual(data['semester_type'], "first")
+
+
 class PlanTestCase(TestCase):
     """
     # Test
 
     [GET] plan/
+    [GET] plan/<plan_id>/
+    [DELETE] plan/<plan_id>/
+    [PUT] plan/<plan_id>/
+    [POST] plan/<plan_id>/copy/
+    [PUT] plan/<plan_id>/major/
     """
 
     @classmethod
@@ -666,8 +791,10 @@ class PlanTestCase(TestCase):
 
         cls.plan_deleted = Plan.objects.create(user=cls.user, plan_name="test_deleted")
 
-    # GET plan/
     def test_plan_list(self):
+        """
+        Test [GET] plan/
+        """
 
         response = self.client.get(
             "/plan/",
@@ -719,8 +846,11 @@ class PlanTestCase(TestCase):
         self.assertEqual(plan_2['semesters'][1]['major_elective_credit'], self.p2_semester_2.major_elective_credit)
         self.assertEqual(len(plan_2['semesters'][1]['lectures']), 1)
 
-    # GET plan/<plan_id>/
+   
     def test_plan_retrieve(self):
+        """
+        Test [GET] plan/<plan_id>/
+        """
 
         response = self.client.get(
             f"/plan/{self.plan_1.id}/",
@@ -748,8 +878,11 @@ class PlanTestCase(TestCase):
         self.assertEqual(data['semesters'][1]['major_elective_credit'], self.p1_semester_2.major_elective_credit)
         self.assertEqual(len(data['semesters'][1]['lectures']), 3)
 
-    # DELETE plan/<plan_id>/
+
     def test_plan_delete(self):
+        """
+        Test [DELETE] plan/<plan_id>/
+        """
 
         response = self.client.delete(
             f"/plan/{self.plan_deleted.id}/",
@@ -759,8 +892,11 @@ class PlanTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(self.user.plan.filter(plan_name="test_deleted").exists(), False)
 
-    # PUT plan/<plan_id>/
+
     def test_plan_update(self):
+        """
+        Test [PUT] plan/<plan_id>/
+        """
 
         response = self.client.put(
             f"/plan/{self.plan_2.id}/",
@@ -788,8 +924,11 @@ class PlanTestCase(TestCase):
 
         self.assertEqual(data['plan_name'], "test_2")
 
-    # POST plan/<plan_id>/copy/
+
     def test_plan_copy(self):
+        """
+        Test [POST] plan/<plan_id>/copy/
+        """
 
         response = self.client.post(
             f"/plan/{self.plan_2.id}/copy/",
@@ -820,8 +959,10 @@ class PlanTestCase(TestCase):
         self.assertEqual(data['semesters'][1]['major_elective_credit'], self.p2_semester_2.major_elective_credit)
         self.assertEqual(len(data['semesters'][1]['lectures']), 1)
 
-        
+    
+    def test_plan_major_update(self):
+        """
+        Test [PUT] plan/<plan_id>/major/
+        """
 
-
-
-
+        pass
