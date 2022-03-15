@@ -24,8 +24,10 @@ class UserMajorTestCase(TestCase):
         cls.user = UserFactory.create()
         cls.user_token = "Token " + str(cls.user.auth_token)
     
-    # GET major/
     def test_major_list(self):
+        """
+        Test [GET] major/
+        """
 
         # 중복여부, 정렬여부, None여부 확인 가능
         # None 값 제거 (-1)
@@ -126,8 +128,10 @@ class UserMajorTestCase(TestCase):
         for idx, major_name in enumerate(results):
             self.assertEqual(data["majors"][idx], major_name)
 
-    # POST user/major/
     def test_major_create(self):
+        """
+        Test [POST] user/major/
+        """
 
         body = {"major_type": "major", "major_name": "경영학과"}
         response = self.client.post(
@@ -229,8 +233,10 @@ class UserMajorTestCase(TestCase):
         data = response.json()
         self.assertEqual(data["error"], "major already_exist")
 
-    # DELETE /user/major
     def test_major_delete(self):
+        """
+        Test [DELETE] user/major/
+        """
 
         UserMajorFactory.create(
             user=self.user,
