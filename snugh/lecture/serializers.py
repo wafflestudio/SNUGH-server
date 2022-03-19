@@ -1,7 +1,7 @@
 from rest_framework import serializers 
 from django.db import models
 from lecture.models import *
-
+from requirement.models import PlanRequirement
 
 class PlanSerializer(serializers.ModelSerializer):
     majors = serializers.SerializerMethodField()
@@ -11,6 +11,7 @@ class PlanSerializer(serializers.ModelSerializer):
         model = Plan
         fields = (
             'id',
+            'user',
             'plan_name',
             'recent_scroll',
             'majors',
@@ -37,6 +38,21 @@ class PlanSerializer(serializers.ModelSerializer):
             output_field=models.IntegerField()
         )).order_by('year', 'semester_value')
         return SemesterSerializer(semesters, many=True).data
+
+
+class PlanMajorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlanMajor
+        fields = (
+            'id',
+            'plan',
+            'major'
+        )
+
+class PlanRequirementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlanRequirement
+        fields = "__all__"
 
 
 class SemesterSerializer(serializers.ModelSerializer):

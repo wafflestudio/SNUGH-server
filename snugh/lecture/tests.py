@@ -1,4 +1,3 @@
-from sqlite3 import DataError
 from django.test import TestCase
 from user.models import User, Major, UserMajor, UserProfile
 from rest_framework import status

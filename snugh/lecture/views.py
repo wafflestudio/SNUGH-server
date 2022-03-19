@@ -13,6 +13,7 @@ from django.core.paginator import Paginator
 from django.db.models.functions import Length
 from django.db.models import F
 from rest_framework.permissions import IsAuthenticated
+from snugh.exceptions import FieldError, NotFound
 
 
 class PlanViewSet(viewsets.GenericViewSet):
@@ -24,59 +25,46 @@ class PlanViewSet(viewsets.GenericViewSet):
     # POST /plan
     @transaction.atomic
     def create(self, request):
-        user = request.user
-
+        
         data = request.data
-        plan_name = data.get("plan_name")
         majors = data.get("majors")
-
-        # error case 1
-        # TODO: serializer로 validation
         if not majors:
-            return Response({"error": "majors missing"}, status=status.HTTP_400_BAD_REQUEST)
-        for major in majors:
-                if not Major.objects.filter(major_name=major['major_name'], major_type=major['major_type']).exists():
-                    return Response({"error": "major not_exist"}, status=status.HTTP_404_NOT_FOUND)
+            raise FieldError("majors missing")
 
-        # plan
-        plan = Plan.objects.create(user=user, plan_name=plan_name)
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        plan = serializer.save()
 
-        # planmajor
-        if len(majors) == 1 and majors[0]['major_type'] == Major.MAJOR:
-            searched_major = Major.objects.get(major_name=majors[0]['major_name'], major_type=Major.SINGLE_MAJOR)
-            PlanMajor.objects.create(plan=plan, major=searched_major)
-        else:
+        planmajors = []
+        try:
             for major in majors:
-                searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-                PlanMajor.objects.create(plan=plan, major=searched_major)
+                major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
+                planmajors.append(PlanMajor(plan=plan, major=major))
 
-        # planrequirement
-        if len(majors) == 1 and majors[0]['major_type'] == Major.MAJOR:
-            searched_major = Major.objects.get(major_name=majors[0]['major_name'], major_type=Major.SINGLE_MAJOR)
-            requirements = Requirement.objects.filter(major=searched_major,
-                                                      start_year__lte=user.userprofile.entrance_year,
-                                                      end_year__gte=user.userprofile.entrance_year)
-            for requirement in requirements:
-                PlanRequirement.objects.create(plan=plan, requirement=requirement, required_credit=requirement.required_credit)
-        else:
-            for major in majors:
-                searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-                requirements = Requirement.objects.filter(major=searched_major,
-                                                          start_year__lte=user.userprofile.entrance_year,
-                                                          end_year__gte=user.userprofile.entrance_year)
+                # requirements 없는 경우나 여러 개인 경우가 있는가?
+                requirements = Requirement.objects.filter(major=major,
+                                                        start_year__lte=user.userprofile.entrance_year,
+                                                        end_year__gte=user.userprofile.entrance_year)
+                planrequirements = []
                 for requirement in requirements:
-                    PlanRequirement.objects.create(plan=plan, requirement=requirement, required_credit=requirement.required_credit)
+                    planrequirements.append(PlanRequirement(plan=plan, 
+                                                            requirement=requirement, 
+                                                            required_credit=requirement.required_credit))
+        except Major.DoesNotExist:
+            raise NotFound("major not_exist")
 
-        serializer = self.get_serializer(plan)
+        PlanMajor.objects.bulk_create(planmajors)
+        PlanRequirement.objects.bulk_create(planrequirements)
+        
+        # TODO: 1개인데 주전공이거나, 여러 개인데 단일전공인 경우들은 프론트에서 validation 진행 후 전달
+        
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     # PUT /plan/:planId
     @transaction.atomic
     def update(self, request, pk=None):
-        user = request.user
-
         data = request.data
-        plan = get_object_or_404(Plan, pk=pk)
+        plan = self.get_object()
         serializer = self.get_serializer(plan, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.update(plan, serializer.validated_data)
@@ -84,24 +72,19 @@ class PlanViewSet(viewsets.GenericViewSet):
     
     # DEL /plan/:planId
     def destroy(self, request, pk=None):
-        user = request.user
-    
-        plan = get_object_or_404(Plan, pk=pk)
+        plan = self.get_object()
         plan.delete()
         return Response(status=status.HTTP_200_OK)
 
     # GET /plan/:planId
     def retrieve(self, request, pk=None):
-        user = request.user
-
-        plan = get_object_or_404(Plan, pk=pk)
+        plan = self.get_object()
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     # GET /plan
     def list(self, request):
         user = request.user
-
         plans = Plan.objects.filter(user=user)
         return Response(self.get_serializer(plans, many=True).data, status=status.HTTP_200_OK)
 
@@ -235,83 +218,64 @@ class PlanViewSet(viewsets.GenericViewSet):
     def major(self, request, pk=None):
         user = request.user
 
-        plan = get_object_or_404(Plan, pk=pk)
-        post_list = request.data.get("post_list", [])
-        delete_list = request.data.get("delete_list", [])
+        plan = self.get_object()
+        majors = request.data.get("majors")
+        if not majors:
+            raise FieldError("majors missing")
 
-        # error case 1
-        if len(list(PlanMajor.objects.filter(plan=plan))) - len(delete_list) + len(post_list) <= 0:
-            return Response({"error": "The number of majors cannot be zero or minus."}, status=status.HTTP_400_BAD_REQUEST)
+        # overwrite planmajors, planrequirements
+        plan.planmajor.all().delete()
+        plan.planrequirement.all().delete()
 
-        # update planmajor
-        for major in delete_list:
-            selected_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-            PlanMajor.objects.get(plan=plan, major=selected_major).delete()
-
-        for major in post_list:
-            selected_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-            PlanMajor.objects.create(plan=plan, major=selected_major)
-
-        # update major type
-        majors = list(Major.objects.filter(planmajor__plan=plan))
-
-        if len(majors) == 1:
-            major = majors[0]
-            if major.major_type == Major.MAJOR:
-                PlanMajor.objects.get(plan=plan, major=major).delete()
-                new_type_major = Major.objects.get(major_name=major.major_name, major_type=Major.SINGLE_MAJOR)
-                PlanMajor.objects.create(plan=plan, major=new_type_major)
-        else:
+        planmajors = []
+        try:
             for major in majors:
-                if major.major_type == Major.SINGLE_MAJOR:
-                    PlanMajor.objects.get(plan=plan, major=major).delete()
-                    new_type_major = Major.objects.get(major_name=major.major_name, major_type=Major.MAJOR)
-                    PlanMajor.objects.create(plan=plan, major=new_type_major)
+                major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
+                planmajors.append(PlanMajor(plan=plan, major=major))
 
-        # update planrequirement
-        for major in post_list:
-            curr_major_type = major['major_type']
-            if len(majors) == 1:
-                curr_major_type = Major.SINGLE_MAJOR
-            curr_major = Major.objects.get(major_name=major['major_name'], major_type= curr_major_type)
-            requirements = Requirement.objects.filter(major=curr_major,
-                                                      start_year__lte=user.userprofile.entrance_year,
-                                                      end_year__gte=user.userprofile.entrance_year)
-            for requirement in list(requirements):
-                PlanRequirement.objects.create(plan=plan, requirement=requirement, required_credit=requirement.required_credit)
+                # requirements 없는 경우나 여러 개인 경우가 있는가?
+                requirements = Requirement.objects.filter(major=major,
+                                                        start_year__lte=user.userprofile.entrance_year,
+                                                        end_year__gte=user.userprofile.entrance_year)
+                planrequirements = []
+                for requirement in requirements:
+                    planrequirements.append(PlanRequirement(plan=plan, 
+                                                            requirement=requirement, 
+                                                            required_credit=requirement.required_credit))
+        except Major.DoesNotExist:
+            raise NotFound("major not_exist")
 
-        for major in delete_list:
-            curr_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-            requirements = Requirement.objects.filter(major=curr_major,
-                                                      start_year__lte=user.userprofile.entrance_year,
-                                                      end_year__gte=user.userprofile.entrance_year)
-            for requirement in list(requirements):
-                PlanRequirement.objects.get(plan=plan, requirement=requirement).delete()
-
+        PlanMajor.objects.bulk_create(planmajors)
+        PlanRequirement.objects.bulk_create(planrequirements)
         self.calculate(request, pk=pk)
 
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # PUT /plan/:planId/copy
+    # POST /plan/:planId/copy
     @action(detail=True, methods=['POST'])
     @transaction.atomic
     def copy(self, request, pk=None):
-        plan = get_object_or_404(Plan, pk=pk)
-        new_plan = Plan.objects.create(user=plan.user,
-                                       plan_name=plan.plan_name+' (복사본)',
-                                       recent_scroll=0)
 
-        majors = Major.objects.filter(planmajor__plan=plan)
-        for major in list(majors):
-            PlanMajor.objects.create(plan=new_plan, major=major)
+        # TODO: 실제 쿼리 수 체크
 
-        planrequirements = PlanRequirement.objects.filter(plan=plan)
-        for planrequirement in list(planrequirements):
-            PlanRequirement.objects.create(plan=new_plan, requirement=planrequirement.requirement, required_credit=planrequirement.required_credit)
+        plan = Plan.objects.prefetch_related('planmajor', 'planrequirement', 'semester').get(id=pk)
+        new_plan = Plan.objects.create(user=request.user, plan_name=plan.plan_name+' (복사본)')
 
-        semesters = Semester.objects.filter(plan=plan)
-        for semester in list(semesters):
+        planmajors = plan.planmajor.select_related('major').all()
+        new_planmajors = []
+        for planmajor in planmajors:
+            new_planmajors.append(PlanMajor(plan=new_plan, major=planmajor.major))
+        PlanMajor.objects.bulk_create(new_planmajors)
+
+        planrequirements = plan.planrequirement.select_related('requirement').all()
+        new_planrequirements = []
+        for planrequirement in planrequirements:
+            new_planrequirements.append(PlanRequirement(plan=new_plan, requirement=planrequirement.requirement, required_credit=planrequirement.required_credit))
+        PlanRequirement.objects.bulk_create(new_planrequirements)
+
+        semesters = plan.semester.prefetch_related('semesterlecture').all()
+        for semester in semesters:
             new_semester = Semester.objects.create(plan=new_plan,
                                                    year=semester.year,
                                                    semester_type=semester.semester_type,
@@ -321,19 +285,20 @@ class PlanViewSet(viewsets.GenericViewSet):
                                                    general_credit=semester.general_credit,
                                                    general_elective_credit=semester.general_elective_credit)
 
-            semesterlectures = SemesterLecture.objects.filter(semester=semester)
-            for sl in list(semesterlectures):
-                SemesterLecture.objects.create(semester=new_semester,
-                                               lecture=sl.lecture,
-                                               lecture_type=sl.lecture_type,
-                                               recognized_major1=sl.recognized_major1,
-                                               lecture_type1=sl.lecture_type1,
-                                               recognized_major2=sl.recognized_major2,
-                                               lecture_type2=sl.lecture_type2,
-                                               credit=sl.credit,
-                                               recent_sequence=sl.recent_sequence,
-                                               is_modified=sl.is_modified)
-
+            semesterlectures = semester.semesterlecture.all()
+            new_semesterlectures = []
+            for semesterlecture in semesterlectures:
+                new_semesterlectures.append(SemesterLecture(semester=new_semester,
+                                               lecture=semesterlecture.lecture,
+                                               lecture_type=semesterlecture.lecture_type,
+                                               recognized_major1=semesterlecture.recognized_major1,
+                                               lecture_type1=semesterlecture.lecture_type1,
+                                               recognized_major2=semesterlecture.recognized_major2,
+                                               lecture_type2=semesterlecture.lecture_type2,
+                                               credit=semesterlecture.credit,
+                                               recent_sequence=semesterlecture.recent_sequence,
+                                               is_modified=semesterlecture.is_modified))
+            SemesterLecture.objects.bulk_create(new_semesterlectures)
         serializer = self.get_serializer(new_plan)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
