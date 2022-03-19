@@ -1,5 +1,6 @@
 from .base import *
 from os import getenv
+import os
 
 DATABASES = {
     'default': {
@@ -25,3 +26,10 @@ DATABASES = {
         }
     }
 }
+
+DEBUG = True
+INTERNAL_IPS = [
+    "127.0.0.1",
+]
+MIDDLEWARE += ["debug_toolbar.middleware.DebugToolbarMiddleware"]
+INSTALLED_APPS += ["debug_toolbar"]

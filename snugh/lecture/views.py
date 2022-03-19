@@ -18,6 +18,8 @@ from snugh.exceptions import FieldError, NotFound
 
 class PlanViewSet(viewsets.GenericViewSet):
 
+    # TODO: 본인 거 아니면 RUD 못하게 하기
+
     queryset = Plan.objects.all()
     serializer_class = PlanSerializer 
     permission_classes = [IsAuthenticated]
@@ -258,9 +260,9 @@ class PlanViewSet(viewsets.GenericViewSet):
     def copy(self, request, pk=None):
 
         # TODO: 실제 쿼리 수 체크
-
+        user = request.user
         plan = Plan.objects.prefetch_related('planmajor', 'planrequirement', 'semester').get(id=pk)
-        new_plan = Plan.objects.create(user=request.user, plan_name=plan.plan_name+' (복사본)')
+        new_plan = Plan.objects.create(user=user, plan_name=plan.plan_name+' (복사본)')
 
         planmajors = plan.planmajor.select_related('major').all()
         new_planmajors = []
