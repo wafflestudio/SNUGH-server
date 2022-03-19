@@ -12,24 +12,26 @@ from requirement.models import *
 from django.core.paginator import Paginator
 from django.db.models.functions import Length
 from django.db.models import F
+from rest_framework.permissions import IsAuthenticated
 
 
 class PlanViewSet(viewsets.GenericViewSet):
+
     queryset = Plan.objects.all()
     serializer_class = PlanSerializer 
+    permission_classes = [IsAuthenticated]
 
     # POST /plan
     @transaction.atomic
     def create(self, request):
         user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
 
         data = request.data
         plan_name = data.get("plan_name")
         majors = data.get("majors")
 
         # error case 1
+        # TODO: serializer로 validation
         if not majors:
             return Response({"error": "majors missing"}, status=status.HTTP_400_BAD_REQUEST)
         for major in majors:
@@ -72,8 +74,6 @@ class PlanViewSet(viewsets.GenericViewSet):
     @transaction.atomic
     def update(self, request, pk=None):
         user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
 
         data = request.data
         plan = get_object_or_404(Plan, pk=pk)
@@ -85,9 +85,7 @@ class PlanViewSet(viewsets.GenericViewSet):
     # DEL /plan/:planId
     def destroy(self, request, pk=None):
         user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
-
+    
         plan = get_object_or_404(Plan, pk=pk)
         plan.delete()
         return Response(status=status.HTTP_200_OK)
@@ -95,8 +93,6 @@ class PlanViewSet(viewsets.GenericViewSet):
     # GET /plan/:planId
     def retrieve(self, request, pk=None):
         user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
 
         plan = get_object_or_404(Plan, pk=pk)
         serializer = self.get_serializer(plan)
@@ -105,8 +101,6 @@ class PlanViewSet(viewsets.GenericViewSet):
     # GET /plan
     def list(self, request):
         user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
 
         plans = Plan.objects.filter(user=user)
         return Response(self.get_serializer(plans, many=True).data, status=status.HTTP_200_OK)
@@ -117,8 +111,6 @@ class PlanViewSet(viewsets.GenericViewSet):
     @transaction.atomic
     def calculate(self, request, pk=None):
         user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
 
         plan = get_object_or_404(Plan, pk=pk)
 
@@ -242,8 +234,6 @@ class PlanViewSet(viewsets.GenericViewSet):
     @transaction.atomic
     def major(self, request, pk=None):
         user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
 
         plan = get_object_or_404(Plan, pk=pk)
         post_list = request.data.get("post_list", [])
@@ -346,7 +336,6 @@ class PlanViewSet(viewsets.GenericViewSet):
 
         serializer = self.get_serializer(new_plan)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-
 
 class SemesterViewSet(viewsets.GenericViewSet):
     queryset = Semester.objects.all()
