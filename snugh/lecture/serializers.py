@@ -1,7 +1,7 @@
 from rest_framework import serializers 
 from django.db import models
 from lecture.models import *
-from requirement.models import PlanRequirement
+from user.serializers import MajorSerializer
 
 class PlanSerializer(serializers.ModelSerializer):
     majors = serializers.SerializerMethodField()
@@ -19,15 +19,9 @@ class PlanSerializer(serializers.ModelSerializer):
         )
     
     def get_majors(self, plan):
-        planmajors = PlanMajor.objects.filter(plan=plan)
-        ls = [] 
-        for planmajor in planmajors:
-            ls.append({
-                "id": planmajor.major.id, 
-                "major_name": planmajor.major.major_name,
-                "major_type": planmajor.major.major_type,
-            })
-        return ls 
+        planmajors = plan.planmajor.select_related('major').all()
+        majors = [planmajor.major for planmajor in planmajors]
+        return MajorSerializer(majors, many=True).data
 
     def get_semesters(self, plan):
         semesters = plan.semester.annotate(semester_value=models.Case(
@@ -38,22 +32,6 @@ class PlanSerializer(serializers.ModelSerializer):
             output_field=models.IntegerField()
         )).order_by('year', 'semester_value')
         return SemesterSerializer(semesters, many=True).data
-
-
-class PlanMajorSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PlanMajor
-        fields = (
-            'id',
-            'plan',
-            'major'
-        )
-
-class PlanRequirementSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PlanRequirement
-        fields = "__all__"
-
 
 class SemesterSerializer(serializers.ModelSerializer):
     lectures = serializers.SerializerMethodField()
@@ -74,7 +52,7 @@ class SemesterSerializer(serializers.ModelSerializer):
         )
 
     def get_lectures(self, semester):
-        semesterlectures = SemesterLecture.objects.filter(semester=semester).order_by('recent_sequence')
+        semesterlectures = semester.semesterlecture.select_related('lecture', 'recognized_major1', 'recognized_major2').all().order_by('recent_sequence')
         ls = [] 
         for semesterlecture in semesterlectures:
             lecture = semesterlecture.lecture
