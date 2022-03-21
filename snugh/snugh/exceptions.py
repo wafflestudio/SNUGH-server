@@ -1,5 +1,4 @@
 from rest_framework import exceptions, status
-from rest_framework.exceptions import ErrorDetail
 
 class BaseError(exceptions.APIException):
     pass
@@ -63,3 +62,8 @@ class NotFound(BaseError):
     status_code = status.HTTP_404_NOT_FOUND
     default_detail = '존재하지 않는 값입니다.'
     default_code = 'E204'
+
+class NotOwner(BaseError):
+    status_code = status.HTTP_403_FORBIDDEN
+    default_detail = '권한이 없습니다.'
+    default_code = 'E205'

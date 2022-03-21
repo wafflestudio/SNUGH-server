@@ -12,17 +12,15 @@ from requirement.models import *
 from django.core.paginator import Paginator
 from django.db.models.functions import Length
 from django.db.models import F
-from rest_framework.permissions import IsAuthenticated
-from snugh.exceptions import FieldError, NotFound
+from snugh.permissions import IsOwnerOrCreateReadOnly
+from snugh.exceptions import FieldError, NotFound, NotOwner
 
 
 class PlanViewSet(viewsets.GenericViewSet):
 
-    # TODO: 본인 거 아니면 RUD 못하게 하기
-
     queryset = Plan.objects.all()
     serializer_class = PlanSerializer 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsOwnerOrCreateReadOnly]
 
     # POST /plan
     @transaction.atomic
@@ -260,6 +258,8 @@ class PlanViewSet(viewsets.GenericViewSet):
 
         plan = Plan.objects.prefetch_related('user', 'planmajor', 'planrequirement', 'semester').get(id=pk)
         user = plan.user
+        if request.user != plan.user:
+            raise NotOwner()
         new_plan = Plan.objects.create(user=user, plan_name=plan.plan_name+' (복사본)')
 
         planmajors = plan.planmajor.select_related('major').all()
