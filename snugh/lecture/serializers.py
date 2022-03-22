@@ -1,7 +1,10 @@
 from rest_framework import serializers 
 from django.db import models
 from lecture.models import *
+from requirement.models import Requirement
+from requirement.models import PlanRequirement
 from user.serializers import MajorSerializer
+from snugh.exceptions import FieldError, NotFound
 
 class PlanSerializer(serializers.ModelSerializer):
     majors = serializers.SerializerMethodField()
@@ -32,6 +35,53 @@ class PlanSerializer(serializers.ModelSerializer):
             output_field=models.IntegerField()
         )).order_by('year', 'semester_value')
         return SemesterSerializer(semesters, many=True).data
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        plan_name = validated_data['plan_name']
+        return Plan.objects.create(user=user, plan_name=plan_name)
+
+class PlanMajorCreateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = PlanMajor 
+        fields = ('plan',)
+
+    def create(self, validated_data):
+        majors = validated_data['majors']
+        plan = validated_data['plan']
+        user = self.context['request'].user
+        planmajors = []
+        for major in majors:
+            planmajors.append(PlanMajor(plan=plan, major=major))
+            requirements = Requirement.objects.filter(major=major,
+                                                start_year__lte=user.userprofile.entrance_year,
+                                                end_year__gte=user.userprofile.entrance_year)
+            planrequirements = []
+            for requirement in requirements:
+                planrequirements.append(PlanRequirement(plan=plan, 
+                                                        requirement=requirement, 
+                                                        required_credit=requirement.required_credit))
+        PlanRequirement.objects.bulk_create(planrequirements)
+        return PlanMajor.objects.bulk_create(planmajors)
+
+    def validate(self, data):
+        majors = self.context['request'].data.get('majors')
+        if not majors:
+            raise FieldError("majors missing")
+        major_instances = []
+        for major in majors:
+            major_name = major.get('major_name')
+            major_type = major.get('major_type')
+            if not (major_name and major_type):
+                raise FieldError("wrong majors form")
+            try:
+                major_instances.append(Major.objects.get(major_name=major['major_name'], major_type=major['major_type']))
+            except Major.DoesNotExist:
+                raise NotFound("major does not exist")
+        data['majors'] = major_instances
+        return data
+
 
 class SemesterSerializer(serializers.ModelSerializer):
     lectures = serializers.SerializerMethodField()

@@ -1,5 +1,9 @@
 from rest_framework import exceptions, status
 
+"""
+ Custom Errors
+"""
+
 class BaseError(exceptions.APIException):
     pass
 

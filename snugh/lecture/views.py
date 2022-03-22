@@ -17,6 +17,9 @@ from snugh.exceptions import FieldError, NotFound, NotOwner
 
 
 class PlanViewSet(viewsets.GenericViewSet):
+    """
+    Generic ViewSet of Plan Object
+    """
 
     queryset = Plan.objects.all()
     serializer_class = PlanSerializer 
@@ -25,37 +28,15 @@ class PlanViewSet(viewsets.GenericViewSet):
     # POST /plan
     @transaction.atomic
     def create(self, request):
-        user=request.user
-        data = request.data
-        majors = data.get("majors")
-        if not majors:
-            raise FieldError("majors missing")
+        """Create new plan"""
 
+        data = request.data
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         plan = serializer.save()
-
-        planmajors = []
-        try:
-            for major in majors:
-                major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-                planmajors.append(PlanMajor(plan=plan, major=major))
-
-                # requirements 없는 경우나 여러 개인 경우가 있는가?
-                requirements = Requirement.objects.filter(major=major,
-                                                        start_year__lte=user.userprofile.entrance_year,
-                                                        end_year__gte=user.userprofile.entrance_year)
-                planrequirements = []
-                for requirement in requirements:
-                    planrequirements.append(PlanRequirement(plan=plan, 
-                                                            requirement=requirement, 
-                                                            required_credit=requirement.required_credit))
-        except Major.DoesNotExist:
-            raise NotFound("major not_exist")
-
-        PlanMajor.objects.bulk_create(planmajors)
-        PlanRequirement.objects.bulk_create(planrequirements)
-        
+        planmajor = PlanMajorCreateSerializer(data={'plan':plan.id}, context={'request':request})
+        planmajor.is_valid(raise_exception=True)
+        planmajor.save()
         # TODO: 1개인데 주전공이거나, 여러 개인데 단일전공인 경우들은 프론트에서 validation 진행 후 전달
         
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -63,6 +44,8 @@ class PlanViewSet(viewsets.GenericViewSet):
     # PUT /plan/:planId
     @transaction.atomic
     def update(self, request, pk=None):
+        """Update user's plan"""
+
         data = request.data
         plan = self.get_object()
         serializer = self.get_serializer(plan, data=data, partial=True)
@@ -72,18 +55,24 @@ class PlanViewSet(viewsets.GenericViewSet):
     
     # DEL /plan/:planId
     def destroy(self, request, pk=None):
+        """Delete user's plan"""
+
         plan = self.get_object()
         plan.delete()
         return Response(status=status.HTTP_200_OK)
 
     # GET /plan/:planId
     def retrieve(self, request, pk=None):
+        """Retrieve user's plan"""
+
         plan = self.get_object()
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     # GET /plan
     def list(self, request):
+        """Get user's plans list"""
+
         user = request.user
         plans = Plan.objects.filter(user=user)
         return Response(self.get_serializer(plans, many=True).data, status=status.HTTP_200_OK)
@@ -93,12 +82,16 @@ class PlanViewSet(viewsets.GenericViewSet):
     @action(detail=True, methods=['PUT'])
     @transaction.atomic
     def calculate(self, request, pk=None):
+        """Calculate credits"""
+
+        # TODO: refactor code
+
         user = request.user
 
-        plan = get_object_or_404(Plan, pk=pk)
+        plan = self.get_object()
 
         semesters = Semester.objects.filter(plan=plan)
-        semesterlectures =SemesterLecture.objects.filter(semester__in=semesters)
+        semesterlectures = SemesterLecture.objects.filter(semester__in=semesters)
 
         # order majors(기준: 졸업요구 전공학점 높은 순서)
         majors = Major.objects.filter(planmajor__plan=plan)\
@@ -216,38 +209,16 @@ class PlanViewSet(viewsets.GenericViewSet):
     @action(detail=True, methods=['PUT'])
     @transaction.atomic
     def major(self, request, pk=None):
-        user = request.user
-        plan = self.get_object()
-        majors = request.data.get("majors")
-        if not majors:
-            raise FieldError("majors missing")
+        """Update plan's majors"""
 
+        plan = self.get_object()
         # overwrite planmajors, planrequirements
         plan.planmajor.all().delete()
         plan.planrequirement.all().delete()
-
-        planmajors = []
-        try:
-            for major in majors:
-                major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-                planmajors.append(PlanMajor(plan=plan, major=major))
-
-                # requirements 없는 경우나 여러 개인 경우가 있는가?
-                requirements = Requirement.objects.filter(major=major,
-                                                        start_year__lte=user.userprofile.entrance_year,
-                                                        end_year__gte=user.userprofile.entrance_year)
-                planrequirements = []
-                for requirement in requirements:
-                    planrequirements.append(PlanRequirement(plan=plan, 
-                                                            requirement=requirement, 
-                                                            required_credit=requirement.required_credit))
-        except Major.DoesNotExist:
-            raise NotFound("major not_exist")
-
-        PlanMajor.objects.bulk_create(planmajors)
-        PlanRequirement.objects.bulk_create(planrequirements)
+        planmajor = PlanMajorCreateSerializer(data={'plan':plan.id}, context={'request':request})
+        planmajor.is_valid(raise_exception=True)
+        planmajor.save()
         self.calculate(request, pk=pk)
-
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -255,6 +226,7 @@ class PlanViewSet(viewsets.GenericViewSet):
     @action(detail=True, methods=['POST'])
     @transaction.atomic
     def copy(self, request, pk=None):
+        """Copy existing plan"""
 
         plan = Plan.objects.prefetch_related('user', 'planmajor', 'planrequirement', 'semester').get(id=pk)
         user = plan.user

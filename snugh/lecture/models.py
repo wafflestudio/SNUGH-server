@@ -1,8 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
 from user.models import Major
-from datetime import datetime
-
 
 class LectureQuerySet(models.QuerySet):
     
@@ -11,7 +9,6 @@ class LectureQuerySet(models.QuerySet):
         for c in keyword:
             result = result.filter(lecture_name__icontains=c)
         return result
-
 
 class Lecture(models.Model):
     UPDATED_YEAR = 2021
@@ -64,81 +61,6 @@ class Lecture(models.Model):
     
     objects = LectureQuerySet.as_manager()
     
-
-class LectureTmp(models.Model):
-    # 구분 없음
-    NONE = 'none'
-
-    # Semester Type
-    UNKNOWN = 'unknown'
-    FIRST = 'first'
-    SECOND = 'second'
-    SUMMER = 'summer'
-    WINTER = 'winter'
-    ALL = 'all'
-
-    # Lecture Type
-    MAJOR_REQUIREMENT = 'major_requirement'  # 전공 필수
-    MAJOR_ELECTIVE = 'major_elective'  # 전공 선택
-    GENERAL = 'general'  # 교양
-    GENERAL_ELECTIVE = 'general_elective'  # 일반 선택
-    TEACHING = 'teaching'  # 교직
-
-    SEMESTER_TYPE = (
-        (UNKNOWN, 'unknown'),
-        (FIRST, 'first'),
-        (SECOND, 'second'),
-        (SUMMER, 'summer'),
-        (WINTER, 'winter'),
-        (ALL, 'all'),
-    )
-
-    LECTURE_TYPE = (
-        (MAJOR_REQUIREMENT, 'major_requirement'),
-        (MAJOR_ELECTIVE, 'major_elective'),
-        (GENERAL, 'general'),
-        (GENERAL_ELECTIVE, 'general_elective'),
-        (TEACHING, 'teaching'),
-    )
-
-    lecture_code = models.CharField(max_length=50, default="")
-    lecture_name = models.CharField(max_length=50, db_index=True)
-    open_department = models.CharField(max_length=50, null=True)
-    open_major = models.CharField(max_length=50, null=True)
-    open_year = models.IntegerField(default=0)
-    open_semester = models.CharField(max_length=50, choices=SEMESTER_TYPE, default=UNKNOWN)
-    lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
-    credit = models.PositiveIntegerField(default=0)
-    grade = models.PositiveSmallIntegerField(null=True, blank=True)
-    is_added =  models.BooleanField(default=False)
-
-class MajorLectureTmp(models.Model):
-    # 구분 없음
-    NONE = 'none'
-
-    # Lecture Type
-    MAJOR_REQUIREMENT = 'major_requirement'  # 전공 필수
-    MAJOR_ELECTIVE = 'major_elective'  # 전공 선택
-    GENERAL = 'general'  # 교양
-    GENERAL_ELECTIVE = 'general_elective'  # 일반 선택
-    TEACHING = 'teaching'  # 교직
-
-    LECTURE_TYPE = (
-        (MAJOR_REQUIREMENT, 'major_requirement'),
-        (MAJOR_ELECTIVE, 'major_elective'),
-        (GENERAL, 'general'),
-        (GENERAL_ELECTIVE, 'general_elective'),
-        (TEACHING, 'teaching')
-    )
-
-    major_name = models.CharField(max_length=50, default="")
-    major_type = models.CharField(max_length=50, default="")
-    lecture_code = models.CharField(max_length=50, default="")
-    start_year = models.PositiveSmallIntegerField()
-    end_year = models.PositiveSmallIntegerField()
-    is_required = models.BooleanField(default=False)
-    lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
-
 class LectureTypeChangeHistory(models.Model):
     # 구분 없음
     NONE = 'none'
@@ -220,7 +142,6 @@ class PlanMajor(models.Model):
             ('plan', 'major')
         )
 
-
 class SemesterLecture(models.Model):
     # 구분 없음
     NONE = 'none'  
@@ -259,7 +180,6 @@ class SemesterLecture(models.Model):
         unique_together = (
             ('semester', 'lecture')
         )
-
 
 class MajorLecture(models.Model):
     # 구분 없음

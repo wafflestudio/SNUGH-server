@@ -1,6 +1,5 @@
 from .base import *
 from os import getenv
-import os
 
 DATABASES = {
     'default': {
