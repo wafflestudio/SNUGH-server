@@ -279,20 +279,6 @@ class SemesterViewSet(viewsets.GenericViewSet):
     # POST /semester
     @transaction.atomic
     def create(self, request): 
-        user = request.user
-        plan = request.data.get('plan')
-        year = request.data.get('year')
-        semester_type = request.data.get('semester_type')
-
-        if not plan:
-            return Response({"error": "plan missing"}, status=status.HTTP_400_BAD_REQUEST)
-        if not year:
-            return Response({"error": "year missing"}, status=status.HTTP_400_BAD_REQUEST)
-        if not semester_type:
-            return Response({"error": "semester_type missing"}, status=status.HTTP_400_BAD_REQUEST)
-        if Semester.objects.filter(plan=plan, year=year, semester_type=semester_type).exists():
-            return Response({"error": "semester already_exist"}, status=status.HTTP_403_FORBIDDEN)
-        
         data = request.data
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)

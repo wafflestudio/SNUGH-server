@@ -100,6 +100,10 @@ class SemesterSerializer(serializers.ModelSerializer):
             'general_elective_credit',
             'lectures',
         )
+        extra_kwargs = {
+            "plan": {"required": True},
+            "year": {"required": True},
+            "semester_type": {"required": True}}
 
     def get_lectures(self, semester):
         semesterlectures = semester.semesterlecture.select_related('lecture', 'recognized_major1', 'recognized_major2').all().order_by('recent_sequence')
@@ -124,7 +128,6 @@ class SemesterSerializer(serializers.ModelSerializer):
                 "recent_sequence": semesterlecture.recent_sequence
             })
         return ls 
-
 
 class LectureSerializer(serializers.ModelSerializer):
     class Meta:

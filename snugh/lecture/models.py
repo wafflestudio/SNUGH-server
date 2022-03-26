@@ -78,6 +78,11 @@ class Semester(models.Model):
     major_elective_credit = models.PositiveSmallIntegerField(default=0)
     general_credit = models.PositiveSmallIntegerField(default=0)
     general_elective_credit = models.PositiveSmallIntegerField(default=0)
+    
+    class Meta:
+        unique_together = (
+            ('plan', 'year', 'semester_type')
+        )
 
 class PlanMajor(models.Model):
     plan = models.ForeignKey(Plan, related_name='planmajor', on_delete=models.CASCADE)
