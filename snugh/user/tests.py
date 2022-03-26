@@ -21,7 +21,7 @@ class UserMajorTestCase(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.user = UserFactory.create()
+        cls.user = UserFactory.auto_create()
         cls.user_token = "Token " + str(cls.user.auth_token)
     
     def test_major_list(self):
