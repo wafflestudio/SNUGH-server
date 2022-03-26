@@ -11,7 +11,7 @@ class UserFactory(DjangoModelFactory):
     idx = 0
 
     @classmethod
-    def create(cls, **kwargs):
+    def auto_create(cls, **kwargs):
 
         fake = Faker("ko_KR")
         email = kwargs.get("email", f"test{cls.idx}@snu.ac.kr")

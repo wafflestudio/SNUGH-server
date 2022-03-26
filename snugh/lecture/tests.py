@@ -22,7 +22,7 @@ class LectureTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
 
-        cls.user = UserFactory.create()
+        cls.user = UserFactory.auto_create()
         cls.user_token = "Token " + str(cls.user.auth_token)
         
         cls.plan = Plan.objects.create(user=cls.user, plan_name="test")
@@ -464,7 +464,7 @@ class SemesterTestCase(TestCase):
     
     @classmethod
     def setUpTestData(cls):
-        cls.user = UserFactory.create()
+        cls.user = UserFactory.auto_create()
         cls.user_token = "Token " + str(cls.user.auth_token)
         
         cls.plan = Plan.objects.create(user=cls.user, plan_name="test")
@@ -686,7 +686,7 @@ class PlanTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
 
-        cls.user = UserFactory.create()
+        cls.user = UserFactory.auto_create()
         cls.user_token = "Token " + str(cls.user.auth_token)
         
         cls.plan_1 = Plan.objects.create(user=cls.user, plan_name="test_1")
