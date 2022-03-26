@@ -97,9 +97,13 @@ class SemesterTestCase(TestCase):
         cls.plan = Plan.objects.create(user=cls.user, plan_name="example plan")
 
         cls.semester = SemesterFactory(
-            plan=cls.plan,
-            year=2022,
-            semester_type=Semester.FIRST
+            semesters=[
+                {
+                    "plan": cls.plan,
+                    "year": 2022,
+                    "semester_type": Semester.FIRST
+                }
+            ]
         )
 
     def test_create_semester_wrong_input(self):
@@ -142,9 +146,13 @@ class LectureTestCase(TestCase):
         cls.plan = Plan.objects.create(user=cls.user, plan_name="example plan")
 
         cls.semester = SemesterFactory(
-            plan=cls.plan,
-            year=2022,
-            semester_type=Semester.FIRST
+            semesters=[
+                {
+                    "plan": cls.plan,
+                    "year": 2022,
+                    "semester_type": Semester.FIRST
+                }
+            ]
         )
 
         cls.post_data = {
