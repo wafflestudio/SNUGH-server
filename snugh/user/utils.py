@@ -2,7 +2,7 @@ from factory.django import DjangoModelFactory
 from rest_framework.authtoken.models import Token
 from faker import Faker
 
-from user.models import User, UserProfile, Major, UserMajor
+from .models import User, UserProfile, Major, UserMajor
 
 
 class UserFactory(DjangoModelFactory):
@@ -59,7 +59,7 @@ class UserFactory(DjangoModelFactory):
 
         return user
 
-
+      
 class UserMajorFactory(DjangoModelFactory):
     class Meta:
         model = UserMajor
