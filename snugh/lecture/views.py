@@ -339,7 +339,6 @@ class SemesterViewSet(viewsets.GenericViewSet):
     # GET /semester/:semesterId
     def retrieve(self, request, pk=None):
         user = request.user
-
         semester = self.get_object() 
         serializer = SemesterSerializer(semester)
         return Response(serializer.data, status=status.HTTP_200_OK) 
