@@ -5,6 +5,7 @@ from requirement.models import Requirement
 from requirement.models import PlanRequirement
 from user.serializers import MajorSerializer
 from snugh.exceptions import FieldError, NotFound
+from .const import *
 
 class PlanSerializer(serializers.ModelSerializer):
     majors = serializers.SerializerMethodField()
@@ -28,10 +29,10 @@ class PlanSerializer(serializers.ModelSerializer):
 
     def get_semesters(self, plan):
         semesters = plan.semester.annotate(semester_value=models.Case(
-            models.When(semester_type=Semester.FIRST, then=0),
-            models.When(semester_type=Semester.SUMMER, then=1),
-            models.When(semester_type=Semester.SECOND, then=2),
-            models.When(semester_type=Semester.WINTER, then=3),
+            models.When(semester_type=FIRST, then=0),
+            models.When(semester_type=SUMMER, then=1),
+            models.When(semester_type=SECOND, then=2),
+            models.When(semester_type=WINTER, then=3),
             output_field=models.IntegerField()
         )).order_by('year', 'semester_value')
         return SemesterSerializer(semesters, many=True).data
