@@ -227,25 +227,36 @@ class PlanViewSet(viewsets.GenericViewSet):
     def copy(self, request, pk=None):
         """Copy existing plan"""
 
-        plan = Plan.objects.prefetch_related('user', 'planmajor', 'planrequirement', 'semester').get(id=pk)
+        plan = Plan.objects.prefetch_related(
+            'user', 
+            'planmajor', 
+            'planrequirement', 
+            'semester',
+            'planmajor__major',
+            'planrequirement__requirement',
+            'semester__semesterlecture',
+            'semester__semesterlecture__lecture',
+            'semester__semesterlecture__recognized_major1',
+            'semester__semesterlecture__recognized_major2'
+            ).get(id=pk)
         user = plan.user
         if request.user != plan.user:
             raise NotOwner()
         new_plan = Plan.objects.create(user=user, plan_name=plan.plan_name+' (복사본)')
 
-        planmajors = plan.planmajor.select_related('major').all()
+        planmajors = plan.planmajor.all()
         new_planmajors = []
         for planmajor in planmajors:
             new_planmajors.append(PlanMajor(plan=new_plan, major=planmajor.major))
         PlanMajor.objects.bulk_create(new_planmajors)
 
-        planrequirements = plan.planrequirement.select_related('requirement').all()
+        planrequirements = plan.planrequirement.all()
         new_planrequirements = []
         for planrequirement in planrequirements:
             new_planrequirements.append(PlanRequirement(plan=new_plan, requirement=planrequirement.requirement, required_credit=planrequirement.required_credit))
         PlanRequirement.objects.bulk_create(new_planrequirements)
 
-        semesters = plan.semester.prefetch_related('semesterlecture').all()
+        semesters = plan.semester.all()
         for semester in semesters:
             new_semester = Semester.objects.create(plan=new_plan,
                                                    year=semester.year,
@@ -255,7 +266,7 @@ class PlanViewSet(viewsets.GenericViewSet):
                                                    general_credit=semester.general_credit,
                                                    general_elective_credit=semester.general_elective_credit)
 
-            semesterlectures = semester.semesterlecture.select_related('lecture', 'recognized_major1', 'recognized_major2').all()
+            semesterlectures = semester.semesterlecture.all()
             new_semesterlectures = []
             for semesterlecture in semesterlectures:
                 new_semesterlectures.append(SemesterLecture(semester=new_semester,
