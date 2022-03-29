@@ -4,7 +4,7 @@ from pathlib import Path
 from django.db.models import Q
 
 from user.utils import UserFactory, UserMajorFactory
-from .utils import SemesterFactory, SemesterLectureFactory
+from .utils_test import SemesterFactory, SemesterLectureFactory
 
 from user.models import User, Major, UserMajor, UserProfile
 from .models import Lecture, Plan, PlanMajor, Semester, SemesterLecture

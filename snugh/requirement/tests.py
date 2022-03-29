@@ -1,5 +1,5 @@
 from user.utils import UserFactory, UserMajorFactory
-from lecture.utils import SemesterFactory, SemesterLectureFactory
+from lecture.utils_test import SemesterFactory, SemesterLectureFactory
 
 from django.test import TestCase
 from rest_framework import status
