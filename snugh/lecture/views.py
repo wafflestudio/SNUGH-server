@@ -296,25 +296,14 @@ class SemesterViewSet(viewsets.GenericViewSet):
     def update(self, request, pk=None):
         """Update semester"""
         data = request.data
-
         semester = self.get_object()
         plan = semester.plan
         if plan.user != request.user:
             raise NotOwner()
         year = data.get('year')
         semester_type = data.get('semester_type')
-        is_complete = data.get('is_complete')
-
-        if (not is_complete) and (not year) and (not semester_type):
+        if not (year or semester_type):
             raise FieldError("body is empty")
-
-        if (not is_complete) == ((not year) and (not semester_type)):
-            raise FieldError("is_complete should be none")
-
-        if not is_complete:
-            if plan.semester.filter(plan=plan, year=year, semester_type=semester_type).exists():
-                raise DuplicationError("semester already_exist")
-
         serializer = self.get_serializer(semester, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.update(semester, serializer.validated_data)
@@ -328,8 +317,6 @@ class SemesterViewSet(viewsets.GenericViewSet):
         if plan.user != request.user:
             raise NotOwner()
         semester.delete()
-        # TODO: update plan info when delete semester
-        # update_plan_info(plan=plan)
         return Response(status=status.HTTP_200_OK)
     
     # GET /semester/:semesterId

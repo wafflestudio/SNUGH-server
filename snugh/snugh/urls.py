@@ -19,5 +19,3 @@ urlpatterns = [
     path('password_reset_complete/', auth_views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
     path('accounts/login/', UserViewSet.login_redirect, name='login_redirect'),
 ]
-
-# TODO: DEBUG = True 인 경우만 debug path 활성화
