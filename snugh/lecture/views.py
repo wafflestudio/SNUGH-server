@@ -250,7 +250,6 @@ class PlanViewSet(viewsets.GenericViewSet):
             new_semester = Semester.objects.create(plan=new_plan,
                                                    year=semester.year,
                                                    semester_type=semester.semester_type,
-                                                   is_complete=semester.is_complete,
                                                    major_requirement_credit=semester.major_requirement_credit,
                                                    major_elective_credit=semester.major_elective_credit,
                                                    general_credit=semester.general_credit,

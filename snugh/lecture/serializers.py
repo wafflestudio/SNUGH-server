@@ -94,7 +94,6 @@ class SemesterSerializer(serializers.ModelSerializer):
             'plan',
             'year',
             'semester_type',
-            'is_complete',
             'major_requirement_credit',
             'major_elective_credit',
             'general_credit',
