@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404
 from django.db.models import Case, When
 from django.db import transaction
-from rest_framework import status, viewsets
+from rest_framework import status, viewsets, generics
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from lecture.models import * 
@@ -282,7 +282,7 @@ class PlanViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(new_plan)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-class SemesterViewSet(viewsets.GenericViewSet):
+class SemesterViewSet(viewsets.GenericViewSet, generics.RetrieveDestroyAPIView):
     """
     Generic ViewSet of Semester Object
     """
@@ -297,6 +297,9 @@ class SemesterViewSet(viewsets.GenericViewSet):
         data = request.data
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
+        plan = Plan.objects.get(id=data['plan'])
+        if plan.user != request.user:
+            raise NotOwner()
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -318,16 +321,12 @@ class SemesterViewSet(viewsets.GenericViewSet):
     # DEL /semester/:semesterId
     def destroy(self, request, pk=None):
         """Destroy semester"""
-        semester = self.get_object()
-        semester.delete()
-        return Response(status=status.HTTP_200_OK)
+        return super().destroy(request, pk)
     
     # GET /semester/:semesterId
     def retrieve(self, request, pk=None):
         """Retrieve semester"""
-        semester = self.get_object() 
-        serializer = SemesterSerializer(semester)
-        return Response(serializer.data, status=status.HTTP_200_OK) 
+        return super().retrieve(request, pk)
 
 class LectureViewSet(viewsets.GenericViewSet):
     queryset = SemesterLecture.objects.all()
