@@ -4,7 +4,6 @@ from django.db import transaction
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from lecture.models import * 
 from lecture.serializers import *
 from user.models import *
@@ -13,7 +12,7 @@ from django.core.paginator import Paginator
 from django.db.models.functions import Length
 from django.db.models import F
 from snugh.permissions import IsOwnerOrCreateReadOnly
-from snugh.exceptions import NotOwner, DuplicationError
+from snugh.exceptions import NotOwner
 from lecture.utils import add_credits, subtract_credits, add_semester_credits, sub_semester_credits
 from .const import *
 
@@ -289,7 +288,7 @@ class SemesterViewSet(viewsets.GenericViewSet):
     """
     queryset = Semester.objects.all()
     serializer_class = SemesterSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsOwnerOrCreateReadOnly]
 
     # POST /semester
     @transaction.atomic
@@ -307,9 +306,6 @@ class SemesterViewSet(viewsets.GenericViewSet):
         """Update semester"""
         data = request.data
         semester = self.get_object()
-        plan = semester.plan
-        if plan.user != request.user:
-            raise NotOwner()
         year = data.get('year')
         semester_type = data.get('semester_type')
         if not (year or semester_type):
@@ -323,9 +319,6 @@ class SemesterViewSet(viewsets.GenericViewSet):
     def destroy(self, request, pk=None):
         """Destroy semester"""
         semester = self.get_object()
-        plan = semester.plan
-        if plan.user != request.user:
-            raise NotOwner()
         semester.delete()
         return Response(status=status.HTTP_200_OK)
     
