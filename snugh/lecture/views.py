@@ -17,11 +17,10 @@ from lecture.utils import add_credits, subtract_credits, add_semester_credits, s
 from .const import *
 
 
-class PlanViewSet(viewsets.GenericViewSet):
+class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView):
     """
     Generic ViewSet of Plan Object
     """
-
     queryset = Plan.objects.all()
     serializer_class = PlanSerializer 
     permission_classes = [IsOwnerOrCreateReadOnly]
@@ -30,7 +29,6 @@ class PlanViewSet(viewsets.GenericViewSet):
     @transaction.atomic
     def create(self, request):
         """Create new plan"""
-
         data = request.data
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
@@ -39,43 +37,29 @@ class PlanViewSet(viewsets.GenericViewSet):
         planmajor.is_valid(raise_exception=True)
         planmajor.save()
         # TODO: 1개인데 주전공이거나, 여러 개인데 단일전공인 경우들은 프론트에서 validation 진행 후 전달
-        
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     # PUT /plan/:planId
     @transaction.atomic
     def update(self, request, pk=None):
         """Update user's plan"""
-
-        data = request.data
-        plan = self.get_object()
-        serializer = self.get_serializer(plan, data=data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.update(plan, serializer.validated_data)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return super().update(request, pk)
     
     # DEL /plan/:planId
     def destroy(self, request, pk=None):
         """Delete user's plan"""
-
-        plan = self.get_object()
-        plan.delete()
-        return Response(status=status.HTTP_200_OK)
+        return super().destroy(request, pk)
 
     # GET /plan/:planId
     def retrieve(self, request, pk=None):
         """Retrieve user's plan"""
-
-        plan = self.get_object()
-        serializer = self.get_serializer(plan)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return super().retrieve(request, pk)
 
     # GET /plan
     def list(self, request):
         """Get user's plans list"""
-
         user = request.user
-        plans = Plan.objects.filter(user=user)
+        plans = user.plan.all()
         return Response(self.get_serializer(plans, many=True).data, status=status.HTTP_200_OK)
 
     # 강의구분 자동계산
