@@ -2,12 +2,10 @@ from django.contrib import admin
 from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from user.views import UserViewSet
-import debug_toolbar
+import os
 
 
 urlpatterns = [
-    path("__debug__/", include(debug_toolbar.urls)),
-    path('admin/', admin.site.urls),
     path('', include('user.urls')),
     path('', include('lecture.urls')),
     path('', include('requirement.urls')),
@@ -20,4 +18,6 @@ urlpatterns = [
     path('accounts/login/', UserViewSet.login_redirect, name='login_redirect'),
 ]
 
-# TODO: DEBUG = True 인 경우만 debug path 활성화
+if os.environ.get('DJANGO_SETTINGS_MODULE')=='snugh.settings.local':
+    import debug_toolbar
+    urlpatterns += [path("__debug__/", include(debug_toolbar.urls)), path('admin/', admin.site.urls),]

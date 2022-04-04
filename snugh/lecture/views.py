@@ -1,8 +1,7 @@
 from django.shortcuts import get_object_or_404
-from django.db.models import Q
 from django.db.models import Case, When
 from django.db import transaction
-from rest_framework import status, viewsets, filters
+from rest_framework import status, viewsets, generics
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from lecture.models import * 
@@ -13,24 +12,23 @@ from django.core.paginator import Paginator
 from django.db.models.functions import Length
 from django.db.models import F
 from snugh.permissions import IsOwnerOrCreateReadOnly
-from snugh.exceptions import FieldError, NotFound, NotOwner
+from snugh.exceptions import NotOwner
 from lecture.utils import add_credits, subtract_credits, add_semester_credits, sub_semester_credits
+from .const import *
 
 
-class PlanViewSet(viewsets.GenericViewSet):
+class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView):
     """
     Generic ViewSet of Plan Object
     """
-
     queryset = Plan.objects.all()
     serializer_class = PlanSerializer 
-    #permission_classes = [IsOwnerOrCreateReadOnly]
+    permission_classes = [IsOwnerOrCreateReadOnly]
 
     # POST /plan
     @transaction.atomic
     def create(self, request):
         """Create new plan"""
-
         data = request.data
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
@@ -39,48 +37,34 @@ class PlanViewSet(viewsets.GenericViewSet):
         planmajor.is_valid(raise_exception=True)
         planmajor.save()
         # TODO: 1개인데 주전공이거나, 여러 개인데 단일전공인 경우들은 프론트에서 validation 진행 후 전달
-        
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     # PUT /plan/:planId
     @transaction.atomic
     def update(self, request, pk=None):
         """Update user's plan"""
-
-        data = request.data
-        plan = self.get_object()
-        serializer = self.get_serializer(plan, data=data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.update(plan, serializer.validated_data)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return super().update(request, pk)
     
     # DEL /plan/:planId
     def destroy(self, request, pk=None):
         """Delete user's plan"""
-
-        plan = self.get_object()
-        plan.delete()
-        return Response(status=status.HTTP_200_OK)
+        return super().destroy(request, pk)
 
     # GET /plan/:planId
     def retrieve(self, request, pk=None):
         """Retrieve user's plan"""
-
-        plan = self.get_object()
-        serializer = self.get_serializer(plan)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return super().retrieve(request, pk)
 
     # GET /plan
     def list(self, request):
         """Get user's plans list"""
-
         user = request.user
-        plans = Plan.objects.filter(user=user)
+        plans = user.plan.all()
         return Response(self.get_serializer(plans, many=True).data, status=status.HTTP_200_OK)
 
     # 강의구분 자동계산
     # PUT /plan/:planId/calculate
-    @action(detail=True, methods=['GET'])
+    @action(detail=True, methods=['PUT'])
     @transaction.atomic
     def calculate(self, request, pk=None):
         """Calculate credits"""
@@ -96,6 +80,8 @@ class PlanViewSet(viewsets.GenericViewSet):
             ).get(id=pk)
             
         user = plan.user
+        if request.user != user:
+            raise NotOwner()
 
         semesters = plan.semester.all()
         planmajors = plan.planmajor.all()
@@ -127,18 +113,19 @@ class PlanViewSet(viewsets.GenericViewSet):
                     semester = sub_semester_credits(semesterlecture, semester)
                     lecture = semesterlecture.lecture
 
-                    if semesterlecture.lecture_type != SemesterLecture.GENERAL:
+                    if semesterlecture.lecture_type != GENERAL:
                         major_count = 0
                         std = user.userprofile.entrance_year
                         majorlectures = lecture.majorlecture.all()
                         for major in tmp_majors:
                             if major_count > 1:
                                 break
-                            candidate_majorlectures = majorlectures.filter(major=major,
-                                                                                start_year__lte=std,
-                                                                                end_year__gte=std)\
-                                .exclude(lecture_type__in=[MajorLecture.GENERAL, MajorLecture.GENERAL_ELECTIVE])\
-                                .order_by('-lecture_type')
+                            candidate_majorlectures = majorlectures.filter(
+                                major=major,
+                                start_year__lte=std,
+                                end_year__gte=std)\
+                            .exclude(lecture_type__in=[GENERAL, GENERAL_ELECTIVE])\
+                            .order_by('-lecture_type')
 
                             if candidate_majorlectures.exists():
                                 candidate_majorlecture = candidate_majorlectures.first()
@@ -160,11 +147,12 @@ class PlanViewSet(viewsets.GenericViewSet):
                                 if major_count > 1:
                                     break
 
-                                candidate_majorlectures = lecture.majorlecture.filter(major=major,
-                                                                                    start_year__lte=std,
-                                                                                    end_year__gte=std)\
-                                    .exclude(lecture_type__in=[MajorLecture.GENERAL, MajorLecture.GENERAL_ELECTIVE])\
-                                    .order_by('-lecture_type')
+                                candidate_majorlectures = lecture.majorlecture.filter(
+                                    major=major,
+                                    start_year__lte=std,
+                                    end_year__gte=std)\
+                                .exclude(lecture_type__in=[GENERAL, GENERAL_ELECTIVE])\
+                                .order_by('-lecture_type')
 
                                 if candidate_majorlectures.exists() != 0:
                                     candidate_majorlecture = candidate_majorlectures.first()
@@ -178,13 +166,13 @@ class PlanViewSet(viewsets.GenericViewSet):
                                     major_count += 1
 
                         if major_count == 1:
-                            semesterlecture.lecture_type2 = SemesterLecture.NONE
+                            semesterlecture.lecture_type2 = NONE
                             semesterlecture.recognized_major2 = none_major
                         elif major_count == 0:
-                            semesterlecture.lecture_type = SemesterLecture.GENERAL_ELECTIVE
-                            semesterlecture.lecture_type1 = SemesterLecture.GENERAL_ELECTIVE
+                            semesterlecture.lecture_type = GENERAL_ELECTIVE
+                            semesterlecture.lecture_type1 = GENERAL_ELECTIVE
                             semesterlecture.recognized_major1 = none_major
-                            semesterlecture.lecture_type2 = SemesterLecture.NONE
+                            semesterlecture.lecture_type2 = NONE
                             semesterlecture.recognized_major2 = none_major
 
                     lecturecredits = lecture.lecturecredit.filter(start_year__lte=semester.year,
@@ -222,36 +210,46 @@ class PlanViewSet(viewsets.GenericViewSet):
     def copy(self, request, pk=None):
         """Copy existing plan"""
 
-        plan = Plan.objects.prefetch_related('user', 'planmajor', 'planrequirement', 'semester').get(id=pk)
+        plan = Plan.objects.prefetch_related(
+            'user', 
+            'planmajor', 
+            'planrequirement', 
+            'semester',
+            'planmajor__major',
+            'planrequirement__requirement',
+            'semester__semesterlecture',
+            'semester__semesterlecture__lecture',
+            'semester__semesterlecture__recognized_major1',
+            'semester__semesterlecture__recognized_major2'
+            ).get(id=pk)
         user = plan.user
         if request.user != plan.user:
             raise NotOwner()
         new_plan = Plan.objects.create(user=user, plan_name=plan.plan_name+' (복사본)')
 
-        planmajors = plan.planmajor.select_related('major').all()
+        planmajors = plan.planmajor.all()
         new_planmajors = []
         for planmajor in planmajors:
             new_planmajors.append(PlanMajor(plan=new_plan, major=planmajor.major))
         PlanMajor.objects.bulk_create(new_planmajors)
 
-        planrequirements = plan.planrequirement.select_related('requirement').all()
+        planrequirements = plan.planrequirement.all()
         new_planrequirements = []
         for planrequirement in planrequirements:
             new_planrequirements.append(PlanRequirement(plan=new_plan, requirement=planrequirement.requirement, required_credit=planrequirement.required_credit))
         PlanRequirement.objects.bulk_create(new_planrequirements)
 
-        semesters = plan.semester.prefetch_related('semesterlecture').all()
+        semesters = plan.semester.all()
         for semester in semesters:
             new_semester = Semester.objects.create(plan=new_plan,
                                                    year=semester.year,
                                                    semester_type=semester.semester_type,
-                                                   is_complete=semester.is_complete,
                                                    major_requirement_credit=semester.major_requirement_credit,
                                                    major_elective_credit=semester.major_elective_credit,
                                                    general_credit=semester.general_credit,
                                                    general_elective_credit=semester.general_elective_credit)
 
-            semesterlectures = semester.semesterlecture.select_related('lecture', 'recognized_major1', 'recognized_major2').all()
+            semesterlectures = semester.semesterlecture.all()
             new_semesterlectures = []
             for semesterlecture in semesterlectures:
                 new_semesterlectures.append(SemesterLecture(semester=new_semester,
@@ -268,7 +266,7 @@ class PlanViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(new_plan)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-class SemesterViewSet(viewsets.GenericViewSet):
+class SemesterViewSet(viewsets.GenericViewSet, generics.RetrieveDestroyAPIView):
     """
     Generic ViewSet of Semester Object
     """
@@ -278,49 +276,27 @@ class SemesterViewSet(viewsets.GenericViewSet):
 
     # POST /semester
     @transaction.atomic
-    def create(self, request): 
-        user = request.user
-        plan = request.data.get('plan')
-        year = request.data.get('year')
-        semester_type = request.data.get('semester_type')
-
-        if not plan:
-            return Response({"error": "plan missing"}, status=status.HTTP_400_BAD_REQUEST)
-        if not year:
-            return Response({"error": "year missing"}, status=status.HTTP_400_BAD_REQUEST)
-        if not semester_type:
-            return Response({"error": "semester_type missing"}, status=status.HTTP_400_BAD_REQUEST)
-        if Semester.objects.filter(plan=plan, year=year, semester_type=semester_type).exists():
-            return Response({"error": "semester already_exist"}, status=status.HTTP_403_FORBIDDEN)
-        
+    def create(self, request):
+        """Create new semester"""
         data = request.data
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
+        plan = Plan.objects.get(id=data['plan'])
+        if plan.user != request.user:
+            raise NotOwner()
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     # PUT /semester/:semesterId
     @transaction.atomic
     def update(self, request, pk=None):
-        user = request.user
+        """Update semester"""
         data = request.data
-
         semester = self.get_object()
-        plan = semester.plan
         year = data.get('year')
         semester_type = data.get('semester_type')
-        is_complete = data.get('is_complete')
-
-        if (not is_complete) and (not year) and (not semester_type):
-            return Response({"error": "body is empty"}, status=status.HTTP_403_FORBIDDEN)
-
-        if (not is_complete) == ((not year) and (not semester_type)):
-            return Response({"error": "is_complete should be none"}, status=status.HTTP_403_FORBIDDEN)
-
-        if not is_complete:
-            if Semester.objects.filter(plan=plan, year=year, semester_type=semester_type).exists():
-                return Response({"error": "semester already_exist"}, status=status.HTTP_403_FORBIDDEN)
-
+        if not (year or semester_type):
+            raise FieldError("body is empty")
         serializer = self.get_serializer(semester, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.update(semester, serializer.validated_data)
@@ -328,21 +304,13 @@ class SemesterViewSet(viewsets.GenericViewSet):
     
     # DEL /semester/:semesterId
     def destroy(self, request, pk=None):
-        user = request.user
-        semester = self.get_object()
-        plan = semester.plan
-        semester.delete()
-        # TODO: update plan info when delete semester
-        # update_plan_info(plan=plan)
-        return Response(status=status.HTTP_200_OK)
+        """Destroy semester"""
+        return super().destroy(request, pk)
     
     # GET /semester/:semesterId
     def retrieve(self, request, pk=None):
-        user = request.user
-        semester = self.get_object() 
-        serializer = SemesterSerializer(semester)
-        return Response(serializer.data, status=status.HTTP_200_OK) 
-
+        """Retrieve semester"""
+        return super().retrieve(request, pk)
 
 class LectureViewSet(viewsets.GenericViewSet):
     queryset = SemesterLecture.objects.all()
