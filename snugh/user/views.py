@@ -23,19 +23,128 @@ class UserSignUpView(GenericAPIView):
         login(request, user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+
 class UserLoginView(GenericAPIView):
     serializer_class = UserLoginSerializer
     permission_classes = (permissions.AllowAny, )
 
+    # PUT /login/
     def put(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+class UserLogoutView(GenericAPIView):
+    permission_classes = (permissions.IsAuthenticated, )
+
+    # POST /logout/
+    def post(self, request):
+        request.user.auth_token.delete()
+        logout(request)
+        return Response(status=status.HTTP_200_OK)
+
+
 class UserViewSet(viewsets.GenericViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+
+    # POST /user
+    @transaction.atomic
+    def create(self, request):
+        body = request.data
+
+        email = body.get('email')
+        password = body.get('password')
+        entrance_year = body.get('entrance_year')
+        full_name = body.get('full_name')
+        student_status = body.get('status')
+        major_list = body.get('majors')
+
+        error_list = []
+
+        # error case 1
+        if not email:
+            error_list.append('email')
+        if not password:
+            error_list.append('password')
+        if not entrance_year:
+            error_list.append('entrance_year')
+        if not full_name:
+            error_list.append('full_name')
+        if not student_status:
+            error_list.append('status')
+        if not major_list:
+            error_list.append('majors')
+
+        if len(error_list) > 0:
+            error_msg = ''
+            for error in error_list:
+                error_msg += (error + ', ')
+            error_msg = error_msg[:-2] + ' missing'
+            return Response({'error': error_msg}, status=status.HTTP_400_BAD_REQUEST)
+
+        # error case 2
+        list1 = [email, password, entrance_year, full_name, student_status]
+        list2 = ['str', 'str', 'int', 'str', 'str']
+        list3 = ['email', 'password', 'entrance_year', 'full_name', 'status']
+        for i in range(len(list1)):
+            if list2[i] == 'str':
+                isValid = isinstance(list1[i], str)
+            elif list2[i] == 'int':
+                isValid = isinstance(list1[i], int)
+            if not isValid:
+                error_list.append(list3[i])
+
+        if len(error_list) > 0:
+            error_msg = ''
+            for error in error_list:
+                error_msg += (error + ', ')
+            error_msg = error_msg[:-2]+' wrong_type'
+            return Response({'error': error_msg}, status=status.HTTP_400_BAD_REQUEST)
+
+        # error case 3
+        if '@' not in email:
+            return Response({'error':'email wrong_format'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(password) < 6:
+            return Response({'error': 'password wrong_range(more than 6 letters)'}, status=status.HTTP_400_BAD_REQUEST)
+        if entrance_year < 1000 or entrance_year > 9999:
+            return Response({'error': 'entrance_year wrong_range(4 digits)'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(full_name) < 2 or len(full_name) > 30:
+            return Response({'error': 'full_name wrong_range(2~30 letters)'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # error case 4
+        if self.get_queryset().filter(username=email).exists():
+            return Response({'error': 'email already_exist'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # error case 5
+        if len(major_list) == 0:
+            return Response({'error': 'major missing'}, status=status.HTTP_400_BAD_REQUEST)
+        elif len(major_list) == 1:
+            major = major_list[0]
+            if major['major_type'] != Major.MAJOR:
+                return Response({'error': 'major_type not_allowed'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            major_count = 0
+            for major in major_list:
+                if major['major_type'] == Major.MAJOR:
+                    major_count += 1
+            if major_count == 0:
+                return Response({'error': 'major_type not_allowed'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.create_user(username=email, email=email, password=password, first_name=full_name)
+        UserProfile.objects.create(user=user, entrance_year=entrance_year, status=student_status)
+
+        for major in major_list:
+            searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
+            UserMajor.objects.create(user=user, major=searched_major)
+
+        login(request, user)
+
+        data = self.get_serializer(user).data
+        token, created = Token.objects.get_or_create(user=user)
+        data['token'] = token.key
+        return Response(data, status=status.HTTP_201_CREATED)
 
     # GET /user/logout
     @action(detail=False, methods=['GET'])
