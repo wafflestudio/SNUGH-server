@@ -1,20 +1,54 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError, PermissionDenied
 from rest_framework.authtoken.models import Token
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth.models import User, update_last_login
 from user.models import *
+
+
+class UserSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField()
+    email = serializers.CharField()
+    entrance_year = serializers.SerializerMethodField()
+    full_name = serializers.SerializerMethodField()
+    majors = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "email",
+            "entrance_year",
+            "full_name",
+            "majors",
+            "status",
+        )
+
+    def get_entrance_year(self, user):
+        return user.userprofile.entrance_year
+
+    def get_full_name(self, user):
+        return user.first_name
+
+    def get_majors(self, user):
+        majors = Major.objects.filter(usermajor__user=user)
+        return MajorSerializer(majors, many=True).data
+
+    def get_status(self, user):
+        return user.userprofile.status
 
 
 class UserCreateSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
-    token = serializers.SerializerMethodField()
-
     email = serializers.EmailField(max_length=100)
     password = serializers.CharField(max_length=100, min_length=6, write_only=True)
     entrance_year = serializers.IntegerField(min_value=1000, max_value=9999, write_only=True)
     full_name = serializers.CharField(max_length=30, min_length=2, write_only=True)
     majors = serializers.ListField(child=serializers.JSONField(), allow_empty=False, write_only=True)
     status = serializers.ChoiceField(choices=UserProfile.STUDENT_STATUS, write_only=True)
+    token = serializers.SerializerMethodField()
 
     def get_token(self, user):
         token, created = Token.objects.get_or_create(user=user)
@@ -51,37 +85,27 @@ class UserCreateSerializer(serializers.Serializer):
         return user
 
 
-class UserSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField()
-    email = serializers.CharField()
-    entrance_year = serializers.SerializerMethodField()
-    full_name = serializers.SerializerMethodField()
-    majors = serializers.SerializerMethodField()
-    status = serializers.SerializerMethodField()
+class UserLoginSerializer(serializers.Serializer):
+    # user = UserSerializer(read_only=True)
+    id = serializers.IntegerField(read_only=True)
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+    token = serializers.SerializerMethodField()
 
-    class Meta:
-        model = User
-        fields = (
-            "id",
-            "email",
-            "entrance_year",
-            "full_name",
-            "majors",
-            "status",
-        )
+    def get_token(self, user):
+        token, created = Token.objects.get_or_create(user=user)
+        return token.key
 
-    def get_entrance_year(self, user):
-        return user.userprofile.entrance_year
+    def validate(self, data):
+        user = authenticate(username=data.pop('email'), password=data.pop('password'))
+        if user is None:
+            raise PermissionDenied("Username or password wrong")
 
-    def get_full_name(self, user):
-        return user.first_name
+        update_last_login(None, user)
+        self.instance = user
+        # self.instance = get_object_or_404(UserProfile, user=user)
 
-    def get_majors(self, user):
-        majors = Major.objects.filter(usermajor__user=user)
-        return MajorSerializer(majors, many=True).data
-
-    def get_status(self, user):
-        return user.userprofile.status
+        return data
 
 
 class MajorSerializer(serializers.ModelSerializer):

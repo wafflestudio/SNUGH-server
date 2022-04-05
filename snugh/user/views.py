@@ -2,7 +2,6 @@ from django.contrib.auth import authenticate, login, logout
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect
 from rest_framework import status, permissions, viewsets
-from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.generics import GenericAPIView
@@ -17,12 +16,21 @@ class UserSignUpView(GenericAPIView):
     permission_classes = (permissions.AllowAny, )
 
     # POST /signup/
-    def post(self, request, *args, **kwargs):
+    def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         login(request, user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+class UserLoginView(GenericAPIView):
+    serializer_class = UserLoginSerializer
+    permission_classes = (permissions.AllowAny, )
+
+    def put(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class UserViewSet(viewsets.GenericViewSet):
