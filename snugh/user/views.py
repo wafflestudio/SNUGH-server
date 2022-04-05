@@ -38,8 +38,8 @@ class UserLoginView(GenericAPIView):
 class UserLogoutView(GenericAPIView):
     permission_classes = (permissions.IsAuthenticated, )
 
-    # POST /logout/
-    def post(self, request):
+    # GET /logout/
+    def get(self, request):
         request.user.auth_token.delete()
         logout(request)
         return Response(status=status.HTTP_200_OK)
