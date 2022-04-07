@@ -1,5 +1,6 @@
 # 구분 없음
 NONE = 'none'
+DEFAULT_MAJOR_ID = 1
 
 # Semester Type
 UNKNOWN = 'unknown'

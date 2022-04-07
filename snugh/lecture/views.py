@@ -10,9 +10,9 @@ from user.models import *
 from requirement.models import *
 from django.core.paginator import Paginator
 from django.db.models.functions import Length
-from django.db.models import F
+from django.db.models import F, Prefetch
 from snugh.permissions import IsOwnerOrCreateReadOnly
-from snugh.exceptions import NotOwner
+from snugh.exceptions import DuplicationError, NotOwner
 from lecture.utils import add_credits, subtract_credits, add_semester_credits, sub_semester_credits
 from .const import *
 
@@ -71,6 +71,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
 
         plan = Plan.objects.prefetch_related(
             'user',
+            'user__userprofile',
             'semester', 
             'planmajor',
             'semester__semesterlecture',
@@ -87,6 +88,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
         planmajors = plan.planmajor.all()
 
         # order majors(기준: 졸업요구 전공학점 높은 순서)
+        #TODO: Major 없애기
         majors = Major.objects.filter(planmajor__in=planmajors)\
             .annotate(custom_order=Case(When(major_type=Major.SINGLE_MAJOR, then=models.Value(0)),
                                         When(major_type=Major.MAJOR, then=models.Value(1)),
@@ -100,7 +102,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
                                         default=models.Value(9),
                                         output_field=models.IntegerField(), ))\
             .order_by('custom_order')
-        none_major = Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID)
+        none_major = Major.objects.get(id=DEFAULT_MAJOR_ID)
 
         for semester in semesters:
             
@@ -315,121 +317,120 @@ class SemesterViewSet(viewsets.GenericViewSet, generics.RetrieveDestroyAPIView):
 class LectureViewSet(viewsets.GenericViewSet):
     queryset = SemesterLecture.objects.all()
     serializer_class = SemesterLectureSerializer
+    #permission_classes = [IsOwnerOrCreateReadOnly]
 
     # POST /lecture
+    @action(detail=False, methods=['GET'])
     @transaction.atomic
-    def create(self, request): 
-        user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
-
-        semester_id = request.data.get('semester_id')
-        lecture_id_list = request.data.get('lecture_id')
-        lecture_type_list = request.data.get('lecture_type')
-        recognized_major_name_list = request.data.get('recognized_major_names')
-        semester = Semester.objects.get(id=semester_id)
+    def crate(self, request):
+        """Create semester lecture"""
+        #TODO: API 문서 수정
+        # request body 변화
+        # duplicated lectures in lecture_id_list error deprecate
+        # lecture does not exist error
+        #semester_id = request.data.get('semester_id')
+        #lecture_id_list = request.data.get('lecture_id')
+        semester_id = 336
+        lecture_id_list = [
+        12303,
+        8829,
+        12059
+    ]
+        try:
+            semester = Semester.objects.select_related('plan').prefetch_related('semesterlecture').get(id=semester_id)
+        except Semester.DoesNotExist:
+            raise NotFound('lecture does not exist')
         plan = semester.plan
+        lecture_id_list = list(set(lecture_id_list))
 
-        if len(lecture_id_list) != len(set(lecture_id_list)):
-            return Response({"error": "identical lectures in lecture_id_list"}, status=status.HTTP_400_BAD_REQUEST)
+        if lecture_id_list in plan.semester.values_list('semesterlecture__lecture', flat=True):
+            raise DuplicationError('some lecture already exists in plan.')
 
-        lectures_in_plan = []
-        sl_list = SemesterLecture.objects.filter(semester__plan=plan)
-        for sl in sl_list:
-            lectures_in_plan.append(sl.lecture.id)
+        lecture_in_semester = semester.semesterlecture.all()
+        n_lectures = lecture_in_semester.count()
 
-        for lecture in lecture_id_list:
-            if lecture in lectures_in_plan:
-                return Response({"error": "identical lecture already exist"}, status=status.HTTP_400_BAD_REQUEST)
+        semesterlectures = []
+        #TODO: 1-> DEFAULT_MAJOR_ID
+        default_major = Major.objects.get(id=1)
+        planmajors = plan.planmajor.select_related('major').all()
+        for i, lecture_id in enumerate(lecture_id_list):
+            try :
+                lecture = Lecture.objects.get(id=lecture_id)
+            except Lecture.DoesNotExist:
+                raise NotFound('lecture does not exist')
+            lecture_type = lecture.lecture_type
+            recognized_major_name = lecture.open_major
 
-        lecture_in_semester = SemesterLecture.objects.filter(semester=semester)
-        n_lectures = len(lecture_in_semester)
-
-        semlectures = []
-        for i in range(len(lecture_id_list)):
-            lecture = Lecture.objects.get(id=lecture_id_list[i]) 
-            lecture_type = lecture_type_list[i]
-            recognized_major_name = recognized_major_name_list[i]
-
-            if (lecture_type == Lecture.MAJOR_REQUIREMENT) \
-                or (lecture_type == Lecture.MAJOR_ELECTIVE) \
-                or (lecture_type == Lecture.TEACHING):
-
-                if PlanMajor.objects.filter(plan=plan, major__major_name=recognized_major_name).exists():
-                    recognized_major = Major.objects.get(planmajor__plan=plan, major_name=recognized_major_name)
-                else:
-                    recognized_major = Major.objects.get(id=Major.DEFAULT_MAJOR_ID)
-                    lecture_type = Lecture.GENERAL_ELECTIVE
+            if lecture_type in [MAJOR_REQUIREMENT, MAJOR_ELECTIVE, TEACHING]:
+                try:
+                    planmajor = planmajors.get(major__major_name=recognized_major_name)
+                    recognized_major = planmajor.major
+                except PlanMajor.DoesNotExist:
+                    recognized_major = default_major
+                    lecture_type = GENERAL_ELECTIVE
             else:
-                recognized_major = Major.objects.get(id=Major.DEFAULT_MAJOR_ID)
+                recognized_major = default_major
+            
+            sl = SemesterLecture(semester=semester,
+                                 lecture=lecture,
+                                 lecture_type=lecture_type,
+                                 recognized_major1=recognized_major,
+                                 lecture_type1=lecture_type,
+                                 credit=lecture.credit,
+                                 recent_sequence=n_lectures+i)
+            semesterlectures.append(sl)
 
-            semlecture = SemesterLecture.objects.create(semester=semester,
-                                                        lecture=lecture,
-                                                        lecture_type=lecture_type,
-                                                        recognized_major1=recognized_major,
-                                                        lecture_type1=lecture_type,
-                                                        credit=lecture.credit,
-                                                        recent_sequence=n_lectures+i)
-            semlecture.save()
-            semlectures.append(semlecture)
+            semester = add_semester_credits(sl, semester)
+        SemesterLecture.objects.bulk_create(semesterlectures)
+        semester.save()
 
-            if lecture_type == SemesterLecture.MAJOR_REQUIREMENT:
-                semester.major_requirement_credit += lecture.credit
-                semester.save()
-            elif lecture_type == SemesterLecture.MAJOR_ELECTIVE or lecture_type == SemesterLecture.TEACHING:
-                semester.major_elective_credit += lecture.credit
-                semester.save()
-            elif lecture_type == SemesterLecture.GENERAL:
-                semester.general_credit += lecture.credit
-                semester.save()
-            elif lecture_type == SemesterLecture.GENERAL_ELECTIVE:
-                semester.general_elective_credit += lecture.credit
-                semester.save()
-
-        calculate_by_lecture(user, plan, semlectures)
+        #TODO: plan calculate vs calculate_by_lecture
+        #TODO: 꼭 Semester에 대한 정보가 다 필요한지?
+        # 프론트엔드와 합의해서 필요한 정보만 serializer 해서 전달하자.
+        #calculate_by_lecture(user, plan, semesterlectures)
         data = SemesterSerializer(semester).data
         return Response(data, status=status.HTTP_201_CREATED)
     
-    # PUT /lecture/:lectureId/position
+    # PUT /lecture/:semesterlectureIdHGF/position
     @action(methods=['PUT'], detail=True)
     @transaction.atomic
     def position(self, request, pk=None):
-        user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        #TODO: API 문서 수정 -> lecture_id가 아닌 semesterlecture_id로 / request 형식 변경 
+        target_lecture = self.get_object()
+        semester_to = request.data.get('semester_to', None)
+        semester_from = request.data.get('semester_from', None)
+        position = request.data.get('postion', None)
+        if (semester_to==None or semester_from==None or position==None):
+            raise FieldError("field missing")
+        position_prev = target_lecture.recent_sequence
+        semester_from_lectures = SemesterLecture.objects.filter(recent_sequence__gt=position_prev).order_by('recent_sequence')
+        semester_to_lectures = SemesterLecture.objects.filter(recent_sequence__gte=position).order_by('recent_sequence')
+        semester_from = Semester.objects.prefetch_related(Prefetch('semesterlecture', queryset=semester_from_lectures, to_attr='semester_from_lectures')).get(id=semester_from)
+        semester_to = Semester.objects.prefetch_related(Prefetch('semesterlecture', queryset=semester_to_lectures, to_attr='semester_to_lectures')).get(id=semester_to)
 
-        lecture = get_object_or_404(Lecture, pk=pk)
+        semester_from_lectures = semester_from.semester_from_lectures
+        semester_to_lectures = semester_to.semester_to_lectures
+        if not (0<=position<len(semester_to_lectures)):
+            raise FieldError("position out of range")
+        semester_from = sub_semester_credits(target_lecture, semester_from)
+        semester_from.save()
+        target_lecture.semester = semester_to
+        target_lecture.recent_sequence = position
+        semester_to = add_semester_credits(target_lecture, semester_to)
+        semester_to.save()
 
-        semester_from_id = request.data.get('semester_from_id')
-        semester_to_id = request.data.get('semester_to_id')
-        semester_from_list = request.data.get('semester_from')
-        semester_to_list = request.data.get('semester_to')
+        sl_list = []
+        for sl in semester_from_lectures:
+            sl.recent_sequence-=1
+            sl_list.append(sl)
+        for sl in semester_to_lectures:
+            sl.recent_sequence+=1
+            sl_list.append(sl)
+        semesterlectures = sl_list + [target_lecture]
+        SemesterLecture.objects.bulk_update(semesterlectures, fields=['recent_sequence', 'semester'])
 
-        semester_from = Semester.objects.get(id=semester_from_id)
-
-        semesterlecture = SemesterLecture.objects.get(semester_id=semester_from_id, lecture_id=lecture.id)
-
-        updated_semester = subtract_credits(semesterlecture)
-        updated_semester.save()
-        semester_to = Semester.objects.get(id=semester_to_id)
-        semesterlecture.semester = semester_to
-        updated_semester = add_credits(semesterlecture)
-        updated_semester.save()
-        semesterlecture.save()
-
-        for i in range(len(semester_from_list)):
-            semester_lecture = SemesterLecture.objects.get(semester_id=semester_from_id, lecture_id=semester_from_list[i])
-            semester_lecture.recent_sequence = i
-            semester_lecture.save()
-
-        for i in range(len(semester_to_list)):
-            semester_lecture = SemesterLecture.objects.get(semester_id=semester_to_id, lecture_id=semester_to_list[i])
-            semester_lecture.recent_sequence = i
-            semester_lecture.save()
-
-        semester_to = Semester.objects.get(id=semester_to_id)
-        semester_from = Semester.objects.get(id=semester_from_id)
-
+        #TODO: 꼭 Semester에 대한 정보가 다 필요한지?
+        # 프론트엔드와 합의해서 필요한 정보만 serializer 해서 전달하자.
         serializer = SemesterSerializer([semester_from, semester_to], many=True)
         data = serializer.data
 
