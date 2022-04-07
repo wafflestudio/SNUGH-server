@@ -1,5 +1,7 @@
+from errno import EEXIST
+from tkinter import E
 from django.shortcuts import get_object_or_404
-from django.db.models import Case, When
+from django.db.models import Case, When, Q
 from django.db import transaction
 from rest_framework import status, viewsets, generics
 from rest_framework.response import Response
@@ -386,30 +388,39 @@ class LectureViewSet(viewsets.GenericViewSet):
     @action(methods=['PUT'], detail=True)
     @transaction.atomic
     def position(self, request, pk=None):
+        """Position semester lecture"""
         #TODO: API 문서 수정 -> lecture_id가 아닌 semesterlecture_id로 / request 형식 변경 
-        target_lecture = self.get_object()
+        target_lecture = SemesterLecture.objects.select_related('semester').get(pk=pk)
         semester_to = request.data.get('semester_to', None)
-        semester_from = request.data.get('semester_from', None)
-        position = request.data.get('postion', None)
-        if (semester_to==None or semester_from==None or position==None):
-            raise FieldError("field missing")
+        semester_from = target_lecture.semester
+        position = request.data.get('postion', 0)
+        if not semester_to:
+            raise FieldError("'semester_to' field missing")
         position_prev = target_lecture.recent_sequence
-        semester_from_lectures = SemesterLecture.objects.filter(recent_sequence__gt=position_prev).order_by('recent_sequence')
-        semester_to_lectures = SemesterLecture.objects.filter(recent_sequence__gte=position).order_by('recent_sequence')
-        semester_from = Semester.objects.prefetch_related(Prefetch('semesterlecture', queryset=semester_from_lectures, to_attr='semester_from_lectures')).get(id=semester_from)
-        semester_to = Semester.objects.prefetch_related(Prefetch('semesterlecture', queryset=semester_to_lectures, to_attr='semester_to_lectures')).get(id=semester_to)
-
-        semester_from_lectures = semester_from.semester_from_lectures
+        semester_from_lectures = semester_from.semesterlecture.filter(recent_sequence__gt=position_prev).order_by('recent_sequence')
+        try:
+            semester_to = Semester.objects.prefetch_related(
+                Prefetch(
+                    'semesterlecture', 
+                    queryset=SemesterLecture.objects.filter(recent_sequence__gte=position).order_by('recent_sequence'), 
+                    to_attr='semester_to_lectures')).get(id=semester_to)
+        except Semester.DoesNotExist:
+            raise NotFound('semester does not exist')
         semester_to_lectures = semester_to.semester_to_lectures
+
         if not (0<=position<len(semester_to_lectures)):
             raise FieldError("position out of range")
         semester_from = sub_semester_credits(target_lecture, semester_from)
-        semester_from.save()
         target_lecture.semester = semester_to
         target_lecture.recent_sequence = position
         semester_to = add_semester_credits(target_lecture, semester_to)
-        semester_to.save()
-
+        Semester.objects.bulk_update(
+            [semester_from, semester_to], 
+            fields=[
+                'major_requirement_credit', 
+                'major_elective_credit', 
+                'general_credit', 
+                'general_elective_credit'])
         sl_list = []
         for sl in semester_from_lectures:
             sl.recent_sequence-=1
@@ -419,9 +430,7 @@ class LectureViewSet(viewsets.GenericViewSet):
             sl_list.append(sl)
         semesterlectures = sl_list + [target_lecture]
         SemesterLecture.objects.bulk_update(semesterlectures, fields=['recent_sequence', 'semester'])
-
-        #TODO: 꼭 Semester에 대한 정보가 다 필요한지?
-        # 프론트엔드와 합의해서 필요한 정보만 serializer 해서 전달하자.
+        
         serializer = SemesterSerializer([semester_from, semester_to], many=True)
         data = serializer.data
 
@@ -741,89 +750,53 @@ class LectureViewSet(viewsets.GenericViewSet):
     # DEL /lecture/:semlectureId
     @transaction.atomic
     def destroy(self, request, pk=None):
-        user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
-
-        semesterlecture = get_object_or_404(SemesterLecture, pk=pk)
-        updated_semester = subtract_credits(semesterlecture)
-        updated_semester.save()
+        """Destroy semester lecture"""
+        semesterlecture = SemesterLecture.objects.select_related('semester').get(pk=pk)
+        semester = sub_semester_credits(semesterlecture, semesterlecture.semester)
+        semester.save()
         semesterlecture.delete()
-        return Response(status=status.HTTP_200_OK) 
+        return Response(status=status.HTTP_204_NO_CONTENT) 
 
     # GET /lecture/?search_type=(string)&search_keyword=(string)&major=(string)&credit=(string)
     # TODO: n-gram 서치 고도화
     def list(self, request):
-        user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        
+        #TODO: major_name --> 주전공이 여러개인 사람은?, 백앤드에서 가져오는 방법은?
 
         # Pagination Parameter
         page = request.GET.get('page', '1')
 
         # Query Params
         search_type = request.query_params.get("search_type")
-        if not search_type:
-            return Response({ "error": "search_type missing" }, status=status.HTTP_400_BAD_REQUEST)
-
         search_year = request.query_params.get("search_year")
-        if not search_year:
-            return Response({"error": "search_year missing"}, status=status.HTTP_400_BAD_REQUEST)
-        
         plan_id = request.query_params.get("plan_id")
-        if not plan_id:
-            return Response({"error": "plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)
+        if not (search_type and search_year and plan_id):
+            raise FieldError('qeury parameter missing [search_type, search_year, plan_id]')
 
-        existing_lectures = Lecture.objects.filter(semesterlecture__semester__plan = Plan.objects.get(id=plan_id)).values_list('id', flat=True)
+        existing_lectures = Plan.objects.get(id=plan_id).semester.values_list('semesterlecture__lecture', flat=True)
 
         # Case 1: major requirement or major elective
-        if search_type == 'major_requirement' or search_type == 'major_elective':
+        if search_type in [MAJOR_REQUIREMENT, MAJOR_ELECTIVE]:
             major_name = request.query_params.get("major_name")
             if major_name:
-
-                if int(search_year) < Lecture.UPDATED_YEAR:
+                if int(search_year) < UPDATED_YEAR:
                     year_standard = search_year
                 else:
-                    year_standard = Lecture.UPDATED_YEAR-2
-
-                # lectures = Lecture.objects.filter(open_major=major_name, lecture_type=search_type,
-                #                                   recent_open_year__gte = year_standard) \
-                #     .order_by('lecture_name', 'recent_open_year')
-                lectures = Lecture.objects.filter(open_major=major_name, lecture_type=search_type, recent_open_year__gte=year_standard)\
-                    .exclude(id__in=existing_lectures).order_by('lecture_name', 'recent_open_year')
+                    year_standard = UPDATED_YEAR-2
                 
-                if DepartmentEquivalent.objects.filter(major_name=major_name).count() != 0:
-                    department_name = DepartmentEquivalent.objects.get(major_name=major_name).department_name
-                    # TODO: |= inefficient
-                    lectures |= (Lecture.objects.filter(open_department=department_name, lecture_type=search_type,
-                                                  recent_open_year__gte = year_standard).order_by('lecture_name', 'recent_open_year'))
-
-                if MajorEquivalent.objects.filter(major_name=major_name).count() != 0:
-                    equivalent_majors = MajorEquivalent.objects.filter(major_name=major_name)
-                    for equivalent_major in equivalent_majors:
-                        lectures |= (Lecture.objects.filter(open_major=equivalent_major.equivalent_major_name, lecture_type=search_type,
-                                                  recent_open_year__gte = year_standard).order_by('lecture_name', 'recent_open_year'))
-
+                depeqv_name = DepartmentEquivalent.objects.filter(major_name=major_name).values_list('department_name', flat=True)
+                majoreqv_names = MajorEquivalent.objects.filter(major_name=major_name).values_list('equivalent_major_name', flat=True)
+                major_names = [major_name] + list(majoreqv_names)
+                lectures = Lecture.objects.filter(
+                    (Q(open_major__in=major_names) | Q(open_department__in=depeqv_name)), 
+                    lecture_type=search_type, recent_open_year__gte=year_standard)\
+                    .exclude(id__in=existing_lectures).order_by('lecture_name', 'recent_open_year')
+                        
                 serializer = LectureSerializer(lectures, many=True)
 
-                data = serializer.data
-                for lecture in data:
-                    lecture['lecture_type'] = search_type
-
-                return Response(data, status=status.HTTP_200_OK)
-            else: 
-                return Response({"error": "major_name missing"}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Case 2: general -- deprecated
-        elif search_type == 'general': 
-            credit = request.query_params.get("credit")
-            search_keyword = request.query_params.get("search_keyword")
-            if credit and search_keyword:
-                lectures = Lecture.objects.filter(credit=credit, lecture_name__search=search_keyword).order_by('-recent_open_year')
-                serializer = LectureSerializer(lectures, many=True)
                 return Response(serializer.data, status=status.HTTP_200_OK)
-            else:
-                return Response({"error": "credit or search keyword missing"}, status=status.HTTP_400_BAD_REQUEST) 
+            else: 
+                raise FieldError('qeury parameter missing [major_name]')
 
         # Case 3: keyword
         else:

@@ -32,8 +32,7 @@ class BaseMajorLecture(models.Model):
     lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
 
 class Lecture(BaseLecture):
-
-    UPDATED_YEAR = 2021
+    
     prev_lecture_name = models.CharField(max_length=50, null=True)
     recent_open_year = models.IntegerField(default=0)
     objects = LectureQuerySet.as_manager()
