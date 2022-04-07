@@ -1,10 +1,12 @@
 from django.test import TestCase
-from user.models import User, Major, UserMajor, UserProfile
 from rest_framework import status
 from pathlib import Path
 from django.db.models import Q
+
 from user.utils import UserFactory, UserMajorFactory
 from .utils_test import SemesterFactory, SemesterLectureFactory
+
+from user.models import User, Major, UserMajor, UserProfile
 from .models import Lecture, Plan, PlanMajor, Semester, SemesterLecture
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,7 +24,7 @@ class LectureTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
 
-        cls.user = UserFactory.create()
+        cls.user = UserFactory.auto_create()
         cls.user_token = "Token " + str(cls.user.auth_token)
         
         cls.plan = Plan.objects.create(user=cls.user, plan_name="test")
@@ -64,6 +66,72 @@ class LectureTestCase(TestCase):
             lectures=cls.lectures,
             recognized_majors=[cls.major]*5
         )
+        
+        cls.plan_post = Plan.objects.create(user=cls.user, plan_name="example plan")
+
+        cls.semester = SemesterFactory(
+            semesters=[
+                {
+                    "plan": cls.plan,
+                    "year": 2022,
+                    "semester_type": Semester.FIRST
+                }
+            ]
+        )
+
+        cls.post_data = {
+            "semester_id": cls.semester.id,
+            "lecture_id": [
+                11085,
+                8224,
+                12061,
+                12058,
+                12052,
+                12301
+            ],
+            "lecture_type": [
+                "major_elective",
+                "general",
+                "major_requirement",
+                "major_requirement",
+                "major_requirement",
+                "major_requirement"
+            ],
+            "recognized_major_names": [
+                "컴퓨터공학부",
+                "",
+                "컴퓨터공학부",
+                "컴퓨터공학부",
+                "컴퓨터공학부",
+                "경영학과"
+            ]
+        }
+
+    def test_create_lecture_wrong_request(self):
+        data = self.post_data
+        data.update({"lecture_id": [1, 1, 1, 1, 1, 1]})
+        response = self.client.post('/lecture/', data=data, HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        body = response.json()
+        self.assertEqual(body['error'], "identical lectures in lecture_id_list")
+
+    def test_create_lecture(self):
+        data = self.post_data
+        response = self.client.post('/lecture/', data=data, HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        body = response.json()
+        self.assertIn("id", body)
+        self.assertEqual(body["plan"], self.plan_post.id)
+        self.assertEqual(body["year"], 2022)
+        self.assertEqual(body["semester_type"], "first")
+        self.assertEqual(body["is_complete"], False)
+        self.assertEqual(body["major_requirement_credit"], 0)
+        self.assertEqual(body["major_elective_credit"], 0)
+        self.assertEqual(body["general_credit"], 2)
+        self.assertEqual(body["general_elective_credit"], 17)
+        self.assertIn("lectures", body)
+        self.assertEqual(len(body["lectures"]), 6)
         
     def test_lecture_list(self):
         """
@@ -464,7 +532,7 @@ class SemesterTestCase(TestCase):
     
     @classmethod
     def setUpTestData(cls):
-        cls.user = UserFactory.create()
+        cls.user = UserFactory.auto_create()
         cls.user_token = "Token " + str(cls.user.auth_token)
         
         cls.plan = Plan.objects.create(user=cls.user, plan_name="test")
@@ -520,6 +588,49 @@ class SemesterTestCase(TestCase):
             lectures=cls.lectures_2016,
             recognized_majors=[cls.major]*5
         )
+        
+
+        cls.plan_post = Plan.objects.create(user=cls.user, plan_name="example plan")
+
+        cls.semester = SemesterFactory(
+            semesters=[
+                {
+                    "plan": cls.plan,
+                    "year": 2022,
+                    "semester_type": Semester.FIRST
+                }
+            ]
+        )
+
+    def test_create_semester_wrong_input(self):
+        data = {"plan": self.plan_post.id}
+        response = self.client.post('/semester/', data=data, HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        body = response.json()
+        self.assertEqual(body['error'], "year missing")
+
+        data = {"plan": self.plan_post.id, "year": 2022, "semester_type": Semester.FIRST}
+        response = self.client.post('/semester/', data=data, HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        body = response.json()
+        self.assertEqual(body['error'], "semester already_exist")
+
+    def test_create_sememster(self):
+        data = {"plan": self.plan_post.id, "year": 2022, "semester_type": Semester.SECOND}
+        response = self.client.post('/semester/', data=data, HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        body = response.json()
+        self.assertIn("id", body)
+        self.assertEqual(body["plan"], self.plan_post.id)
+        self.assertEqual(body["year"], 2022)
+        self.assertEqual(body["semester_type"], "second")
+        self.assertEqual(body["is_complete"], False)
+        self.assertEqual(body["major_requirement_credit"], 0)
+        self.assertEqual(body["major_elective_credit"], 0)
+        self.assertEqual(body["general_credit"], 0)
+        self.assertEqual(body["general_elective_credit"], 0)
+        self.assertIn("lectures", body)
 
 
     def test_semester_retrieve(self):
@@ -686,7 +797,7 @@ class PlanTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
 
-        cls.user = UserFactory.create()
+        cls.user = UserFactory.auto_create()
         cls.user_token = "Token " + str(cls.user.auth_token)
         
         cls.plan_1 = Plan.objects.create(user=cls.user, plan_name="test_1")
@@ -789,6 +900,80 @@ class PlanTestCase(TestCase):
         )
 
         cls.plan_deleted = Plan.objects.create(user=cls.user, plan_name="test_deleted")
+
+
+        cls.post_data = {
+            "plan_name": "example plan",
+            "majors": [
+                {
+                    "major_name": "경영학과",
+                    "major_type": "double_major"
+                },
+                {
+                    "major_name": "컴퓨터공학부",
+                    "major_type": "major"
+                }
+            ]
+        }
+
+        cls.put_data = {
+            'email': 'testuser@test.com',
+            'password': 'password',
+        }
+
+    # POST /plan/
+
+    def test_create_plan_wrong_request(self):
+        data = {"plan_name": "example plan"}
+        response = self.client.post('/plan/', data=data, HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        body = response.json()
+        self.assertEqual(body['error'], "majors missing")
+
+        data = self.post_data
+        data.update({'majors': [{"major_name": "학부", "major_type": "major"}]})
+        response = self.client.post('/plan/', data=data, HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        body = response.json()
+        self.assertEqual(body['error'], "major not_exist")
+
+    def test_create_plan(self):
+        data = self.post_data
+        response = self.client.post('/plan/', data=data, HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        plan = Plan.objects.filter(user=self.user, plan_name="example plan")
+        self.assertTrue(plan)
+        major = Major.objects.get(major_name="컴퓨터공학부", major_type=Major.MAJOR)
+        double_major = Major.objects.get(major_name="경영학과", major_type=Major.DOUBLE_MAJOR)
+        self.assertTrue(PlanMajor.objects.filter(plan=plan[0], major=major))
+        self.assertTrue(PlanMajor.objects.filter(plan=plan[0], major=double_major))
+
+        body = response.json()
+        self.assertIn("id", body)
+        self.assertEqual(body["plan_name"], "example plan")
+        self.assertIn("recent_scroll", body)
+        self.assertIn("majors", body)
+        self.assertEqual(len(body["majors"]), 2)
+        self.assertIn("semesters", body)
+
+        data.update({'plan_name': "single plan"})
+        data.update({'majors': [{"major_name": "컴퓨터공학부", "major_type": "major"}]})
+        response = self.client.post('/plan/', data=data, HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        plan = Plan.objects.filter(user=self.user, plan_name="single plan")
+        self.assertTrue(plan)
+        major = Major.objects.get(major_name="컴퓨터공학부", major_type=Major.SINGLE_MAJOR)
+        self.assertTrue(PlanMajor.objects.filter(plan=plan[0], major=major))
+
+        body = response.json()
+        self.assertIn("id", body)
+        self.assertEqual(body["plan_name"], "single plan")
+        self.assertIn("recent_scroll", body)
+        self.assertIn("majors", body)
+        self.assertEqual(len(body["majors"]), 1)
+        self.assertIn("semesters", body)
 
     def test_plan_list(self):
         """

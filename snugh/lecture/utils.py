@@ -16,6 +16,7 @@ def add_credits(semesterlecture):
         semester.general_elective_credit += semesterlecture.credit
     return semester
 
+
 def subtract_credits(semesterlecture):
     semester = semesterlecture.semester
     if semesterlecture.lecture_type == MAJOR_REQUIREMENT:
@@ -29,6 +30,7 @@ def subtract_credits(semesterlecture):
     elif semesterlecture.lecture_type == GENERAL_ELECTIVE:
         semester.general_elective_credit -= semesterlecture.credit
     return semester
+
 
 def add_semester_credits(semesterlecture: SemesterLecture, semester: Semester) -> Semester:
     """ Add SemesterLecture's credits to Semester credits. """
