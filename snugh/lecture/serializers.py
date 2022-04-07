@@ -17,7 +17,6 @@ class PlanSerializer(serializers.ModelSerializer):
             'id',
             'user',
             'plan_name',
-            'recent_scroll',
             'majors',
             'semesters',
         )
@@ -52,12 +51,11 @@ class PlanMajorCreateSerializer(serializers.ModelSerializer):
         majors = validated_data['majors']
         plan = validated_data['plan']
         user = self.context['request'].user
+        std = user.userprofile.entrance_year
         planmajors = []
         for major in majors:
             planmajors.append(PlanMajor(plan=plan, major=major))
-            requirements = Requirement.objects.filter(major=major,
-                                                start_year__lte=user.userprofile.entrance_year,
-                                                end_year__gte=user.userprofile.entrance_year)
+            requirements = major.filter(start_year__lte=std, end_year__gte=std)
             planrequirements = []
             for requirement in requirements:
                 planrequirements.append(PlanRequirement(plan=plan, 
@@ -77,7 +75,7 @@ class PlanMajorCreateSerializer(serializers.ModelSerializer):
             if not (major_name and major_type):
                 raise FieldError("wrong majors form")
             try:
-                major_instances.append(Major.objects.get(major_name=major['major_name'], major_type=major['major_type']))
+                major_instances.append(Major.objects.get(major_name=major_name, major_type=major_type))
             except Major.DoesNotExist:
                 raise NotFound("major does not exist")
         data['majors'] = major_instances

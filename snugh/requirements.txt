@@ -1,5 +1,5 @@
-asgiref==3.2.10
-Django<=4.0
+asgiref==3.5.0
+Django==3.2.4
 django-debug-toolbar==2.2.1
 django-dotenv==1.4.2
 djangorestframework==3.11.2

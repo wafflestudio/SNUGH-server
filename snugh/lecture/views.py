@@ -130,7 +130,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
                             .order_by('-lecture_type')
 
                             if candidate_majorlectures.exists():
-                                candidate_majorlecture = candidate_majorlectures.first()
+                                candidate_majorlecture = candidate_majorlectures[0]
                                 if major_count == 0:
                                     semesterlecture.lecture_type = candidate_majorlecture.lecture_type
                                     semesterlecture.lecture_type1 = candidate_majorlecture.lecture_type
@@ -157,7 +157,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
                                 .order_by('-lecture_type')
 
                                 if candidate_majorlectures.exists() != 0:
-                                    candidate_majorlecture = candidate_majorlectures.first()
+                                    candidate_majorlecture = candidate_majorlectures[0]
                                     if major_count == 0:
                                         semesterlecture.lecture_type = candidate_majorlecture.lecture_type
                                         semesterlecture.lecture_type1 = candidate_majorlecture.lecture_type
@@ -181,7 +181,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
                                                                   end_year__gte=semester.year)
 
                     if lecturecredits.count() > 0:
-                        semesterlecture.credit = lecturecredits.first().credit
+                        semesterlecture.credit = lecturecredits[0].credit
 
                     semesterlecture.save()
                     semester = add_semester_credits(semesterlecture, semester)
@@ -227,7 +227,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
         user = plan.user
         if request.user != plan.user:
             raise NotOwner()
-        new_plan = Plan.objects.create(user=user, plan_name=plan.plan_name+' (복사본)')
+        new_plan = Plan.objects.create(user=user, plan_name=f"{plan.plan_name} (복사본)")
 
         planmajors = plan.planmajor.all()
         new_planmajors = []
