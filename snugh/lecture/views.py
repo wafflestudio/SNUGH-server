@@ -317,25 +317,19 @@ class SemesterViewSet(viewsets.GenericViewSet, generics.RetrieveDestroyAPIView):
 class LectureViewSet(viewsets.GenericViewSet):
     queryset = SemesterLecture.objects.all()
     serializer_class = SemesterLectureSerializer
-    #permission_classes = [IsOwnerOrCreateReadOnly]
+    permission_classes = [IsOwnerOrCreateReadOnly]
 
     # POST /lecture
-    @action(detail=False, methods=['GET'])
+    @action(detail=False, methods=['POST'])
     @transaction.atomic
-    def crate(self, request):
+    def create(self, request):
         """Create semester lecture"""
         #TODO: API 문서 수정
         # request body 변화
         # duplicated lectures in lecture_id_list error deprecate
         # lecture does not exist error
-        #semester_id = request.data.get('semester_id')
-        #lecture_id_list = request.data.get('lecture_id')
-        semester_id = 336
-        lecture_id_list = [
-        12303,
-        8829,
-        12059
-    ]
+        semester_id = request.data.get('semester_id')
+        lecture_id_list = request.data.get('lecture_id')
         try:
             semester = Semester.objects.select_related('plan').prefetch_related('semesterlecture').get(id=semester_id)
         except Semester.DoesNotExist:
@@ -350,8 +344,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         n_lectures = lecture_in_semester.count()
 
         semesterlectures = []
-        #TODO: 1-> DEFAULT_MAJOR_ID
-        default_major = Major.objects.get(id=1)
+        default_major = Major.objects.get(id=DEFAULT_MAJOR_ID)
         planmajors = plan.planmajor.select_related('major').all()
         for i, lecture_id in enumerate(lecture_id_list):
             try :
@@ -384,14 +377,12 @@ class LectureViewSet(viewsets.GenericViewSet):
         SemesterLecture.objects.bulk_create(semesterlectures)
         semester.save()
 
-        #TODO: plan calculate vs calculate_by_lecture
-        #TODO: 꼭 Semester에 대한 정보가 다 필요한지?
-        # 프론트엔드와 합의해서 필요한 정보만 serializer 해서 전달하자.
+        #TODO: semester update, recognized_major_name, lecture_type 설정 제거 or calculate 제거
         #calculate_by_lecture(user, plan, semesterlectures)
         data = SemesterSerializer(semester).data
         return Response(data, status=status.HTTP_201_CREATED)
     
-    # PUT /lecture/:semesterlectureIdHGF/position
+    # PUT /lecture/:semesterlectureId/position
     @action(methods=['PUT'], detail=True)
     @transaction.atomic
     def position(self, request, pk=None):
