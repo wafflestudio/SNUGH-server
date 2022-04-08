@@ -67,17 +67,17 @@ class PlanMajorCreateSerializer(serializers.ModelSerializer):
     def validate(self, data):
         majors = self.context['request'].data.get('majors')
         if not majors:
-            raise FieldError("majors missing")
+            raise FieldError("Field missing [majors]")
         major_instances = []
         for major in majors:
             major_name = major.get('major_name')
             major_type = major.get('major_type')
             if not (major_name and major_type):
-                raise FieldError("wrong majors form")
+                raise FieldError("Field missing [major_name, major_type]")
             try:
                 major_instances.append(Major.objects.get(major_name=major_name, major_type=major_type))
             except Major.DoesNotExist:
-                raise NotFound("major does not exist")
+                raise NotFound("Does not exist [Major]")
         data['majors'] = major_instances
         return data
 

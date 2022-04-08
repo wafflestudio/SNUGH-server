@@ -5,7 +5,7 @@ class IsOwnerOrCreateReadOnly(permissions.BasePermission):
     Only object's owner can update / delete object.
     Not owner but Authenticated user can create / get objects.  
     """
-    message = '권한이 없습니다.'
+    message = 'Not allowed.'
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated
     def has_object_permission(self, request, view, obj):
@@ -13,6 +13,6 @@ class IsOwnerOrCreateReadOnly(permissions.BasePermission):
             return True
         if hasattr(obj, 'plan'):
             return obj.plan.user == request.user
-        elif hasattr(obj, 'semester'):
+        elif hasattr(obj, 'semester') and hasattr(obj, 'lecture'):
             return obj.semester.plan.user == request.user
         return obj.user == request.user

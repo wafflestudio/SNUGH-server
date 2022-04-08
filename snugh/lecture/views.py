@@ -213,20 +213,22 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
     @transaction.atomic
     def copy(self, request, pk=None):
         """Copy existing plan"""
-
-        plan = Plan.objects.prefetch_related(
-            'user', 
-            'planmajor', 
-            'planrequirement', 
-            'semester',
-            'planmajor__major',
-            'planrequirement__requirement',
-            'semester__semesterlecture',
-            'semester__semesterlecture__lecture',
-            'semester__semesterlecture__recognized_major1',
-            'semester__semesterlecture__recognized_major2'
-            ).get(id=pk)
-        user = plan.user
+        try:
+            plan = Plan.objects.prefetch_related(
+                'user', 
+                'planmajor', 
+                'planrequirement', 
+                'semester',
+                'planmajor__major',
+                'planrequirement__requirement',
+                'semester__semesterlecture',
+                'semester__semesterlecture__lecture',
+                'semester__semesterlecture__recognized_major1',
+                'semester__semesterlecture__recognized_major2'
+                ).get(id=pk)
+            user = plan.user
+        except Plan.DoesNotExist:
+            raise NotFound()
         if request.user != plan.user:
             raise NotOwner()
         new_plan = Plan.objects.create(user=user, plan_name=f"{plan.plan_name} (복사본)")
@@ -762,28 +764,23 @@ class LectureViewSet(viewsets.GenericViewSet):
     def list(self, request):
         
         #TODO: major_name --> 주전공이 여러개인 사람은?, 백앤드에서 가져오는 방법은?
-
-        # Pagination Parameter
         page = request.GET.get('page', '1')
-
-        # Query Params
         search_type = request.query_params.get("search_type")
         search_year = request.query_params.get("search_year")
+        search_keyword = request.query_params.get("search_keyword")
         plan_id = request.query_params.get("plan_id")
-        if not (search_type and search_year and plan_id):
-            raise FieldError('qeury parameter missing [search_type, search_year, plan_id]')
+        if not (search_year and plan_id):
+            raise FieldError('query parameter missing [search_year, plan_id]')
 
         existing_lectures = Plan.objects.get(id=plan_id).semester.values_list('semesterlecture__lecture', flat=True)
-
+        
+        search_year = int(search_year)
         # Case 1: major requirement or major elective
         if search_type in [MAJOR_REQUIREMENT, MAJOR_ELECTIVE]:
             major_name = request.query_params.get("major_name")
             if major_name:
-                if int(search_year) < UPDATED_YEAR:
-                    year_standard = search_year
-                else:
-                    year_standard = UPDATED_YEAR-2
-                
+                year_standard = search_year if search_year < UPDATED_YEAR else UPDATED_YEAR-2
+
                 depeqv_name = DepartmentEquivalent.objects.filter(major_name=major_name).values_list('department_name', flat=True)
                 majoreqv_names = MajorEquivalent.objects.filter(major_name=major_name).values_list('equivalent_major_name', flat=True)
                 major_names = [major_name] + list(majoreqv_names)
@@ -791,57 +788,36 @@ class LectureViewSet(viewsets.GenericViewSet):
                     (Q(open_major__in=major_names) | Q(open_department__in=depeqv_name)), 
                     lecture_type=search_type, recent_open_year__gte=year_standard)\
                     .exclude(id__in=existing_lectures).order_by('lecture_name', 'recent_open_year')
-                        
-                serializer = LectureSerializer(lectures, many=True)
-
-                return Response(serializer.data, status=status.HTTP_200_OK)
             else: 
                 raise FieldError('qeury parameter missing [major_name]')
 
-        # Case 3: keyword
+        # Case 2: keyword
         else:
-            # 시연에서만
-            search_year = request.query_params.get("search_year")
-            if not search_year:
-                return Response({"error": "search_year missing"}, status=status.HTTP_400_BAD_REQUEST)
-
-            plan_id = request.query_params.get("plan_id")
-            if not plan_id:
-                return Response({"error": "plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)
-
-            search_keyword = request.query_params.get("search_keyword")
             if search_keyword:
-                # past lectures
-                if int(search_year) < Lecture.UPDATED_YEAR:
-                    lectures = Lecture.objects.search(search_keyword).filter(recent_open_year__gte = search_year)\
-                        .exclude(id__in=existing_lectures)\
-                            .annotate(first_letter=Case(When(lecture_name__startswith=search_keyword[0], then=models.Value(0)),
-                                                    default=models.Value(1),
-                                                    output_field=models.IntegerField(),))\
-                            .annotate(icontains_priority=Case(When(lecture_name__icontains=search_keyword, then=models.Value(0)),
-                                                    default=models.Value(1),
-                                                    output_field=models.IntegerField(),))\
-                            .annotate(priority = F('first_letter')+F('icontains_priority'))\
-                            .annotate(match_rate=Length('lecture_name'))\
-                            .order_by('priority', 'match_rate', 'recent_open_year', 'lecture_name')
-                # future lectures
-                else:
-                    lectures = Lecture.objects.search(search_keyword).filter(recent_open_year__gte=Lecture.UPDATED_YEAR-2) \
-                        .exclude(id__in=existing_lectures)\
-                            .annotate(first_letter=Case(When(lecture_name__startswith=search_keyword[0], then=models.Value(0)),
-                                            default=models.Value(1),
-                                            output_field=models.IntegerField(), )) \
-                            .annotate(icontains_priority=Case(When(lecture_name__icontains=search_keyword, then=models.Value(0)),
-                                                    default=models.Value(1),
-                                                    output_field=models.IntegerField(), )) \
-                            .annotate(priority=F('first_letter') + F('icontains_priority')) \
-                            .annotate(match_rate=Length('lecture_name'))\
-                            .order_by('priority', 'match_rate', '-recent_open_year', 'lecture_name')
-                lectures = Paginator(lectures, 20).get_page(page)
-                serializer = LectureSerializer(lectures, many=True)
-                return Response(serializer.data, status=status.HTTP_200_OK)
+                year_standard = search_year if search_year < UPDATED_YEAR else UPDATED_YEAR-2
+                lectures = Lecture.objects.search(search_keyword)\
+                    .filter(recent_open_year__gte = year_standard)\
+                    .exclude(id__in=existing_lectures)\
+                    .annotate(
+                        first_letter=Case(
+                            When(lecture_name__startswith=search_keyword[0], 
+                                then=models.Value(0)),
+                            default=models.Value(1),
+                            output_field=models.IntegerField(),),
+                        icontains_priority=Case(
+                            When(lecture_name__icontains=search_keyword, 
+                                then=models.Value(0)),
+                            default=models.Value(1),
+                            output_field=models.IntegerField(),),
+                        priority = F('first_letter')+F('icontains_priority'),
+                        match_rate=Length('lecture_name'))\
+                    .order_by('priority', 'match_rate', 'recent_open_year', 'lecture_name')
             else:
                 return Response([], status=status.HTTP_200_OK)
+        
+        lectures = Paginator(lectures, 20).get_page(page)
+        serializer = LectureSerializer(lectures, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     # Data Generation
     # POST /lecture/generate_lecturecredit/
