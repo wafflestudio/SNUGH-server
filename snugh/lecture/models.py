@@ -32,8 +32,7 @@ class BaseMajorLecture(models.Model):
     lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
 
 class Lecture(BaseLecture):
-
-    UPDATED_YEAR = 2021
+    
     prev_lecture_name = models.CharField(max_length=50, null=True)
     recent_open_year = models.IntegerField(default=0)
     objects = LectureQuerySet.as_manager()
@@ -65,7 +64,6 @@ class Plan(models.Model):
 
     user = models.ForeignKey(User, related_name='plan', on_delete=models.CASCADE, default=5)
     plan_name = models.CharField(max_length=50, db_index=True, default="새로운 계획")
-    recent_scroll = models.IntegerField(default=0)
     is_first_simulation = models.BooleanField(default = True)
 
 class Semester(models.Model):
@@ -79,23 +77,26 @@ class Semester(models.Model):
     general_elective_credit = models.PositiveSmallIntegerField(default=0)
     
     class Meta:
-        unique_together = (
-            ('plan', 'year', 'semester_type')
-        )
+        constraints = [
+            models.UniqueConstraint(
+                fields=['plan', 'year', 'semester'],
+                name='semester already exists in plan.'
+            )
+        ]
 
 class PlanMajor(models.Model):
     plan = models.ForeignKey(Plan, related_name='planmajor', on_delete=models.CASCADE)
     major = models.ForeignKey(Major, related_name='planmajor', on_delete=models.CASCADE)
 
     class Meta:
-        unique_together = (
-            ('plan', 'major')
-        )
+        constraints = [
+            models.UniqueConstraint(
+                fields=['plan', 'major'],
+                name='major already exists in major.'
+            )
+        ]
 
 class SemesterLecture(models.Model):
-
-    # Default Major ID
-    DEFAULT_MAJOR_ID = 1
 
     semester = models.ForeignKey(Semester, related_name='semesterlecture', on_delete=models.CASCADE)
     lecture = models.ForeignKey(Lecture, related_name='semesterlecture', on_delete=models.CASCADE)
@@ -109,10 +110,13 @@ class SemesterLecture(models.Model):
     is_modified = models.BooleanField(default=False)
 
     class Meta:
-        unique_together = (
-            ('semester', 'lecture')
-        )
-
+        constraints = [
+            models.UniqueConstraint(
+                fields=['semester', 'lecture'],
+                name='lecture already exists in semester.'
+            )
+        ]
+        
 class MajorLecture(models.Model):
 
     major = models.ForeignKey(Major, related_name='majorlecture', on_delete=models.CASCADE)

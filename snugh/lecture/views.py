@@ -1,5 +1,7 @@
+from errno import EEXIST
+from tkinter import E
 from django.shortcuts import get_object_or_404
-from django.db.models import Case, When
+from django.db.models import Case, When, Q
 from django.db import transaction
 from rest_framework import status, viewsets, generics
 from rest_framework.response import Response
@@ -10,9 +12,9 @@ from user.models import *
 from requirement.models import *
 from django.core.paginator import Paginator
 from django.db.models.functions import Length
-from django.db.models import F
+from django.db.models import F, Prefetch
 from snugh.permissions import IsOwnerOrCreateReadOnly
-from snugh.exceptions import NotOwner
+from snugh.exceptions import DuplicationError, NotOwner
 from lecture.utils import add_credits, subtract_credits, add_semester_credits, sub_semester_credits
 from .const import *
 
@@ -71,6 +73,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
 
         plan = Plan.objects.prefetch_related(
             'user',
+            'user__userprofile',
             'semester', 
             'planmajor',
             'semester__semesterlecture',
@@ -87,6 +90,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
         planmajors = plan.planmajor.all()
 
         # order majors(기준: 졸업요구 전공학점 높은 순서)
+        #TODO: Major 없애기
         majors = Major.objects.filter(planmajor__in=planmajors)\
             .annotate(custom_order=Case(When(major_type=Major.SINGLE_MAJOR, then=models.Value(0)),
                                         When(major_type=Major.MAJOR, then=models.Value(1)),
@@ -100,7 +104,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
                                         default=models.Value(9),
                                         output_field=models.IntegerField(), ))\
             .order_by('custom_order')
-        none_major = Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID)
+        none_major = Major.objects.get(id=DEFAULT_MAJOR_ID)
 
         for semester in semesters:
             
@@ -128,7 +132,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
                             .order_by('-lecture_type')
 
                             if candidate_majorlectures.exists():
-                                candidate_majorlecture = candidate_majorlectures.first()
+                                candidate_majorlecture = candidate_majorlectures[0]
                                 if major_count == 0:
                                     semesterlecture.lecture_type = candidate_majorlecture.lecture_type
                                     semesterlecture.lecture_type1 = candidate_majorlecture.lecture_type
@@ -155,7 +159,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
                                 .order_by('-lecture_type')
 
                                 if candidate_majorlectures.exists() != 0:
-                                    candidate_majorlecture = candidate_majorlectures.first()
+                                    candidate_majorlecture = candidate_majorlectures[0]
                                     if major_count == 0:
                                         semesterlecture.lecture_type = candidate_majorlecture.lecture_type
                                         semesterlecture.lecture_type1 = candidate_majorlecture.lecture_type
@@ -179,7 +183,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
                                                                   end_year__gte=semester.year)
 
                     if lecturecredits.count() > 0:
-                        semesterlecture.credit = lecturecredits.first().credit
+                        semesterlecture.credit = lecturecredits[0].credit
 
                     semesterlecture.save()
                     semester = add_semester_credits(semesterlecture, semester)
@@ -209,23 +213,25 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
     @transaction.atomic
     def copy(self, request, pk=None):
         """Copy existing plan"""
-
-        plan = Plan.objects.prefetch_related(
-            'user', 
-            'planmajor', 
-            'planrequirement', 
-            'semester',
-            'planmajor__major',
-            'planrequirement__requirement',
-            'semester__semesterlecture',
-            'semester__semesterlecture__lecture',
-            'semester__semesterlecture__recognized_major1',
-            'semester__semesterlecture__recognized_major2'
-            ).get(id=pk)
-        user = plan.user
+        try:
+            plan = Plan.objects.prefetch_related(
+                'user', 
+                'planmajor', 
+                'planrequirement', 
+                'semester',
+                'planmajor__major',
+                'planrequirement__requirement',
+                'semester__semesterlecture',
+                'semester__semesterlecture__lecture',
+                'semester__semesterlecture__recognized_major1',
+                'semester__semesterlecture__recognized_major2'
+                ).get(id=pk)
+            user = plan.user
+        except Plan.DoesNotExist:
+            raise NotFound()
         if request.user != plan.user:
             raise NotOwner()
-        new_plan = Plan.objects.create(user=user, plan_name=plan.plan_name+' (복사본)')
+        new_plan = Plan.objects.create(user=user, plan_name=f"{plan.plan_name} (복사본)")
 
         planmajors = plan.planmajor.all()
         new_planmajors = []
@@ -315,121 +321,118 @@ class SemesterViewSet(viewsets.GenericViewSet, generics.RetrieveDestroyAPIView):
 class LectureViewSet(viewsets.GenericViewSet):
     queryset = SemesterLecture.objects.all()
     serializer_class = SemesterLectureSerializer
+    permission_classes = [IsOwnerOrCreateReadOnly]
 
     # POST /lecture
+    @action(detail=False, methods=['POST'])
     @transaction.atomic
-    def create(self, request): 
-        user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
-
+    def create(self, request):
+        """Create semester lecture"""
+        #TODO: API 문서 수정
+        # request body 변화
+        # duplicated lectures in lecture_id_list error deprecate
+        # lecture does not exist error
         semester_id = request.data.get('semester_id')
         lecture_id_list = request.data.get('lecture_id')
-        lecture_type_list = request.data.get('lecture_type')
-        recognized_major_name_list = request.data.get('recognized_major_names')
-        semester = Semester.objects.get(id=semester_id)
+        try:
+            semester = Semester.objects.select_related('plan').prefetch_related('semesterlecture').get(id=semester_id)
+        except Semester.DoesNotExist:
+            raise NotFound('lecture does not exist')
         plan = semester.plan
+        lecture_id_list = list(set(lecture_id_list))
 
-        if len(lecture_id_list) != len(set(lecture_id_list)):
-            return Response({"error": "identical lectures in lecture_id_list"}, status=status.HTTP_400_BAD_REQUEST)
+        if lecture_id_list in plan.semester.values_list('semesterlecture__lecture', flat=True):
+            raise DuplicationError('some lecture already exists in plan.')
 
-        lectures_in_plan = []
-        sl_list = SemesterLecture.objects.filter(semester__plan=plan)
-        for sl in sl_list:
-            lectures_in_plan.append(sl.lecture.id)
+        lecture_in_semester = semester.semesterlecture.all()
+        n_lectures = lecture_in_semester.count()
 
-        for lecture in lecture_id_list:
-            if lecture in lectures_in_plan:
-                return Response({"error": "identical lecture already exist"}, status=status.HTTP_400_BAD_REQUEST)
+        semesterlectures = []
+        default_major = Major.objects.get(id=DEFAULT_MAJOR_ID)
+        planmajors = plan.planmajor.select_related('major').all()
+        for i, lecture_id in enumerate(lecture_id_list):
+            try :
+                lecture = Lecture.objects.get(id=lecture_id)
+            except Lecture.DoesNotExist:
+                raise NotFound('lecture does not exist')
+            lecture_type = lecture.lecture_type
+            recognized_major_name = lecture.open_major
 
-        lecture_in_semester = SemesterLecture.objects.filter(semester=semester)
-        n_lectures = len(lecture_in_semester)
-
-        semlectures = []
-        for i in range(len(lecture_id_list)):
-            lecture = Lecture.objects.get(id=lecture_id_list[i]) 
-            lecture_type = lecture_type_list[i]
-            recognized_major_name = recognized_major_name_list[i]
-
-            if (lecture_type == Lecture.MAJOR_REQUIREMENT) \
-                or (lecture_type == Lecture.MAJOR_ELECTIVE) \
-                or (lecture_type == Lecture.TEACHING):
-
-                if PlanMajor.objects.filter(plan=plan, major__major_name=recognized_major_name).exists():
-                    recognized_major = Major.objects.get(planmajor__plan=plan, major_name=recognized_major_name)
-                else:
-                    recognized_major = Major.objects.get(id=Major.DEFAULT_MAJOR_ID)
-                    lecture_type = Lecture.GENERAL_ELECTIVE
+            if lecture_type in [MAJOR_REQUIREMENT, MAJOR_ELECTIVE, TEACHING]:
+                try:
+                    planmajor = planmajors.get(major__major_name=recognized_major_name)
+                    recognized_major = planmajor.major
+                except PlanMajor.DoesNotExist:
+                    recognized_major = default_major
+                    lecture_type = GENERAL_ELECTIVE
             else:
-                recognized_major = Major.objects.get(id=Major.DEFAULT_MAJOR_ID)
+                recognized_major = default_major
+            
+            sl = SemesterLecture(semester=semester,
+                                 lecture=lecture,
+                                 lecture_type=lecture_type,
+                                 recognized_major1=recognized_major,
+                                 lecture_type1=lecture_type,
+                                 credit=lecture.credit,
+                                 recent_sequence=n_lectures+i)
+            semesterlectures.append(sl)
 
-            semlecture = SemesterLecture.objects.create(semester=semester,
-                                                        lecture=lecture,
-                                                        lecture_type=lecture_type,
-                                                        recognized_major1=recognized_major,
-                                                        lecture_type1=lecture_type,
-                                                        credit=lecture.credit,
-                                                        recent_sequence=n_lectures+i)
-            semlecture.save()
-            semlectures.append(semlecture)
+            semester = add_semester_credits(sl, semester)
+        SemesterLecture.objects.bulk_create(semesterlectures)
+        semester.save()
 
-            if lecture_type == SemesterLecture.MAJOR_REQUIREMENT:
-                semester.major_requirement_credit += lecture.credit
-                semester.save()
-            elif lecture_type == SemesterLecture.MAJOR_ELECTIVE or lecture_type == SemesterLecture.TEACHING:
-                semester.major_elective_credit += lecture.credit
-                semester.save()
-            elif lecture_type == SemesterLecture.GENERAL:
-                semester.general_credit += lecture.credit
-                semester.save()
-            elif lecture_type == SemesterLecture.GENERAL_ELECTIVE:
-                semester.general_elective_credit += lecture.credit
-                semester.save()
-
-        calculate_by_lecture(user, plan, semlectures)
+        #TODO: semester update, recognized_major_name, lecture_type 설정 제거 or calculate 제거
+        #calculate_by_lecture(user, plan, semesterlectures)
         data = SemesterSerializer(semester).data
         return Response(data, status=status.HTTP_201_CREATED)
     
-    # PUT /lecture/:lectureId/position
+    # PUT /lecture/:semesterlectureId/position
     @action(methods=['PUT'], detail=True)
     @transaction.atomic
     def position(self, request, pk=None):
-        user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        """Position semester lecture"""
+        #TODO: API 문서 수정 -> lecture_id가 아닌 semesterlecture_id로 / request 형식 변경 
+        target_lecture = SemesterLecture.objects.select_related('semester').get(pk=pk)
+        semester_to = request.data.get('semester_to', None)
+        semester_from = target_lecture.semester
+        position = request.data.get('postion', 0)
+        if not semester_to:
+            raise FieldError("'semester_to' field missing")
+        position_prev = target_lecture.recent_sequence
+        semester_from_lectures = semester_from.semesterlecture.filter(recent_sequence__gt=position_prev).order_by('recent_sequence')
+        try:
+            semester_to = Semester.objects.prefetch_related(
+                Prefetch(
+                    'semesterlecture', 
+                    queryset=SemesterLecture.objects.filter(recent_sequence__gte=position).order_by('recent_sequence'), 
+                    to_attr='semester_to_lectures')).get(id=semester_to)
+        except Semester.DoesNotExist:
+            raise NotFound('semester does not exist')
+        semester_to_lectures = semester_to.semester_to_lectures
 
-        lecture = get_object_or_404(Lecture, pk=pk)
-
-        semester_from_id = request.data.get('semester_from_id')
-        semester_to_id = request.data.get('semester_to_id')
-        semester_from_list = request.data.get('semester_from')
-        semester_to_list = request.data.get('semester_to')
-
-        semester_from = Semester.objects.get(id=semester_from_id)
-
-        semesterlecture = SemesterLecture.objects.get(semester_id=semester_from_id, lecture_id=lecture.id)
-
-        updated_semester = subtract_credits(semesterlecture)
-        updated_semester.save()
-        semester_to = Semester.objects.get(id=semester_to_id)
-        semesterlecture.semester = semester_to
-        updated_semester = add_credits(semesterlecture)
-        updated_semester.save()
-        semesterlecture.save()
-
-        for i in range(len(semester_from_list)):
-            semester_lecture = SemesterLecture.objects.get(semester_id=semester_from_id, lecture_id=semester_from_list[i])
-            semester_lecture.recent_sequence = i
-            semester_lecture.save()
-
-        for i in range(len(semester_to_list)):
-            semester_lecture = SemesterLecture.objects.get(semester_id=semester_to_id, lecture_id=semester_to_list[i])
-            semester_lecture.recent_sequence = i
-            semester_lecture.save()
-
-        semester_to = Semester.objects.get(id=semester_to_id)
-        semester_from = Semester.objects.get(id=semester_from_id)
-
+        if not (0<=position<len(semester_to_lectures)):
+            raise FieldError("position out of range")
+        semester_from = sub_semester_credits(target_lecture, semester_from)
+        target_lecture.semester = semester_to
+        target_lecture.recent_sequence = position
+        semester_to = add_semester_credits(target_lecture, semester_to)
+        Semester.objects.bulk_update(
+            [semester_from, semester_to], 
+            fields=[
+                'major_requirement_credit', 
+                'major_elective_credit', 
+                'general_credit', 
+                'general_elective_credit'])
+        sl_list = []
+        for sl in semester_from_lectures:
+            sl.recent_sequence-=1
+            sl_list.append(sl)
+        for sl in semester_to_lectures:
+            sl.recent_sequence+=1
+            sl_list.append(sl)
+        semesterlectures = sl_list + [target_lecture]
+        SemesterLecture.objects.bulk_update(semesterlectures, fields=['recent_sequence', 'semester'])
+        
         serializer = SemesterSerializer([semester_from, semester_to], many=True)
         data = serializer.data
 
@@ -749,134 +752,72 @@ class LectureViewSet(viewsets.GenericViewSet):
     # DEL /lecture/:semlectureId
     @transaction.atomic
     def destroy(self, request, pk=None):
-        user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
-
-        semesterlecture = get_object_or_404(SemesterLecture, pk=pk)
-        updated_semester = subtract_credits(semesterlecture)
-        updated_semester.save()
+        """Destroy semester lecture"""
+        semesterlecture = SemesterLecture.objects.select_related('semester').get(pk=pk)
+        semester = sub_semester_credits(semesterlecture, semesterlecture.semester)
+        semester.save()
         semesterlecture.delete()
-        return Response(status=status.HTTP_200_OK) 
+        return Response(status=status.HTTP_204_NO_CONTENT) 
 
     # GET /lecture/?search_type=(string)&search_keyword=(string)&major=(string)&credit=(string)
     # TODO: n-gram 서치 고도화
     def list(self, request):
-        user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
-
-        # Pagination Parameter
-        page = request.GET.get('page', '1')
-
-        # Query Params
-        search_type = request.query_params.get("search_type")
-        if not search_type:
-            return Response({ "error": "search_type missing" }, status=status.HTTP_400_BAD_REQUEST)
-
-        search_year = request.query_params.get("search_year")
-        if not search_year:
-            return Response({"error": "search_year missing"}, status=status.HTTP_400_BAD_REQUEST)
         
+        #TODO: major_name --> 주전공이 여러개인 사람은?, 백앤드에서 가져오는 방법은?
+        page = request.GET.get('page', '1')
+        search_type = request.query_params.get("search_type")
+        search_year = request.query_params.get("search_year")
+        search_keyword = request.query_params.get("search_keyword")
         plan_id = request.query_params.get("plan_id")
-        if not plan_id:
-            return Response({"error": "plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)
+        if not (search_year and plan_id):
+            raise FieldError('query parameter missing [search_year, plan_id]')
 
-        existing_lectures = Lecture.objects.filter(semesterlecture__semester__plan = Plan.objects.get(id=plan_id)).values_list('id', flat=True)
-
+        existing_lectures = Plan.objects.get(id=plan_id).semester.values_list('semesterlecture__lecture', flat=True)
+        
+        search_year = int(search_year)
         # Case 1: major requirement or major elective
-        if search_type == 'major_requirement' or search_type == 'major_elective':
+        if search_type in [MAJOR_REQUIREMENT, MAJOR_ELECTIVE]:
             major_name = request.query_params.get("major_name")
             if major_name:
+                year_standard = search_year if search_year < UPDATED_YEAR else UPDATED_YEAR-2
 
-                if int(search_year) < Lecture.UPDATED_YEAR:
-                    year_standard = search_year
-                else:
-                    year_standard = Lecture.UPDATED_YEAR-2
-
-                # lectures = Lecture.objects.filter(open_major=major_name, lecture_type=search_type,
-                #                                   recent_open_year__gte = year_standard) \
-                #     .order_by('lecture_name', 'recent_open_year')
-                lectures = Lecture.objects.filter(open_major=major_name, lecture_type=search_type, recent_open_year__gte=year_standard)\
+                depeqv_name = DepartmentEquivalent.objects.filter(major_name=major_name).values_list('department_name', flat=True)
+                majoreqv_names = MajorEquivalent.objects.filter(major_name=major_name).values_list('equivalent_major_name', flat=True)
+                major_names = [major_name] + list(majoreqv_names)
+                lectures = Lecture.objects.filter(
+                    (Q(open_major__in=major_names) | Q(open_department__in=depeqv_name)), 
+                    lecture_type=search_type, recent_open_year__gte=year_standard)\
                     .exclude(id__in=existing_lectures).order_by('lecture_name', 'recent_open_year')
-                
-                if DepartmentEquivalent.objects.filter(major_name=major_name).count() != 0:
-                    department_name = DepartmentEquivalent.objects.get(major_name=major_name).department_name
-                    # TODO: |= inefficient
-                    lectures |= (Lecture.objects.filter(open_department=department_name, lecture_type=search_type,
-                                                  recent_open_year__gte = year_standard).order_by('lecture_name', 'recent_open_year'))
-
-                if MajorEquivalent.objects.filter(major_name=major_name).count() != 0:
-                    equivalent_majors = MajorEquivalent.objects.filter(major_name=major_name)
-                    for equivalent_major in equivalent_majors:
-                        lectures |= (Lecture.objects.filter(open_major=equivalent_major.equivalent_major_name, lecture_type=search_type,
-                                                  recent_open_year__gte = year_standard).order_by('lecture_name', 'recent_open_year'))
-
-                serializer = LectureSerializer(lectures, many=True)
-
-                data = serializer.data
-                for lecture in data:
-                    lecture['lecture_type'] = search_type
-
-                return Response(data, status=status.HTTP_200_OK)
             else: 
-                return Response({"error": "major_name missing"}, status=status.HTTP_400_BAD_REQUEST)
+                raise FieldError('qeury parameter missing [major_name]')
 
-        # Case 2: general -- deprecated
-        elif search_type == 'general': 
-            credit = request.query_params.get("credit")
-            search_keyword = request.query_params.get("search_keyword")
-            if credit and search_keyword:
-                lectures = Lecture.objects.filter(credit=credit, lecture_name__search=search_keyword).order_by('-recent_open_year')
-                serializer = LectureSerializer(lectures, many=True)
-                return Response(serializer.data, status=status.HTTP_200_OK)
-            else:
-                return Response({"error": "credit or search keyword missing"}, status=status.HTTP_400_BAD_REQUEST) 
-
-        # Case 3: keyword
+        # Case 2: keyword
         else:
-            # 시연에서만
-            search_year = request.query_params.get("search_year")
-            if not search_year:
-                return Response({"error": "search_year missing"}, status=status.HTTP_400_BAD_REQUEST)
-
-            plan_id = request.query_params.get("plan_id")
-            if not plan_id:
-                return Response({"error": "plan_id missing"}, status=status.HTTP_400_BAD_REQUEST)
-
-            search_keyword = request.query_params.get("search_keyword")
             if search_keyword:
-                # past lectures
-                if int(search_year) < Lecture.UPDATED_YEAR:
-                    lectures = Lecture.objects.search(search_keyword).filter(recent_open_year__gte = search_year)\
-                        .exclude(id__in=existing_lectures)\
-                            .annotate(first_letter=Case(When(lecture_name__startswith=search_keyword[0], then=models.Value(0)),
-                                                    default=models.Value(1),
-                                                    output_field=models.IntegerField(),))\
-                            .annotate(icontains_priority=Case(When(lecture_name__icontains=search_keyword, then=models.Value(0)),
-                                                    default=models.Value(1),
-                                                    output_field=models.IntegerField(),))\
-                            .annotate(priority = F('first_letter')+F('icontains_priority'))\
-                            .annotate(match_rate=Length('lecture_name'))\
-                            .order_by('priority', 'match_rate', 'recent_open_year', 'lecture_name')
-                # future lectures
-                else:
-                    lectures = Lecture.objects.search(search_keyword).filter(recent_open_year__gte=Lecture.UPDATED_YEAR-2) \
-                        .exclude(id__in=existing_lectures)\
-                            .annotate(first_letter=Case(When(lecture_name__startswith=search_keyword[0], then=models.Value(0)),
-                                            default=models.Value(1),
-                                            output_field=models.IntegerField(), )) \
-                            .annotate(icontains_priority=Case(When(lecture_name__icontains=search_keyword, then=models.Value(0)),
-                                                    default=models.Value(1),
-                                                    output_field=models.IntegerField(), )) \
-                            .annotate(priority=F('first_letter') + F('icontains_priority')) \
-                            .annotate(match_rate=Length('lecture_name'))\
-                            .order_by('priority', 'match_rate', '-recent_open_year', 'lecture_name')
-                lectures = Paginator(lectures, 20).get_page(page)
-                serializer = LectureSerializer(lectures, many=True)
-                return Response(serializer.data, status=status.HTTP_200_OK)
+                year_standard = search_year if search_year < UPDATED_YEAR else UPDATED_YEAR-2
+                lectures = Lecture.objects.search(search_keyword)\
+                    .filter(recent_open_year__gte = year_standard)\
+                    .exclude(id__in=existing_lectures)\
+                    .annotate(
+                        first_letter=Case(
+                            When(lecture_name__startswith=search_keyword[0], 
+                                then=models.Value(0)),
+                            default=models.Value(1),
+                            output_field=models.IntegerField(),),
+                        icontains_priority=Case(
+                            When(lecture_name__icontains=search_keyword, 
+                                then=models.Value(0)),
+                            default=models.Value(1),
+                            output_field=models.IntegerField(),),
+                        priority = F('first_letter')+F('icontains_priority'),
+                        match_rate=Length('lecture_name'))\
+                    .order_by('priority', 'match_rate', 'recent_open_year', 'lecture_name')
             else:
                 return Response([], status=status.HTTP_200_OK)
+        
+        lectures = Paginator(lectures, 20).get_page(page)
+        serializer = LectureSerializer(lectures, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     # Data Generation
     # POST /lecture/generate_lecturecredit/

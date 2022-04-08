@@ -1,5 +1,6 @@
 # 구분 없음
 NONE = 'none'
+DEFAULT_MAJOR_ID = 1
 
 # Semester Type
 UNKNOWN = 'unknown'
@@ -32,3 +33,5 @@ LECTURE_TYPE = (
     (GENERAL_ELECTIVE, 'general_elective'),
     (TEACHING, 'teaching'),
 )
+
+UPDATED_YEAR = 2021
