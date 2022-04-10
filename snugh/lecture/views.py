@@ -239,17 +239,7 @@ class LectureViewSet(viewsets.GenericViewSet):
             except Lecture.DoesNotExist:
                 raise NotFound('lecture does not exist')
             lecture_type = lecture.lecture_type
-            recognized_major_name = lecture.open_major
-
-            if lecture_type in [MAJOR_REQUIREMENT, MAJOR_ELECTIVE, TEACHING]:
-                try:
-                    planmajor = planmajors.get(major__major_name=recognized_major_name)
-                    recognized_major = planmajor.major
-                except PlanMajor.DoesNotExist:
-                    recognized_major = default_major
-                    lecture_type = GENERAL_ELECTIVE
-            else:
-                recognized_major = default_major
+            recognized_major = default_major
             
             sl = SemesterLecture(semester=semester,
                                  lecture=lecture,
