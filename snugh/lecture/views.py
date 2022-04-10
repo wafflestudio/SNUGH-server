@@ -232,7 +232,6 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         semesterlectures = []
         default_major = Major.objects.get(id=DEFAULT_MAJOR_ID)
-        planmajors = plan.planmajor.select_related('major').all()
         for i, lecture_id in enumerate(lecture_id_list):
             try :
                 lecture = Lecture.objects.get(id=lecture_id)
