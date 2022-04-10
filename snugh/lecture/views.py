@@ -1,5 +1,3 @@
-from errno import EEXIST
-from tkinter import E
 from django.shortcuts import get_object_or_404
 from django.db.models import Case, When, Q
 from django.db import transaction
@@ -16,7 +14,8 @@ from django.db.models import F, Prefetch
 from snugh.permissions import IsOwnerOrCreateReadOnly
 from snugh.exceptions import DuplicationError, NotOwner
 from lecture.utils import add_credits, subtract_credits, add_semester_credits, sub_semester_credits
-from .const import *
+from lecture.const import *
+from lecture.utils import update_lecture_info
 
 
 class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView):
@@ -71,123 +70,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
     def calculate(self, request, pk=None):
         """Calculate credits"""
 
-        plan = Plan.objects.prefetch_related(
-            'user',
-            'user__userprofile',
-            'semester', 
-            'planmajor',
-            'semester__semesterlecture',
-            'semester__semesterlecture__lecture',
-            'semester__semesterlecture__lecture__majorlecture',
-            'semester__semesterlecture__lecture__lecturecredit'
-            ).get(id=pk)
-            
-        user = plan.user
-        if request.user != user:
-            raise NotOwner()
-
-        semesters = plan.semester.all()
-        planmajors = plan.planmajor.all()
-
-        # order majors(기준: 졸업요구 전공학점 높은 순서)
-        #TODO: Major 없애기
-        majors = Major.objects.filter(planmajor__in=planmajors)\
-            .annotate(custom_order=Case(When(major_type=Major.SINGLE_MAJOR, then=models.Value(0)),
-                                        When(major_type=Major.MAJOR, then=models.Value(1)),
-                                        When(major_type=Major.GRADUATE_MAJOR, then=models.Value(2)),
-                                        When(major_type=Major.INTERDISCIPLINARY_MAJOR, then=models.Value(3)),
-                                        When(major_type=Major.INTERDISCIPLINARY_MAJOR_FOR_TEACHER, then=models.Value(4)),
-                                        When(major_type=Major.DOUBLE_MAJOR, then=models.Value(5)),
-                                        When(major_type=Major.INTERDISCIPLINARY, then=models.Value(6)),
-                                        When(major_type=Major.MINOR, then=models.Value(7)),
-                                        When(major_type=Major.INTERDISCIPLINARY_PROGRAM, then=models.Value(8)),
-                                        default=models.Value(9),
-                                        output_field=models.IntegerField(), ))\
-            .order_by('custom_order')
-        none_major = Major.objects.get(id=DEFAULT_MAJOR_ID)
-
-        for semester in semesters:
-            
-            semesterlectures = semester.semesterlecture.all()
-
-            for semesterlecture in semesterlectures:
-                tmp_majors = majors
-
-                if not semesterlecture.is_modified:
-                    semester = sub_semester_credits(semesterlecture, semester)
-                    lecture = semesterlecture.lecture
-
-                    if semesterlecture.lecture_type != GENERAL:
-                        major_count = 0
-                        std = user.userprofile.entrance_year
-                        majorlectures = lecture.majorlecture.all()
-                        for major in tmp_majors:
-                            if major_count > 1:
-                                break
-                            candidate_majorlectures = majorlectures.filter(
-                                major=major,
-                                start_year__lte=std,
-                                end_year__gte=std)\
-                            .exclude(lecture_type__in=[GENERAL, GENERAL_ELECTIVE])\
-                            .order_by('-lecture_type')
-
-                            if candidate_majorlectures.exists():
-                                candidate_majorlecture = candidate_majorlectures[0]
-                                if major_count == 0:
-                                    semesterlecture.lecture_type = candidate_majorlecture.lecture_type
-                                    semesterlecture.lecture_type1 = candidate_majorlecture.lecture_type
-                                    semesterlecture.recognized_major1 = major
-                                elif major_count == 1:
-                                    semesterlecture.lecture_type2 = candidate_majorlecture.lecture_type
-                                    semesterlecture.recognized_major2 = major
-                                major_count += 1
-
-                        if major_count != 2:
-                            if major_count == 1:
-                                tmp_majors = tmp_majors.exclude(id=major.id)
-                            std = semester.year
-
-                            for major in tmp_majors:
-                                if major_count > 1:
-                                    break
-
-                                candidate_majorlectures = lecture.majorlecture.filter(
-                                    major=major,
-                                    start_year__lte=std,
-                                    end_year__gte=std)\
-                                .exclude(lecture_type__in=[GENERAL, GENERAL_ELECTIVE])\
-                                .order_by('-lecture_type')
-
-                                if candidate_majorlectures.exists() != 0:
-                                    candidate_majorlecture = candidate_majorlectures[0]
-                                    if major_count == 0:
-                                        semesterlecture.lecture_type = candidate_majorlecture.lecture_type
-                                        semesterlecture.lecture_type1 = candidate_majorlecture.lecture_type
-                                        semesterlecture.recognized_major1 = major
-                                    elif major_count == 1:
-                                        semesterlecture.lecture_type2 = candidate_majorlecture.lecture_type
-                                        semesterlecture.recognized_major2 = major
-                                    major_count += 1
-
-                        if major_count == 1:
-                            semesterlecture.lecture_type2 = NONE
-                            semesterlecture.recognized_major2 = none_major
-                        elif major_count == 0:
-                            semesterlecture.lecture_type = GENERAL_ELECTIVE
-                            semesterlecture.lecture_type1 = GENERAL_ELECTIVE
-                            semesterlecture.recognized_major1 = none_major
-                            semesterlecture.lecture_type2 = NONE
-                            semesterlecture.recognized_major2 = none_major
-
-                    lecturecredits = lecture.lecturecredit.filter(start_year__lte=semester.year,
-                                                                  end_year__gte=semester.year)
-
-                    if lecturecredits.count() > 0:
-                        semesterlecture.credit = lecturecredits[0].credit
-
-                    semesterlecture.save()
-                    semester = add_semester_credits(semesterlecture, semester)
-                semester.save()
+        plan = update_lecture_info(request.user, pk)
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -337,11 +220,11 @@ class LectureViewSet(viewsets.GenericViewSet):
         try:
             semester = Semester.objects.select_related('plan').prefetch_related('semesterlecture').get(id=semester_id)
         except Semester.DoesNotExist:
-            raise NotFound('lecture does not exist')
+            raise NotFound('semester does not exist')
         plan = semester.plan
         lecture_id_list = list(set(lecture_id_list))
 
-        if lecture_id_list in plan.semester.values_list('semesterlecture__lecture', flat=True):
+        if set(lecture_id_list) & set(plan.semester.values_list('semesterlecture__lecture', flat=True)):
             raise DuplicationError('some lecture already exists in plan.')
 
         lecture_in_semester = semester.semesterlecture.all()
@@ -381,8 +264,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         SemesterLecture.objects.bulk_create(semesterlectures)
         semester.save()
 
-        #TODO: semester update, recognized_major_name, lecture_type 설정 제거 or calculate 제거
-        #calculate_by_lecture(user, plan, semesterlectures)
+        update_lecture_info(request.user, plan.id, semesterlectures, semester)
         data = SemesterSerializer(semester).data
         return Response(data, status=status.HTTP_201_CREATED)
     
@@ -836,7 +718,7 @@ class LectureViewSet(viewsets.GenericViewSet):
                                              credit=lecturecredits.first().credit,
                                              start_year=lecturecredits.first().open_year,
                                              end_year = 10000)
-                id_cnt+=1;
+                id_cnt+=1
             else:
                 cnt = 0
                 for lecturecredit in lecturecredits:
@@ -944,119 +826,6 @@ class LectureViewSet(viewsets.GenericViewSet):
 
         data = [created_cnt, deleted_cnt, auto_generated_cnt]
         return Response(data, status=status.HTTP_200_OK)
-
-def calculate_by_lecture(user, plan, semesterlectures):
-    # order majors(기준: 졸업요구 전공학점 높은 순서)
-    majors = Major.objects.filter(planmajor__plan=plan)\
-        .annotate(custom_order=Case(When(major_type=Major.SINGLE_MAJOR, then=models.Value(0)),
-                                    When(major_type=Major.MAJOR, then=models.Value(1)),
-                                    When(major_type=Major.GRADUATE_MAJOR, then=models.Value(2)),
-                                    When(major_type=Major.INTERDISCIPLINARY_MAJOR, then=models.Value(3)),
-                                    When(major_type=Major.INTERDISCIPLINARY_MAJOR_FOR_TEACHER, then=models.Value(4)),
-                                    When(major_type=Major.DOUBLE_MAJOR, then=models.Value(5)),
-                                    When(major_type=Major.INTERDISCIPLINARY, then=models.Value(6)),
-                                    When(major_type=Major.MINOR, then=models.Value(7)),
-                                    When(major_type=Major.INTERDISCIPLINARY_PROGRAM, then=models.Value(8)),
-                                    default=models.Value(9),
-                                    output_field=models.IntegerField(), ))\
-        .order_by('custom_order')
-
-    for semesterlecture in semesterlectures:
-        # create variable tmp_majors for use only in loop(1 semesterlecture)
-        tmp_majors = majors
-        # exclude is_modified = True
-        if not semesterlecture.is_modified:
-            # subtract credits
-            updated_semester = subtract_credits(semesterlecture)
-            updated_semester.save()
-
-            semester = semesterlecture.semester
-            lecture = semesterlecture.lecture
-
-            # calculate lecture_type for each semesterlecture
-            # search majorlecture by entrance_year
-            if semesterlecture.lecture_type != SemesterLecture.GENERAL:
-                major_count = 0
-                for major in tmp_majors:
-                    if major_count > 1:
-                        break
-
-                    candidate_majorlectures = MajorLecture.objects.filter(lecture=lecture, major=major,
-                                                                          start_year__lte=user.userprofile.entrance_year,
-                                                                          end_year__gte=user.userprofile.entrance_year)\
-                        .exclude(lecture_type=MajorLecture.GENERAL).exclude(lecture_type = MajorLecture.GENERAL_ELECTIVE)\
-                        .order_by('-lecture_type')
-
-                    if candidate_majorlectures.count() !=0:
-                        if major_count == 0:
-                            semesterlecture.lecture_type = candidate_majorlectures.first().lecture_type
-                            semesterlecture.lecture_type1 = candidate_majorlectures.first().lecture_type
-                            semesterlecture.recognized_major1 = major
-                            semesterlecture.save()
-                        elif major_count == 1:
-                            semesterlecture.lecture_type2 = candidate_majorlectures.first().lecture_type
-                            semesterlecture.recognized_major2 = major
-                            semesterlecture.save()
-                        major_count += 1
-
-                if major_count != 2:
-                    if major_count == 1:
-                        tmp_majors = tmp_majors.exclude(id=semesterlecture.recognized_major1.id)
-                    # search majorlecture by semester.year
-                    for major in tmp_majors:
-                        if major_count > 1:
-                            break
-
-                        candidate_majorlectures = MajorLecture.objects.filter(lecture=lecture, major=major,
-                                                                              start_year__lte=semester.year,
-                                                                              end_year__gte=semester.year)\
-                            .exclude(lecture_type=MajorLecture.GENERAL).exclude(lecture_type = MajorLecture.GENERAL_ELECTIVE)\
-                            .order_by('-lecture_type')
-                        if candidate_majorlectures.count() != 0:
-                            if major_count == 0:
-                                semesterlecture.lecture_type = candidate_majorlectures.first().lecture_type
-                                semesterlecture.lecture_type1 = candidate_majorlectures.first().lecture_type
-                                semesterlecture.recognized_major1 = major
-                                semesterlecture.save()
-                            elif major_count == 1:
-                                semesterlecture.lecture_type2 = candidate_majorlectures.first().lecture_type
-                                semesterlecture.recognized_major2 = major
-                                semesterlecture.save()
-                            major_count += 1
-
-                if major_count == 1:
-                    semesterlecture.lecture_type2 = SemesterLecture.NONE
-                    semesterlecture.recognized_major2 = Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID)
-                    semesterlecture.save()
-                elif major_count == 0:
-                    semesterlecture.lecture_type = SemesterLecture.GENERAL_ELECTIVE
-                    semesterlecture.lecture_type1 = SemesterLecture.GENERAL_ELECTIVE
-                    semesterlecture.recognized_major1 = Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID)
-                    semesterlecture.lecture_type2 = SemesterLecture.NONE
-                    semesterlecture.recognized_major2 = Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID)
-                    semesterlecture.save()
-
-            # calculate credit for each semesterlecture
-
-            # lecturecredits = LectureCredit.objects.filter(lecture=lecture,
-            #                                               start_year__lte=user.userprofile.entrance_year,
-            #                                               end_year__gte=user.userprofile.entrance_year)
-            # if lecturecredits.count() == 0:
-            #     lecturecredits = LectureCredit.objects.filter(lecture=lecture,
-            #                                                   start_year__lte=semester.year,
-            #                                                   end_year__gte=semester.year)
-            lecturecredits = LectureCredit.objects.filter(lecture=lecture,
-                                                          start_year__lte=semester.year,
-                                                          end_year__gte=semester.year)
-
-            if lecturecredits.count() > 0:
-                semesterlecture.credit = lecturecredits.first().credit
-                semesterlecture.save()
-
-             # add credits
-            updated_semester = add_credits(semesterlecture)
-            updated_semester.save()
-
 
 # Deprecated Common Functions
 def update_plan_info(plan):
