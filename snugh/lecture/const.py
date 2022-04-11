@@ -33,3 +33,5 @@ LECTURE_TYPE = (
     (GENERAL_ELECTIVE, 'general_elective'),
     (TEACHING, 'teaching'),
 )
+
+UPDATED_YEAR = 2021

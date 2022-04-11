@@ -64,7 +64,7 @@ class NotAllowed(BaseError):
 
 class NotFound(BaseError):
     status_code = status.HTTP_404_NOT_FOUND
-    default_detail = '존재하지 않는 값입니다.'
+    default_detail = 'Not found.'
     default_code = 'E204'
 
 class NotOwner(BaseError):
