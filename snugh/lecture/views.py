@@ -631,13 +631,12 @@ class LectureViewSet(viewsets.GenericViewSet):
     # TODO: n-gram 서치 고도화
     def list(self, request):
         
-        #TODO: major_name --> 주전공이 여러개인 사람은?, 백앤드에서 가져오는 방법은?
         page = request.GET.get('page', '1')
         search_type = request.query_params.get("search_type")
         search_year = request.query_params.get("search_year")
         search_keyword = request.query_params.get("search_keyword")
         plan_id = request.query_params.get("plan_id")
-        if not (search_year and plan_id):
+        if not (search_type and search_year and plan_id):
             raise FieldError('query parameter missing [search_year, plan_id]')
 
         existing_lectures = Plan.objects.get(id=plan_id).semester.values_list('semesterlecture__lecture', flat=True)
@@ -657,7 +656,7 @@ class LectureViewSet(viewsets.GenericViewSet):
                     lecture_type=search_type, recent_open_year__gte=year_standard)\
                     .exclude(id__in=existing_lectures).order_by('lecture_name', 'recent_open_year')
             else: 
-                raise FieldError('qeury parameter missing [major_name]')
+                raise FieldError('query parameter missing [major_name]')
 
         # Case 2: keyword
         else:
