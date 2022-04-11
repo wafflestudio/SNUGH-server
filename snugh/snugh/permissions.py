@@ -13,6 +13,6 @@ class IsOwnerOrCreateReadOnly(permissions.BasePermission):
             return True
         if hasattr(obj, 'plan'):
             return obj.plan.user == request.user
-        elif hasattr(obj, 'semester'):
+        elif hasattr(obj, 'semester') and hasattr(obj, 'lecture'):
             return obj.semester.plan.user == request.user
         return obj.user == request.user
