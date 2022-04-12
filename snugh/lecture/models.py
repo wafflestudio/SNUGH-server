@@ -31,34 +31,34 @@ class BaseMajorLecture(models.Model):
     is_required = models.BooleanField(default=False)
     lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
 
+class BaseChangeHistory(models.Model):
+    class Meta:
+        abstract = True
+    entrance_year = models.IntegerField(default=0)
+    created_at = models.DateField(auto_now_add = True)
+    updated_at = models.DateField(auto_now = True)
+    change_count = models.IntegerField(default=1)
+
 class Lecture(BaseLecture):
     
     prev_lecture_name = models.CharField(max_length=50, null=True)
     recent_open_year = models.IntegerField(default=0)
     objects = LectureQuerySet.as_manager()
     
-class LectureTypeChangeHistory(models.Model):
+class LectureTypeChangeHistory(BaseChangeHistory):
 
     major = models.ForeignKey(Major, related_name='lecturetypechangehistory', on_delete=models.CASCADE)
     lecture = models.ForeignKey(Lecture, related_name='lecturetypechangehistory', on_delete=models.CASCADE)
-    entrance_year = models.IntegerField(default=0)
     past_lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
     curr_lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
-    created_at = models.DateField(auto_now_add = True)
-    updated_at = models.DateField(auto_now = True)
-    change_count = models.IntegerField(default=1)
 
-class CreditChangeHistory(models.Model):
+class CreditChangeHistory(BaseChangeHistory):
 
     major = models.ForeignKey(Major, related_name='creditchangehistory', on_delete=models.CASCADE)
     lecture = models.ForeignKey(Lecture, related_name='creditchangehistory', on_delete=models.CASCADE)
-    entrance_year = models.IntegerField(default=0)
     year_taken = models.IntegerField(default=0)
     past_credit = models.PositiveIntegerField(default=0)
     curr_credit = models.PositiveIntegerField(default=0)
-    created_at = models.DateField(auto_now_add=True)
-    updated_at = models.DateField(auto_now=True)
-    change_count = models.IntegerField(default=1)
 
 class Plan(models.Model):
 
@@ -117,7 +117,7 @@ class SemesterLecture(models.Model):
             )
         ]
         
-class MajorLecture(models.Model):
+class MajorLecture(BaseMajorLecture):
 
     major = models.ForeignKey(Major, related_name='majorlecture', on_delete=models.CASCADE)
     lecture = models.ForeignKey(Lecture, related_name='majorlecture', on_delete=models.CASCADE)
@@ -138,7 +138,7 @@ class LectureTmp(BaseLecture):
     open_year = models.IntegerField(default=0)
     is_added =  models.BooleanField(default=False)
 
-class MajorLectureTmp(models.Model):
+class MajorLectureTmp(BaseMajorLecture):
 
     major_name = models.CharField(max_length=50, default="")
     major_type = models.CharField(max_length=50, default="")

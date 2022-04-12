@@ -637,17 +637,17 @@ class LectureViewSet(viewsets.GenericViewSet):
         search_keyword = request.query_params.get("search_keyword")
         plan_id = request.query_params.get("plan_id")
         if not (search_type and search_year and plan_id):
-            raise FieldError('query parameter missing [search_year, plan_id]')
-
-        existing_lectures = Plan.objects.get(id=plan_id).semester.values_list('semesterlecture__lecture', flat=True)
-        
+            raise FieldError('query parameter missing [search_type, search_year, plan_id]')
+        try:
+            existing_lectures = list(Plan.objects.get(id=plan_id).semester.values_list('semesterlecture__lecture', flat=True))
+        except Plan.DoesNotExist:
+            raise NotFound()
         search_year = int(search_year)
         # Case 1: major requirement or major elective
         if search_type in [MAJOR_REQUIREMENT, MAJOR_ELECTIVE]:
             major_name = request.query_params.get("major_name")
             if major_name:
                 year_standard = search_year if search_year < UPDATED_YEAR else UPDATED_YEAR-2
-
                 depeqv_name = DepartmentEquivalent.objects.filter(major_name=major_name).values_list('department_name', flat=True)
                 majoreqv_names = MajorEquivalent.objects.filter(major_name=major_name).values_list('equivalent_major_name', flat=True)
                 major_names = [major_name] + list(majoreqv_names)
@@ -655,6 +655,7 @@ class LectureViewSet(viewsets.GenericViewSet):
                     (Q(open_major__in=major_names) | Q(open_department__in=depeqv_name)), 
                     lecture_type=search_type, recent_open_year__gte=year_standard)\
                     .exclude(id__in=existing_lectures).order_by('lecture_name', 'recent_open_year')
+                print(lectures)
             else: 
                 raise FieldError('query parameter missing [major_name]')
 
