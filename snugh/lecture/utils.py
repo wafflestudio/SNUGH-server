@@ -127,6 +127,8 @@ def __update_lecture_info(
     none_major: Major = Major.objects.get(id=DEFAULT_MAJOR_ID)) -> Semester:
 
     updated_semesterlectures = []
+    std1 = user.userprofile.entrance_year
+    std2 = semester.year
     for semesterlecture in semesterlectures:
         tmp_majors = majors
 
@@ -136,18 +138,16 @@ def __update_lecture_info(
 
             if semesterlecture.lecture_type != GENERAL:
                 major_count = 0
-                std = user.userprofile.entrance_year
                 majorlectures = lecture.majorlecture.all()
                 for major in tmp_majors:
                     if major_count > 1:
                         break
                     candidate_majorlectures = majorlectures.filter(
                         major=major,
-                        start_year__lte=std,
-                        end_year__gte=std)\
+                        start_year__lte=std1,
+                        end_year__gte=std1)\
                     .exclude(lecture_type__in=[GENERAL, GENERAL_ELECTIVE])\
                     .order_by('-lecture_type')
-
                     if candidate_majorlectures.exists():
                         candidate_majorlecture = candidate_majorlectures[0]
                         if major_count == 0:
@@ -161,20 +161,17 @@ def __update_lecture_info(
 
                 if major_count != 2:
                     if major_count == 1:
-                        tmp_majors = tmp_majors.exclude(id=major.id)
-                    std = semester.year
-
+                        tmp_majors = tmp_majors.exclude(id=semesterlecture.recognized_major1.id)
                     for major in tmp_majors:
                         if major_count > 1:
                             break
 
                         candidate_majorlectures = lecture.majorlecture.filter(
                             major=major,
-                            start_year__lte=std,
-                            end_year__gte=std)\
+                            start_year__lte=std2,
+                            end_year__gte=std2)\
                         .exclude(lecture_type__in=[GENERAL, GENERAL_ELECTIVE])\
                         .order_by('-lecture_type')
-
                         if candidate_majorlectures.exists() != 0:
                             candidate_majorlecture = candidate_majorlectures[0]
                             if major_count == 0:
@@ -196,20 +193,19 @@ def __update_lecture_info(
                     semesterlecture.lecture_type2 = NONE
                     semesterlecture.recognized_major2 = none_major
 
-            lecturecredits = lecture.lecturecredit.filter(start_year__lte=semester.year,
-                                                            end_year__gte=semester.year)
+            lecturecredits = lecture.lecturecredit.filter(start_year__lte=std2,
+                                                            end_year__gte=std2)
 
             if lecturecredits.exists():
                 semesterlecture.credit = lecturecredits[0].credit
-
+            
             semester = add_semester_credits(semesterlecture, semester)
             updated_semesterlectures.append(semesterlecture)
     SemesterLecture.objects.bulk_update(
         updated_semesterlectures, 
-        ['lecture_type', 
-        'lecture_type1', 
-        'recognized_major1', 
-        'lecture_type2', 
-        'recognized_major2', 
-        'credit'])
+        ['lecture_type',
+        'lecture_type1',
+        'lecture_type2',
+        'recognized_major1',
+        'recognized_major2'])
     return semester

@@ -202,16 +202,12 @@ class SemesterViewSet(viewsets.GenericViewSet, generics.RetrieveDestroyAPIView):
 class LectureViewSet(viewsets.GenericViewSet):
     queryset = SemesterLecture.objects.all()
     serializer_class = SemesterLectureSerializer
-    permission_classes = [IsOwnerOrCreateReadOnly]
+    #permission_classes = [IsOwnerOrCreateReadOnly]
 
     # POST /lecture
     @transaction.atomic
     def create(self, request):
         """Create semester lecture"""
-        #TODO: API 문서 수정
-        # request body 변화
-        # duplicated lectures in lecture_id_list error deprecate
-        # lecture does not exist error
         semester_id = request.data.get('semester_id')
         lecture_id_list = request.data.get('lecture_id')
         try:
@@ -219,16 +215,15 @@ class LectureViewSet(viewsets.GenericViewSet):
         except Semester.DoesNotExist:
             raise NotFound('semester does not exist')
         plan = semester.plan
-        lecture_id_list = list(set(lecture_id_list))
-
+        lecture_id_list = list(set(map(lambda x: int(x), lecture_id_list)))
         if set(lecture_id_list) & set(plan.semester.values_list('semesterlecture__lecture', flat=True)):
             raise DuplicationError('some lecture already exists in plan.')
 
         lecture_in_semester = semester.semesterlecture.all()
         n_lectures = lecture_in_semester.count()
 
-        semesterlectures = []
         default_major = Major.objects.get(id=DEFAULT_MAJOR_ID)
+        semesterlectures=[]
         for i, lecture_id in enumerate(lecture_id_list):
             try :
                 lecture = Lecture.objects.get(id=lecture_id)
@@ -237,18 +232,16 @@ class LectureViewSet(viewsets.GenericViewSet):
             lecture_type = lecture.lecture_type
             recognized_major = default_major
             
-            sl = SemesterLecture(semester=semester,
-                                 lecture=lecture,
-                                 lecture_type=lecture_type,
-                                 recognized_major1=recognized_major,
-                                 lecture_type1=lecture_type,
-                                 credit=lecture.credit,
-                                 recent_sequence=n_lectures+i)
-            semesterlectures.append(sl)
-
+            sl = SemesterLecture.objects.create(
+                semester=semester,
+                lecture=lecture,
+                lecture_type=lecture_type,
+                recognized_major1=recognized_major,
+                lecture_type1=lecture_type,
+                credit=lecture.credit,
+                recent_sequence=n_lectures+i)
+            semesterlectures.append(sl)       
             semester = add_semester_credits(sl, semester)
-        SemesterLecture.objects.bulk_create(semesterlectures)
-        semester.save()
 
         update_lecture_info(request.user, plan.id, semesterlectures, semester)
         data = SemesterSerializer(semester).data
@@ -263,7 +256,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         target_lecture = SemesterLecture.objects.select_related('semester').get(pk=pk)
         semester_to = request.data.get('semester_to', None)
         semester_from = target_lecture.semester
-        position = request.data.get('postion', 0)
+        position = request.data.get('position', 0)
         if not semester_to:
             raise FieldError("'semester_to' field missing")
         position_prev = target_lecture.recent_sequence
@@ -278,7 +271,7 @@ class LectureViewSet(viewsets.GenericViewSet):
             raise NotFound('semester does not exist')
         semester_to_lectures = semester_to.semester_to_lectures
 
-        if not (0<=position<len(semester_to_lectures)):
+        if not (0<=position<=len(semester_to_lectures)):
             raise FieldError("position out of range")
         semester_from = sub_semester_credits(target_lecture, semester_from)
         target_lecture.semester = semester_to
@@ -655,7 +648,6 @@ class LectureViewSet(viewsets.GenericViewSet):
                     (Q(open_major__in=major_names) | Q(open_department__in=depeqv_name)), 
                     lecture_type=search_type, recent_open_year__gte=year_standard)\
                     .exclude(id__in=existing_lectures).order_by('lecture_name', 'recent_open_year')
-                print(lectures)
             else: 
                 raise FieldError('query parameter missing [major_name]')
 

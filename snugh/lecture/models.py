@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from user.models import Major
-from .const import *
+from lecture.const import *
 
 class LectureQuerySet(models.QuerySet):
     
