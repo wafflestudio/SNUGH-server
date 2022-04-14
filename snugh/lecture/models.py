@@ -37,7 +37,7 @@ class BaseChangeHistory(models.Model):
     entrance_year = models.IntegerField(default=0)
     created_at = models.DateField(auto_now_add = True)
     updated_at = models.DateField(auto_now = True)
-    change_count = models.IntegerField(default=1)
+    change_count = models.IntegerField(default=0)
 
 class Lecture(BaseLecture):
     

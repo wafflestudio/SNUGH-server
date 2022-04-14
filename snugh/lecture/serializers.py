@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from django.db.models import Case, When, IntegerField, Value
-from django.db import models
 from lecture.models import *
 from requirement.models import PlanRequirement
 from user.serializers import MajorSerializer

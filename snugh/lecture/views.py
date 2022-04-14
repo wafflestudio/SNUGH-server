@@ -202,7 +202,7 @@ class SemesterViewSet(viewsets.GenericViewSet, generics.RetrieveDestroyAPIView):
 class LectureViewSet(viewsets.GenericViewSet):
     queryset = SemesterLecture.objects.all()
     serializer_class = SemesterLectureSerializer
-    #permission_classes = [IsOwnerOrCreateReadOnly]
+    permission_classes = [IsOwnerOrCreateReadOnly]
 
     # POST /lecture
     @transaction.atomic
@@ -258,7 +258,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         semester_from = target_lecture.semester
         position = request.data.get('position', 0)
         if not semester_to:
-            raise FieldError("'semester_to' field missing")
+            raise FieldError("Field missing [semester_to]")
         position_prev = target_lecture.recent_sequence
         semester_from_lectures = semester_from.semesterlecture.filter(recent_sequence__gt=position_prev).order_by('recent_sequence')
         try:
@@ -303,87 +303,51 @@ class LectureViewSet(viewsets.GenericViewSet):
     @action(methods=['PUT'], detail=True)
     @transaction.atomic
     def credit(self, request, pk=None):
-        user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
-
-        semesterlecture = self.get_object()
+        """Change semester lecture credit"""
         credit = request.data.get('credit', 0)
+        if not (type(credit)==int and 0<credit<5) :
+            raise FieldError("Invalid field [credit]")
+
+        try:
+            semesterlecture = SemesterLecture.objects.select_related(
+                'semester',
+                'recognized_major1',
+                'recognized_major2',
+                'lecture'
+            ).get(id=pk)
+        except SemesterLecture.DoesNotExist:
+            raise NotFound("semesterlecture does not exist")
+
+        semester = semesterlecture.semester
         year_taken = semesterlecture.semester.year
-
-        if credit != 1 and credit != 2 and credit !=3 and credit !=4:
-            return Response({"error": "enter valid credit"}, status=status.HTTP_400_BAD_REQUEST)
-
         if credit == semesterlecture.credit:
             return Response(SemesterLectureSerializer(semesterlecture).data, status=status.HTTP_200_OK)
 
-        # create creditchangehistory
-        # lecture_type = general or general_elective
-        if semesterlecture.lecture_type == SemesterLecture.GENERAL or semesterlecture.lecture_type == SemesterLecture.GENERAL_ELECTIVE:
-            creditchangehistory = CreditChangeHistory.objects.filter(major=Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID),
-                                                                    lecture=semesterlecture.lecture,
-                                                                    entrance_year=user.userprofile.entrance_year,
-                                                                    year_taken = year_taken,
-                                                                    past_credit=semesterlecture.credit,
-                                                                    curr_credit=credit)
-            if creditchangehistory.count() == 0:
-                CreditChangeHistory.objects.create(major=Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID),
-                                                    lecture=semesterlecture.lecture,
-                                                    entrance_year=user.userprofile.entrance_year,
-                                                    year_taken=year_taken,
-                                                    past_credit=semesterlecture.credit,
-                                                    curr_credit=credit)
-            else:
-                creditchangehistory = CreditChangeHistory.objects.get(major=Major.objects.get(id=SemesterLecture.DEFAULT_MAJOR_ID),
-                                                                    lecture=semesterlecture.lecture,
-                                                                    year_taken=year_taken,
-                                                                    entrance_year=user.userprofile.entrance_year,
-                                                                    past_credit=semesterlecture.credit,
-                                                                    curr_credit=credit)
-                creditchangehistory.change_count += 1
-                creditchangehistory.save()
-        # lecture_type = major_requirement or major_elective
-        else:
-            recognized_majors = [semesterlecture.recognized_major1, semesterlecture.recognized_major2]
-            for i in range(2):
-                if recognized_majors[i].id != Major.DEFAULT_MAJOR_ID:
-                    creditchangehistory = CreditChangeHistory.objects.filter(major=recognized_majors[i],
-                                                                            lecture=semesterlecture.lecture,
-                                                                            entrance_year=user.userprofile.entrance_year,
-                                                                            year_taken=year_taken,
-                                                                            past_credit=semesterlecture.credit,
-                                                                            curr_credit=credit)
-                    if creditchangehistory.count() == 0:
-                        CreditChangeHistory.objects.create(major=recognized_majors[i],
-                                                           lecture=semesterlecture.lecture,
-                                                           entrance_year=user.userprofile.entrance_year,
-                                                           year_taken=year_taken,
-                                                           past_credit=semesterlecture.credit,
-                                                           curr_credit=credit)
-                    else:
-                        creditchangehistory = CreditChangeHistory.objects.get(major=recognized_majors[i],
-                                                                            lecture=semesterlecture.lecture,
-                                                                            entrance_year=user.userprofile.entrance_year,
-                                                                            year_taken=year_taken,
-                                                                            past_credit=semesterlecture.credit,
-                                                                            curr_credit=credit)
-                        creditchangehistory.change_count += 1
-                        creditchangehistory.save()
+        none_major = Major.objects.get(id=DEFAULT_MAJOR_ID)
+        user_entrance = request.user.userprofile.entrance_year
+        recognized_majors = list(set([semesterlecture.recognized_major1, semesterlecture.recognized_major2]))
+        if len(recognized_majors) > 1:
+            recognized_majors = [rm for rm in recognized_majors if rm != none_major]
+        for recognized_major in recognized_majors:
+            creditchangehistory = CreditChangeHistory.objects.get_or_create(
+                major=recognized_major,
+                lecture=semesterlecture.lecture,
+                entrance_year=user_entrance,
+                year_taken=year_taken,
+                past_credit=semesterlecture.credit,
+                curr_credit=credit)
+            creditchangehistory.change_count += 1
+            creditchangehistory.save()
 
-        # update semesterlecture
-        updated_semester = subtract_credits(semesterlecture)
-        updated_semester.save()
-
+        semester = sub_semester_credits(semesterlecture, semester)
         semesterlecture.credit = credit
         semesterlecture.is_modified = True
         semesterlecture.save()
-
-        updated_semester = add_credits(semesterlecture)
-        updated_semester.save()
+        semester = add_semester_credits(semesterlecture, semester)
+        semester.save()
 
         data = SemesterLectureSerializer(semesterlecture).data
         return Response(data, status=status.HTTP_200_OK)
-
 
     # PUT /lecture/:semesterLectureId/recognized_major
     @action(methods=['PUT'], detail=True)
