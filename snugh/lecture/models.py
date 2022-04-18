@@ -85,6 +85,7 @@ class Semester(models.Model):
         ]
 
 class PlanMajor(models.Model):
+    
     plan = models.ForeignKey(Plan, related_name='planmajor', on_delete=models.CASCADE)
     major = models.ForeignKey(Major, related_name='planmajor', on_delete=models.CASCADE)
 
