@@ -1,9 +1,9 @@
-from rest_framework import status, viewsets, filters
+from rest_framework import status, viewsets
 from rest_framework.response import Response
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from requirement.models import *
-from requirement.serializers import RequirementSerializer, ProgressSerializer
+from requirement.serializers import RequirementSerializer
 from user.models import *
 from user.serializers import *
 from lecture.models import *
@@ -13,6 +13,7 @@ from rest_framework.decorators import action
 class RequirementViewSet(viewsets.GenericViewSet):
     queryset = Requirement.objects.all()
     serializer_class = RequirementSerializer
+    # TODO: Permission constraint for admin user
 
     # POST /requirement
     # 1회성 generating api

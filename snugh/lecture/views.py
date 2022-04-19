@@ -1,4 +1,4 @@
-from django.db.models import Case, When, Q
+from django.db.models import Case, When, Q, Value, IntegerField
 from django.db import transaction
 from rest_framework import status, viewsets, generics
 from rest_framework.response import Response
@@ -463,14 +463,14 @@ class LectureViewSet(viewsets.GenericViewSet):
                     .annotate(
                         first_letter=Case(
                             When(lecture_name__startswith=search_keyword[0], 
-                                then=models.Value(0)),
-                            default=models.Value(1),
-                            output_field=models.IntegerField(),),
+                                then=Value(0)),
+                            default=Value(1),
+                            output_field=IntegerField(),),
                         icontains_priority=Case(
                             When(lecture_name__icontains=search_keyword, 
-                                then=models.Value(0)),
-                            default=models.Value(1),
-                            output_field=models.IntegerField(),),
+                                then=Value(0)),
+                            default=Value(1),
+                            output_field=IntegerField(),),
                         priority = F('first_letter')+F('icontains_priority'),
                         match_rate=Length('lecture_name'))\
                     .order_by('priority', 'match_rate', 'recent_open_year', 'lecture_name')
