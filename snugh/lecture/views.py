@@ -1,4 +1,4 @@
-from django.db.models import Case, When, Q, Value, IntegerField
+from django.db.models import Case, When, Q, Value, IntegerField, F, Prefetch
 from django.db import transaction
 from rest_framework import status, viewsets, generics
 from rest_framework.response import Response
@@ -10,7 +10,6 @@ from user.models import *
 from requirement.models import *
 from django.core.paginator import Paginator
 from django.db.models.functions import Length
-from django.db.models import F, Prefetch
 from snugh.permissions import IsOwnerOrCreateReadOnly
 from snugh.exceptions import DuplicationError, NotOwner
 from lecture.utils import add_credits, subtract_credits, add_semester_credits, sub_semester_credits

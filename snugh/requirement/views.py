@@ -8,6 +8,7 @@ from user.models import *
 from user.serializers import *
 from lecture.models import *
 from rest_framework.decorators import action
+from django.db.models import Prefetch, Case, When
 
 
 class RequirementViewSet(viewsets.GenericViewSet):
@@ -19,41 +20,52 @@ class RequirementViewSet(viewsets.GenericViewSet):
     # 1회성 generating api
     @transaction.atomic
     def create(self, request):
-        # user = request.user
-        # if not user.is_authenticated:
-        #     return Response(status=status.HTTP_401_UNAUTHORIZED)
-
+        """
+        queryset_1 = Requirement.objects.filter(requirement_type__in=[ALL, GENERAL, MAJOR_ALL, MAJOR_REQUIREMENT])
+        queryset_2 = Requirement.objects.filter(requirement_type__in=[MAJOR_ALL, MAJOR_REQUIREMENT])
+        all_majors = Major.objects.prefetch_related(
+            Prefetch(
+                'requirement',
+                queryset=Case(
+                    When(
+                        major_type__in=[MAJOR, SINGLE_MAJOR],
+                        then=queryset_1
+                    ),
+                    default=queryset_2,
+                ),
+                to_attr="requirements")).all()
+        """
         all_majors = Major.objects.all()
-        requirement_missing_major_ids = []
+        majors_types = all_majors.values('major_type', 'requirement__requirement_type')
 
-        for major in all_majors:
-            cnt = 0
-            if major.major_type == Major.MAJOR or major.major_type == Major.SINGLE_MAJOR:
-                all_requirement = Requirement.objects.filter(major=major, requirement_type = Requirement.ALL)
-                if not all_requirement.exists():
-                    Requirement.objects.create(major=major, requirement_type=Requirement.ALL, is_auto_generated = True)
-                    cnt += 1
-                general_requirement = Requirement.objects.filter(major=major, requirement_type = Requirement.GENERAL)
-                if not general_requirement.exists():
-                    Requirement.objects.create(major=major, requirement_type=Requirement.GENERAL, is_auto_generated = True)
-                    cnt += 1
+        reqs = []
+        req_miss_majors = []
+        for i, major in enumerate(majors_types):
+            major_type = major['major_type']
+            requirement_types = set(major['requirement__requirement_type'])
+            if major_type in [MAJOR, SINGLE_MAJOR]:
+                required_types = {ALL, GENERAL, MAJOR_ALL, MAJOR_REQUIREMENT} - requirement_types
+                for type in required_types:
+                    reqs.append(Requirement(
+                        major=all_majors[i],
+                        requirement_type=type,
+                        is_auto_generated=True
+                    ))
+                if len(required_types) == 4:
+                    req_miss_majors.append(all_majors[i])
             else:
-                cnt = 2
+                required_types = {MAJOR_ALL, MAJOR_REQUIREMENT} - requirement_types
+                for type in required_types:
+                    reqs.append(Requirement(
+                        major=all_majors[i],
+                        requirement_type=type,
+                        is_auto_generated=True
+                    ))
+                if len(required_types) == 2:
+                    req_miss_majors.append(all_majors[i])
+        Requirement.objects.bulk_create(reqs)
 
-            major_all_requirement = Requirement.objects.filter(major=major, requirement_type = Requirement.MAJOR_ALL)
-            if not major_all_requirement.exists():
-                Requirement.objects.create(major=major, requirement_type=Requirement.MAJOR_ALL, is_auto_generated = True)
-                cnt += 1
-            mr_requirement = Requirement.objects.filter(major=major, requirement_type = Requirement.MAJOR_REQUIREMENT)
-            if not mr_requirement.exists():
-                Requirement.objects.create(major=major, requirement_type=Requirement.MAJOR_REQUIREMENT, is_auto_generated = True)
-                cnt += 1
-
-            if cnt == 4:
-                requirement_missing_major_ids.append(major.id)
-
-        majors = Major.objects.filter(id__in = requirement_missing_major_ids)
-        body = {"majors": MajorSerializer(majors, many=True).data}
+        body = {"majors": MajorSerializer(req_miss_majors, many=True).data}
         return Response(body, status=status.HTTP_201_CREATED)
 
     # GET /requirement
