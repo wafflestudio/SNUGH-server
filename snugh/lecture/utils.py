@@ -1,5 +1,5 @@
 from lecture.models import Semester, SemesterLecture, Plan
-from snugh.lecture.models import LectureTypeChangeHistory
+from lecture.models import LectureTypeChangeHistory
 from user.models import Major, User
 from lecture.const import *
 from django.db.models import Case, When, Value, IntegerField

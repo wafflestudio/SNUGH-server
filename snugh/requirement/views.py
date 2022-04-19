@@ -10,7 +10,6 @@ from lecture.models import *
 from rest_framework.decorators import action
 from django.db.models import Prefetch, Case, When
 
-
 class RequirementViewSet(viewsets.GenericViewSet):
     queryset = Requirement.objects.all()
     serializer_class = RequirementSerializer
@@ -20,49 +19,32 @@ class RequirementViewSet(viewsets.GenericViewSet):
     # 1회성 generating api
     @transaction.atomic
     def create(self, request):
-        """
-        queryset_1 = Requirement.objects.filter(requirement_type__in=[ALL, GENERAL, MAJOR_ALL, MAJOR_REQUIREMENT])
-        queryset_2 = Requirement.objects.filter(requirement_type__in=[MAJOR_ALL, MAJOR_REQUIREMENT])
-        all_majors = Major.objects.prefetch_related(
+        majors = Major.objects.prefetch_related(
             Prefetch(
                 'requirement',
-                queryset=Case(
-                    When(
-                        major_type__in=[MAJOR, SINGLE_MAJOR],
-                        then=queryset_1
-                    ),
-                    default=queryset_2,
-                ),
+                queryset=Requirement.objects.all(),
                 to_attr="requirements")).all()
-        """
-        all_majors = Major.objects.all()
-        majors_types = all_majors.values('major_type', 'requirement__requirement_type')
-
         reqs = []
         req_miss_majors = []
-        for i, major in enumerate(majors_types):
-            major_type = major['major_type']
-            requirement_types = set(major['requirement__requirement_type'])
+        for major in majors:
+            major_type = major.major_type
+            requirements = major.requirements
             if major_type in [MAJOR, SINGLE_MAJOR]:
-                required_types = {ALL, GENERAL, MAJOR_ALL, MAJOR_REQUIREMENT} - requirement_types
-                for type in required_types:
-                    reqs.append(Requirement(
-                        major=all_majors[i],
-                        requirement_type=type,
-                        is_auto_generated=True
-                    ))
-                if len(required_types) == 4:
-                    req_miss_majors.append(all_majors[i])
+                std = {ALL, GENERAL, MAJOR_ALL, MAJOR_REQUIREMENT}
+                std_len = 4
             else:
-                required_types = {MAJOR_ALL, MAJOR_REQUIREMENT} - requirement_types
-                for type in required_types:
-                    reqs.append(Requirement(
-                        major=all_majors[i],
+                std = {MAJOR_ALL, MAJOR_REQUIREMENT}
+                std_len = 2
+            std -= set([req.requirement_type for req in requirements])
+            for type in std:
+                reqs.append(
+                    Requirement(
+                        major=major,
                         requirement_type=type,
                         is_auto_generated=True
-                    ))
-                if len(required_types) == 2:
-                    req_miss_majors.append(all_majors[i])
+                ))
+            if len(std) == std_len:
+                req_miss_majors.append(major)
         Requirement.objects.bulk_create(reqs)
 
         body = {"majors": MajorSerializer(req_miss_majors, many=True).data}
