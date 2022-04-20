@@ -52,112 +52,112 @@ class RequirementViewSet(viewsets.GenericViewSet):
 
     # GET /requirement
     def list(self, request):
-        user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
 
         plan_id = request.query_params.get('plan_id')
-        plan = get_object_or_404(Plan, pk=plan_id)
-        majors = Major.objects.filter(planmajor__plan=plan)
+        plan = Plan.objects.prefetch_related(
+            'planmajor', 
+            'planrequirement', 
+            'planrequirement__requirement', 
+            'planrequirement__requirement__major', 
+            'semester'
+            ).get(id=plan_id)
+        majors = plan.planmajor.all().values('major', 'major__major_name', 'major__major_type')
+        majors_info = {}
+        for major in majors:
+            major_id = major['major']
+            major_name = major['major__major_name']
+            major_type = major['major__major_type']
+            majors_info[major_id] = {
+                'major_name':major_name,
+                'major_type':major_type
+            }
 
-        # init earned credit of plan_requirement
-        pr_list = list(PlanRequirement.objects.filter(plan=plan))
-        for pr in pr_list:
-            pr.earned_credit = 0
-            pr.save()
-
-        # requirement_type = all
-        all_requirement = Requirement.objects.filter(planrequirement__plan=plan,
-                                                     requirement_type=Requirement.ALL).order_by('-required_credit').first()
-        all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=all_requirement)
-        all_required_credit = all_planrequirement.required_credit
+        planrequirements = plan.planrequirement.all()
         all_earned_credit = 0
-
-        # requirement_type = general
-        general_requirement = Requirement.objects.filter(planrequirement__plan=plan,
-                                                         requirement_type=Requirement.GENERAL).order_by('-required_credit').first()
-        general_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=general_requirement)
-        general_requirement_credit = general_planrequirement.required_credit
+        all_required_credit = 0
         general_earned_credit = 0
-
-        major_earned_credit = 0 # 전공교과 총 이수 학점
-
-        # requirement_type = major_all
+        general_requirement_credit = 0
+        major_earned_credit = 0
         major_all_pr_list = {}
-        for major in majors:
-            major_all_requirement = Requirement.objects.get(planrequirement__plan=plan,
-                                                 requirement_type=Requirement.MAJOR_ALL, major=major)
-            major_all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=major_all_requirement)
-            major_all_pr_list[major] = major_all_planrequirement
-
-        # requirement_type = major_requirement
         major_requirement_pr_list = {}
-        for major in majors:
-            major_requirement_requirement = Requirement.objects.get(planrequirement__plan=plan,
-                                                                    requirement_type=Requirement.MAJOR_REQUIREMENT,
-                                                                    major=major)
-            major_requirement_planrequirement = PlanRequirement.objects.get(plan=plan,
-                                                                            requirement=major_requirement_requirement)
-            major_requirement_pr_list[major] = major_requirement_planrequirement
 
-        sl_list = list(SemesterLecture.objects.filter(semester__plan=plan))
+        for pr in planrequirements:
+            pr.earned_credit = 0
+            req = pr.requirement
+            if req.requirement_type == ALL:
+                if all_required_credit < pr.required_credit:
+                    all_required_credit = pr.required_credit
+                    all_planrequirement = pr
+            elif req.requirement_type == GENERAL:
+                if general_requirement_credit < pr.required_credit:
+                    general_requirement_credit = pr.required_credit
+                    general_planrequirement = pr
+            elif req.requirement_type == MAJOR_ALL:
+                req_major_id = req.major.id
+                if req_major_id in majors_info.keys():
+                    major_all_pr_list[req_major_id] = pr
+            elif req.requirement_type == MAJOR_REQUIREMENT:
+                req_major_id = req.major.id
+                if req_major_id in majors_info.keys():
+                    major_all_pr_list[req_major_id] = pr
+
+        
+        sl_list = plan.semester.all().values(
+            'semesterlecture', 
+            'semesterlecture__credit', 
+            'semesterlecture__lecture_type1',
+            'semesterlecture__lecture_type2',
+            'semesterlecture__recognized_major1',
+            'semesterlecture__recognized_major2')
 
         for sl in sl_list:
-            credit = sl.credit
+            credit = sl['semesterlecture__credit']
+            lecture_type1 = sl['semesterlecture__lecture_type1']
+            lecture_type2 = sl['semesterlecture__lecture_type2']
+            recognized_major1_id = sl['semesterlecture__recognized_major1']
+            recognized_major2_id = sl['semesterlecture__recognized_major2']
 
             # all
             all_earned_credit+=credit
 
             # general
-            if sl.lecture_type1 == Lecture.GENERAL:
-                general_earned_credit +=credit
+            if lecture_type1 == GENERAL:
+                general_earned_credit+=credit
 
             # major_all, major_requirement (주의: 만약 plan의 major가 아닌데 전필/전선으로 되어 있으면 에러뜸)
-            elif sl.lecture_type1 == Lecture.MAJOR_REQUIREMENT or sl.lecture_type1 == Lecture.MAJOR_ELECTIVE:
+            elif lecture_type1 in [MAJOR_REQUIREMENT, MAJOR_ELECTIVE]:
                 major_earned_credit+=credit
-                major_all_pr_list[sl.recognized_major1].earned_credit += credit
-                major_all_pr_list[sl.recognized_major1].save()
-                if sl.lecture_type1 == Lecture.MAJOR_REQUIREMENT:
-                    major_requirement_pr_list[sl.recognized_major1].earned_credit += credit
-                    major_requirement_pr_list[sl.recognized_major1].save()
-                if sl.recognized_major2.id != Major.DEFAULT_MAJOR_ID:
-                    if sl.lecture_type2 == Lecture.MAJOR_REQUIREMENT or sl.lecture_type2 == Lecture.MAJOR_ELECTIVE:
-                        major_all_pr_list[sl.recognized_major2].earned_credit += credit
-                        major_all_pr_list[sl.recognized_major2].save()
-                        if sl.lecture_type2 == Lecture.MAJOR_REQUIREMENT:
-                            major_requirement_pr_list[sl.recognized_major2].earned_credit += credit
-                            major_requirement_pr_list[sl.recognized_major2].save()
+                major_all_pr_list[recognized_major1_id].earned_credit += credit
+                if lecture_type1 == MAJOR_REQUIREMENT:
+                    major_requirement_pr_list[recognized_major1_id].earned_credit += credit
+                if recognized_major2_id != DEFAULT_MAJOR_ID:
+                    if lecture_type2 in [MAJOR_REQUIREMENT, MAJOR_ELECTIVE]:
+                        major_all_pr_list[recognized_major2_id].earned_credit += credit
+                        if lecture_type2 == MAJOR_REQUIREMENT:
+                            major_requirement_pr_list[recognized_major2_id].earned_credit += credit
 
         all_planrequirement.earned_credit = all_earned_credit
-        all_planrequirement.save()
         general_planrequirement.earned_credit = general_earned_credit
-        general_planrequirement.save()
-
-        all_requirement = {"required_credit": 0,
-                           "earned_credit": 0,
-                           "progress": 0}
-
-        major_requirement = {"earned_credit": 0,
-                             "progress": 0}
-
-        general_requirement = {"earned_credit": 0,
-                               "progress": 0}
-
-        other_requirement = {"earned_credit": 0}
 
         major_requirement_progress_required  = 0
         major_requirement_progress_earned = 0
 
-        for major in major_all_pr_list:
-            major_requirement_progress_required += major_all_pr_list[major].required_credit
-            major_requirement_progress_earned += major_all_pr_list[major].earned_credit
+        for pr in major_all_pr_list.values():
+            major_requirement_progress_required += pr.required_credit
+            major_requirement_progress_earned += pr.earned_credit
+        
+        all_requirement = {"required_credit": all_required_credit,
+                           "earned_credit": all_earned_credit,
+                           "progress": 0}
 
-        all_requirement["required_credit"] = all_required_credit
+        major_requirement = {"earned_credit": general_earned_credit,
+                             "progress": 0}
 
-        all_requirement["earned_credit"] = all_earned_credit
-        general_requirement["earned_credit"] = general_earned_credit
-        major_requirement["earned_credit"] = major_earned_credit
-        other_requirement["earned_credit"] = all_earned_credit - general_earned_credit - major_earned_credit
+        general_requirement = {"earned_credit": major_earned_credit,
+                               "progress": 0}
+
+        other_requirement = {"earned_credit": all_earned_credit - general_earned_credit - major_earned_credit}
+
 
         if major_requirement_progress_required ==0:
             major_requirement["progress"] = 1
@@ -170,15 +170,15 @@ class RequirementViewSet(viewsets.GenericViewSet):
         if general_requirement_credit == 0:
             general_requirement["progress"] = 1
         else:
-            if round(general_requirement["earned_credit"] / general_requirement_credit,2) > 1:
+            if round(general_requirement["earned_credit"] / general_requirement_credit, 2) > 1:
                 general_requirement["progress"] = 1
             else:
                 general_requirement["progress"] = round(general_requirement["earned_credit"] / general_requirement_credit,2)
 
-        if all_requirement["required_credit"] ==0:
+        if all_requirement["required_credit"] == 0:
             all_requirement["progress"] = 1
         else:
-            if round(all_requirement["earned_credit"] / all_requirement["required_credit"], 2) >1:
+            if round(all_requirement["earned_credit"] / all_requirement["required_credit"], 2) > 1:
                 all_requirement["progress"] = 1
             else:
                 all_requirement["progress"] = round(all_requirement["earned_credit"] / all_requirement["required_credit"], 2)
@@ -187,33 +187,33 @@ class RequirementViewSet(viewsets.GenericViewSet):
                                 "major": major_requirement,
                                 "general": general_requirement,
                                 "other": other_requirement,
-                                "current_planmajors": MajorSerializer(majors, many=True).data
+                                "current_planmajors": majors
                                 }
 
         # calculate major progress
         major_progress = []
-        for major in list(majors):
-            mr_rc = major_requirement_pr_list[major].required_credit
-            mr_ec = major_requirement_pr_list[major].earned_credit
+        for major_id in majors_info.keys():
+            mr_rc = major_requirement_pr_list[major_id].required_credit
+            mr_ec = major_requirement_pr_list[major_id].earned_credit
             mr_pg = 1
-            if mr_rc !=0:
+            if mr_rc != 0:
                 mr_pg = 1 if round(mr_ec/mr_rc, 2) > 1 else round(mr_ec/mr_rc, 2)
             major_requirement_required_credit = {"required_credit": mr_rc,
                                                  "earned_credit": mr_ec,
                                                  "progress": mr_pg}
 
-            ma_rc = major_all_pr_list[major].required_credit
-            ma_ec = major_all_pr_list[major].earned_credit
+            ma_rc = major_all_pr_list[major_id].required_credit
+            ma_ec = major_all_pr_list[major_id].earned_credit
             ma_pg = 1
-            if ma_rc !=0:
+            if ma_rc != 0:
                 ma_pg = 1 if round(ma_ec/ma_rc, 2) > 1 else round(ma_ec/ma_rc, 2)
             major_all_required_credit = {"required_credit": ma_rc,
                                          "earned_credit": ma_ec,
                                          "progress": ma_pg}
 
-            major_progress.append({"major_id": major.id,
-                                   "major_name": major.major_name,
-                                   "major_type": major.major_type,
+            major_progress.append({"major_id": major_id,
+                                   "major_name": majors_info['major_name'],
+                                   "major_type": majors_info['major_type'],
                                    "major_requirement_credit": major_requirement_required_credit,
                                    "major_all_credit": major_all_required_credit})
 
@@ -221,6 +221,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
             plan.is_first_simulation = False
             plan.save()
 
+        # TODO: needs to pr save
         data = {"all_progress": all_progress_summary,
                 "major_progress": major_progress}
         return Response(data, status=status.HTTP_200_OK)
@@ -392,24 +393,3 @@ def check_requirement_change_history(requirement, changed_credit, entrance_year)
                                                                        curr_required_credit=changed_credit)
         requirementchangehistory.change_count += 1
         requirementchangehistory.save()
-
-
-# Deprecated
-#     @transaction.atomic
-#     def put(self, request):
-#         user = request.user
-#         if not user.is_authenticated:
-#             return Response(status=status.HTTP_401_UNAUTHORIZED)
-#
-#         update_list = request.data.copy()
-#         for curr_request in update_list:
-#             plan_id = curr_request['plan_id']
-#             requirement_id = curr_request['requirement_id']
-#             is_fulfilled = curr_request['is_fulfilled']
-#
-#             plan = Plan.objects.get(pk=plan_id)
-#             requirement = Requirement.objects.get(pk=requirement_id)
-#             planrequirement = PlanRequirement.objects.filter(plan=plan, requirement=requirement)
-#             planrequirement.update(is_fulfilled=is_fulfilled)
-#
-#         return Response(status=status.HTTP_200_OK)
