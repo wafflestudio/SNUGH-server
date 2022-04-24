@@ -75,14 +75,6 @@ class Semester(models.Model):
     major_elective_credit = models.PositiveSmallIntegerField(default=0)
     general_credit = models.PositiveSmallIntegerField(default=0)
     general_elective_credit = models.PositiveSmallIntegerField(default=0)
-    
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['plan', 'year', 'semester_type'],
-                name='semester already exists in plan.'
-            )
-        ]
 
 class PlanMajor(models.Model):
     
@@ -93,7 +85,7 @@ class PlanMajor(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=['plan', 'major'],
-                name='major already exists in major.'
+                name='major already exists in plan.'
             )
         ]
 

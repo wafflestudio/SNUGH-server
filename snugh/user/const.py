@@ -1,17 +1,5 @@
 from snugh.const import *
 
-# Major
-MAJOR = 'major'
-DOUBLE_MAJOR = 'double_major'
-MINOR = 'minor'
-INTERDISCIPLINARY_MAJOR = 'interdisciplinary_major'
-INTERDISCIPLINARY = 'interdisciplinary'
-SINGLE_MAJOR = 'single_major'
-INTERDISCIPLINARY_MAJOR_FOR_TEACHER = 'interdisciplinary_major_for_teacher'
-STUDENT_DIRECTED_MAJOR = 'student_directed_major'
-INTERDISCIPLINARY_PROGRAM = 'interdisciplinary_program'
-GRADUATE_MAJOR = 'graduate_major'
-
 MAJOR_TYPE = (
     (MAJOR, 'major'),
     (DOUBLE_MAJOR, 'double_major'),  # 복수전공

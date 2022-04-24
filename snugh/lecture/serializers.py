@@ -3,7 +3,7 @@ from django.db.models import Case, When, IntegerField, Value
 from lecture.models import *
 from requirement.models import PlanRequirement
 from user.serializers import MajorSerializer
-from snugh.exceptions import FieldError, NotFound
+from snugh.exceptions import FieldError, NotFound, DuplicationError, NotOwner
 from lecture.const import *
 
 class PlanSerializer(serializers.ModelSerializer):
@@ -80,7 +80,6 @@ class PlanMajorCreateSerializer(serializers.ModelSerializer):
         data['majors'] = major_instances
         return data
 
-
 class SemesterSerializer(serializers.ModelSerializer):
     lectures = serializers.SerializerMethodField()
 
@@ -101,6 +100,18 @@ class SemesterSerializer(serializers.ModelSerializer):
             "plan": {"required": True},
             "year": {"required": True},
             "semester_type": {"required": True}}
+
+    def create(self, validated_data):
+        plan = validated_data['plan']
+        semester_type = validated_data['semester_type']
+        year = validated_data['year']
+        if plan.user != self.context['request'].user:
+            raise NotOwner()
+        semester = Semester.objects.filter(plan=plan, semester_type=semester_type, year=year)
+        if semester.exists():
+            raise DuplicationError("Already exists [Semester]")
+        else:
+            return Semester.objects.create(plan=plan, semester_type=semester_type, year=year)
 
     def get_lectures(self, semester):
         semesterlectures = semester.semesterlecture.select_related('lecture', 'recognized_major1', 'recognized_major2').all().order_by('recent_sequence')
@@ -124,7 +135,7 @@ class SemesterSerializer(serializers.ModelSerializer):
                 "is_modified": semesterlecture.is_modified,
                 "recent_sequence": semesterlecture.recent_sequence
             })
-        return ls 
+        return ls
 
 class LectureSerializer(serializers.ModelSerializer):
     class Meta:

@@ -67,7 +67,6 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
     @transaction.atomic
     def calculate(self, request, pk=None):
         """Calculate credits"""
-
         plan = update_lecture_info(request.user, pk)
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -77,7 +76,6 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
     @transaction.atomic
     def major(self, request, pk=None):
         """Update plan's majors"""
-
         plan = self.get_object()
         # overwrite planmajors, planrequirements
         plan.planmajor.all().delete()
@@ -168,9 +166,6 @@ class SemesterViewSet(viewsets.GenericViewSet, generics.RetrieveDestroyAPIView):
         data = request.data
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
-        plan = Plan.objects.get(id=data['plan'])
-        if plan.user != request.user:
-            raise NotOwner()
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 

@@ -1,10 +1,9 @@
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 from django.db import transaction
-from django.shortcuts import get_object_or_404
 from requirement.models import *
 from requirement.serializers import RequirementSerializer
-from snugh.requirement.utils import calculate_progress
+from requirement.utils import calculate_progress
 from user.models import *
 from user.serializers import *
 from lecture.models import *
@@ -102,7 +101,6 @@ class RequirementViewSet(viewsets.GenericViewSet):
                 if req_major_id in majors_info.keys():
                     major_requirement_pr_list[req_major_id] = pr
 
-        
         sl_list = plan.semester.all().values(
             'semesterlecture', 
             'semesterlecture__credit', 
@@ -164,7 +162,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
                                 "major": major_requirement,
                                 "general": general_requirement,
                                 "other": other_requirement,
-                                "current_planmajors": majors
+                                "current_planmajors": majors_info.values()
                                 }
 
         # calculate major progress
@@ -183,8 +181,8 @@ class RequirementViewSet(viewsets.GenericViewSet):
                                          "progress": calculate_progress(ma_rc, ma_ec)}
 
             major_progress.append({"major_id": major_id,
-                                   "major_name": majors_info['major_name'],
-                                   "major_type": majors_info['major_type'],
+                                   "major_name": majors_info[major_id]['major_name'],
+                                   "major_type": majors_info[major_id]['major_type'],
                                    "major_requirement_credit": major_requirement_required_credit,
                                    "major_all_credit": major_all_required_credit})
 

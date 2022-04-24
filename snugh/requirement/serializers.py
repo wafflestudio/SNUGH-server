@@ -15,7 +15,6 @@ class RequirementSerializer(serializers.ModelSerializer):
         fields = (
             'id',
             'description',
-            'is_fulfilled',
             'is_credit_requirement',
             'requirement_type',
             'required_credit',

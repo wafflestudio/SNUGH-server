@@ -88,17 +88,16 @@ def update_lecture_info(\
     if user != owner:
         raise NotOwner()
     planmajors = plan.planmajor.all()
-    #TODO: Major 없애기
     majors = Major.objects.filter(planmajor__in=planmajors)\
-        .annotate(custom_order=Case(When(major_type=Major.SINGLE_MAJOR, then=Value(0)),
-                                    When(major_type=Major.MAJOR, then=Value(1)),
-                                    When(major_type=Major.GRADUATE_MAJOR, then=Value(2)),
-                                    When(major_type=Major.INTERDISCIPLINARY_MAJOR, then=Value(3)),
-                                    When(major_type=Major.INTERDISCIPLINARY_MAJOR_FOR_TEACHER, then=Value(4)),
-                                    When(major_type=Major.DOUBLE_MAJOR, then=Value(5)),
-                                    When(major_type=Major.INTERDISCIPLINARY, then=Value(6)),
-                                    When(major_type=Major.MINOR, then=Value(7)),
-                                    When(major_type=Major.INTERDISCIPLINARY_PROGRAM, then=Value(8)),
+        .annotate(custom_order=Case(When(major_type=SINGLE_MAJOR, then=Value(0)),
+                                    When(major_type=MAJOR, then=Value(1)),
+                                    When(major_type=GRADUATE_MAJOR, then=Value(2)),
+                                    When(major_type=INTERDISCIPLINARY_MAJOR, then=Value(3)),
+                                    When(major_type=INTERDISCIPLINARY_MAJOR_FOR_TEACHER, then=Value(4)),
+                                    When(major_type=DOUBLE_MAJOR, then=Value(5)),
+                                    When(major_type=INTERDISCIPLINARY, then=Value(6)),
+                                    When(major_type=MINOR, then=Value(7)),
+                                    When(major_type=INTERDISCIPLINARY_PROGRAM, then=Value(8)),
                                     default=Value(9),
                                     output_field=IntegerField(), ))\
         .order_by('custom_order')
