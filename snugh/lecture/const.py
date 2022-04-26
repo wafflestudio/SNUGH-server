@@ -18,6 +18,7 @@ SEMESTER_TYPE = (
 )
 
 LECTURE_TYPE = (
+    (NONE, "none"),
     (MAJOR_REQUIREMENT, 'major_requirement'),
     (MAJOR_ELECTIVE, 'major_elective'),
     (GENERAL, 'general'),

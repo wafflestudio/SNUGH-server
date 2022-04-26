@@ -12,7 +12,7 @@ from django.core.paginator import Paginator
 from django.db.models.functions import Length
 from snugh.permissions import IsOwnerOrCreateReadOnly
 from snugh.exceptions import DuplicationError, NotOwner
-from lecture.utils import add_credits, add_semester_credits, sub_semester_credits
+from lecture.utils import add_semester_credits, sub_semester_credits
 from lecture.const import *
 from lecture.utils import update_lecture_info
 
@@ -104,7 +104,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
                 'semester__semesterlecture__lecture',
                 'semester__semesterlecture__recognized_major1',
                 'semester__semesterlecture__recognized_major2'
-                ).get(id=pk)
+                ).get(pk=pk)
             user = plan.user
         except Plan.DoesNotExist:
             raise NotFound()
@@ -300,7 +300,7 @@ class LectureViewSet(viewsets.GenericViewSet):
     def credit(self, request, pk=None):
         """Change semester lecture credit"""
         credit = request.data.get('credit', 0)
-        if not (type(credit)==int and 0<credit<5) :
+        if not 0<credit<5 :
             raise FieldError("Invalid field [credit]")
 
         try:
@@ -309,7 +309,7 @@ class LectureViewSet(viewsets.GenericViewSet):
                 'recognized_major1',
                 'recognized_major2',
                 'lecture'
-            ).get(id=pk)
+            ).get(pk=pk)
         except SemesterLecture.DoesNotExist:
             raise NotFound("semesterlecture does not exist")
 
@@ -324,7 +324,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         if len(recognized_majors) > 1:
             recognized_majors = [rm for rm in recognized_majors if rm != none_major]
         for recognized_major in recognized_majors:
-            creditchangehistory = CreditChangeHistory.objects.get_or_create(
+            creditchangehistory, _ = CreditChangeHistory.objects.get_or_create(
                 major=recognized_major,
                 lecture=semesterlecture.lecture,
                 entrance_year=user_entrance,
@@ -348,6 +348,7 @@ class LectureViewSet(viewsets.GenericViewSet):
     @action(methods=['PUT'], detail=True)
     @transaction.atomic
     def recognized_major(self, request, pk=None):
+        """Change semester lecture major, major_type, lecture_type"""
         semesterlecture = SemesterLecture.objects.select_related(
             'semester', 
             'lecture',
@@ -370,12 +371,15 @@ class LectureViewSet(viewsets.GenericViewSet):
             }
 
         elif lecture_type in [MAJOR_ELECTIVE, MAJOR_REQUIREMENT]:
-            recognized_major1 = Major.objects.get(
-                major_name=request.data.get('recognized_major_name1'),
-                major_type=request.data.get('recognized_major_type1'))
-            recognized_major2 = Major.objects.get(
-                major_name=request.data.get('recognized_major_name2', Major.DEFAULT_MAJOR_NAME),
-                major_type=request.data.get('recognized_major_type2', Major.DEFAULT_MAJOR_TYPE))
+            try:
+                recognized_major1 = Major.objects.get(
+                    major_name=request.data.get('recognized_major_name1'),
+                    major_type=request.data.get('recognized_major_type1'))
+                recognized_major2 = Major.objects.get(
+                    major_name=request.data.get('recognized_major_name2', DEFAULT_MAJOR_NAME),
+                    major_type=request.data.get('recognized_major_type2', DEFAULT_MAJOR_TYPE))
+            except Major.DoesNotExist:
+                raise NotFound()
             lecture_type1 = request.data.get('lecture_type1', NONE) 
             lecture_type2 = request.data.get('lecture_type2', NONE)
             lecturetype_history_generator(
@@ -399,9 +403,8 @@ class LectureViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(semesterlecture, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.update(semesterlecture, serializer.validated_data)
-        serializer.save()
 
-        semester = add_credits(semesterlecture, semester)
+        semester = add_semester_credits(semesterlecture, semester)
         semester.save()
 
         return Response(serializer.data, status=status.HTTP_200_OK)

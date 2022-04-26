@@ -1,4 +1,4 @@
-from lecture.models import Semester, SemesterLecture, Plan
+from lecture.models import Lecture, Semester, SemesterLecture, Plan
 from lecture.models import LectureTypeChangeHistory
 from user.models import Major, User
 from lecture.const import *
@@ -222,6 +222,7 @@ def lecturetype_history_generator(
     none_major = Major.objects.get(id=DEFAULT_MAJOR_ID)
     user_entrance = user.userprofile.entrance_year
     lecture = semesterlecture.lecture
+    histories = []
     if lecture_type in [GENERAL, GENERAL_ELECTIVE]:
         recognized_majors = [none_major, semesterlecture.recognized_major1, semesterlecture.recognized_major2]
         past_lecture_types = [NONE, semesterlecture.lecture_type1, semesterlecture.lecture_type2]
@@ -234,14 +235,14 @@ def lecturetype_history_generator(
             curr_lecture_type = curr_lecture_types[i]
 
             if i==0 or recognized_major != none_major:
-                lecturetypechangehistory = LectureTypeChangeHistory.objects.get_or_create(
+                lecturetypechangehistory, _ = LectureTypeChangeHistory.objects.get_or_create(
                     major=recognized_major,
                     lecture=lecture,
                     entrance_year=user_entrance,
                     past_lecture_type=past_lecture_type,
                     curr_lecture_type=curr_lecture_type)
                 lecturetypechangehistory.change_count += 1
-                lecturetypechangehistory.save()
+                histories.append(lecturetypechangehistory)
 
     elif lecture_type in [MAJOR_ELECTIVE, MAJOR_REQUIREMENT]:
 
@@ -257,36 +258,35 @@ def lecturetype_history_generator(
                         curr_recognized_major_check[j] = True
                         past_recognized_major_check[i] = True
                         if past_lecture_types[i] != curr_lecture_types[j] and past_recognized_major != none_major:
-                            lecturetypechangehistory = LectureTypeChangeHistory.objects.get_or_create(
+                            lecturetypechangehistory, _ = LectureTypeChangeHistory.objects.get_or_create(
                                 major=past_recognized_major,
                                 lecture=lecture,
                                 entrance_year=user_entrance,
                                 past_lecture_type=past_lecture_types[i],
                                 curr_lecture_type=curr_lecture_types[j])
                             lecturetypechangehistory.change_count += 1
-                            lecturetypechangehistory.save()
+                            histories.append(lecturetypechangehistory)
 
             if past_recognized_major_check[i] == False and past_lecture_types[i] not in [NONE, GENERAL_ELECTIVE]:
-                lecturetypechangehistory = LectureTypeChangeHistory.objects.get_or_create(
+                lecturetypechangehistory, _ = LectureTypeChangeHistory.objects.get_or_create(
                     major=past_recognized_major,
                     lecture=lecture,
                     entrance_year=user_entrance,
                     past_lecture_type=past_lecture_types[i],
                     curr_lecture_type=NONE)
                 lecturetypechangehistory.change_count += 1
-                lecturetypechangehistory.save()
+                histories.append(lecturetypechangehistory)
 
         for i, curr_recognized_major in enumerate(curr_recognized_majors):
             if curr_recognized_major_check[i] == False and curr_lecture_types[i] not in [NONE, GENERAL_ELECTIVE]:
-                lecturetypechangehistory = LectureTypeChangeHistory.objects.get_or_create(
+                lecturetypechangehistory, _ = LectureTypeChangeHistory.objects.get_or_create(
                     major=curr_recognized_major,
                     lecture=lecture,
                     entrance_year=user_entrance,
                     past_lecture_type=NONE,
                     curr_lecture_type=curr_lecture_types[i])
                 lecturetypechangehistory.change_count += 1
-                lecturetypechangehistory.save()
-
-    else :
-        return False
+                histories.append(lecturetypechangehistory)
+                
+    LectureTypeChangeHistory.objects.bulk_update(histories, fields=['change_count'])
     return True

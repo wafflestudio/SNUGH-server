@@ -205,7 +205,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
             'planrequirement__requirement', 
             'planrequirement__requirement__major', 
             'semester'
-            ).get(id=pk)
+            ).get(pk=pk)
         majors = plan.planmajor.all().values('major', 'major__major_name', 'major__major_type')
         majors_info = {}
         for major in majors:
