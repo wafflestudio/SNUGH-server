@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from lecture.models import * 
 from lecture.serializers import *
 from lecture.utils import lecturetype_history_generator
+from snugh.lecture.utils import credit_history_generator
 from user.models import *
 from requirement.models import *
 from django.core.paginator import Paginator
@@ -195,6 +196,9 @@ class SemesterViewSet(viewsets.GenericViewSet, generics.RetrieveDestroyAPIView):
         return super().retrieve(request, pk)
 
 class LectureViewSet(viewsets.GenericViewSet):
+    """
+    Generic ViewSet of SemesterLecture Object
+    """
     queryset = SemesterLecture.objects.all()
     serializer_class = SemesterLectureSerializer
     permission_classes = [IsOwnerOrCreateReadOnly]
@@ -302,7 +306,6 @@ class LectureViewSet(viewsets.GenericViewSet):
         credit = request.data.get('credit', 0)
         if not 0<credit<5 :
             raise FieldError("Invalid field [credit]")
-
         try:
             semesterlecture = SemesterLecture.objects.select_related(
                 'semester',
@@ -314,26 +317,10 @@ class LectureViewSet(viewsets.GenericViewSet):
             raise NotFound("semesterlecture does not exist")
 
         semester = semesterlecture.semester
-        year_taken = semesterlecture.semester.year
         if credit == semesterlecture.credit:
             return Response(SemesterLectureSerializer(semesterlecture).data, status=status.HTTP_200_OK)
 
-        none_major = Major.objects.get(id=DEFAULT_MAJOR_ID)
-        user_entrance = request.user.userprofile.entrance_year
-        recognized_majors = list(set([semesterlecture.recognized_major1, semesterlecture.recognized_major2]))
-        if len(recognized_majors) > 1:
-            recognized_majors = [rm for rm in recognized_majors if rm != none_major]
-        for recognized_major in recognized_majors:
-            creditchangehistory, _ = CreditChangeHistory.objects.get_or_create(
-                major=recognized_major,
-                lecture=semesterlecture.lecture,
-                entrance_year=user_entrance,
-                year_taken=year_taken,
-                past_credit=semesterlecture.credit,
-                curr_credit=credit)
-            creditchangehistory.change_count += 1
-            creditchangehistory.save()
-
+        credit_history_generator(request.user, semesterlecture, credit)
         semester = sub_semester_credits(semesterlecture, semester)
         semesterlecture.credit = credit
         semesterlecture.is_modified = True

@@ -1,5 +1,5 @@
-from lecture.models import Lecture, Semester, SemesterLecture, Plan
-from lecture.models import LectureTypeChangeHistory
+from lecture.models import Semester, SemesterLecture, Plan
+from lecture.models import LectureTypeChangeHistory, CreditChangeHistory
 from user.models import Major, User
 from lecture.const import *
 from django.db.models import Case, When, Value, IntegerField
@@ -267,7 +267,7 @@ def lecturetype_history_generator(
                             lecturetypechangehistory.change_count += 1
                             histories.append(lecturetypechangehistory)
 
-            if past_recognized_major_check[i] == False and past_lecture_types[i] not in [NONE, GENERAL_ELECTIVE]:
+            if not (past_recognized_major_check[i] or past_lecture_types[i] in [NONE, GENERAL_ELECTIVE]):
                 lecturetypechangehistory, _ = LectureTypeChangeHistory.objects.get_or_create(
                     major=past_recognized_major,
                     lecture=lecture,
@@ -278,7 +278,7 @@ def lecturetype_history_generator(
                 histories.append(lecturetypechangehistory)
 
         for i, curr_recognized_major in enumerate(curr_recognized_majors):
-            if curr_recognized_major_check[i] == False and curr_lecture_types[i] not in [NONE, GENERAL_ELECTIVE]:
+            if not (curr_recognized_major_check[i] or curr_lecture_types[i] in [NONE, GENERAL_ELECTIVE]):
                 lecturetypechangehistory, _ = LectureTypeChangeHistory.objects.get_or_create(
                     major=curr_recognized_major,
                     lecture=lecture,
@@ -289,4 +289,26 @@ def lecturetype_history_generator(
                 histories.append(lecturetypechangehistory)
                 
     LectureTypeChangeHistory.objects.bulk_update(histories, fields=['change_count'])
+    return True
+
+def credit_history_generator(user: User, semesterlecture: SemesterLecture, credit: int) -> bool:
+    """Create semester lecture credit change histroy"""
+    none_major = Major.objects.get(id=DEFAULT_MAJOR_ID)
+    user_entrance = user.userprofile.entrance_year
+    recognized_majors = list(set([semesterlecture.recognized_major1, semesterlecture.recognized_major2]))
+    year_taken = semesterlecture.semester.year
+    if len(recognized_majors) > 1:
+        recognized_majors = [rm for rm in recognized_majors if rm != none_major]
+    histories = []
+    for recognized_major in recognized_majors:
+        creditchangehistory, _ = CreditChangeHistory.objects.get_or_create(
+            major=recognized_major,
+            lecture=semesterlecture.lecture,
+            entrance_year=user_entrance,
+            year_taken=year_taken,
+            past_credit=semesterlecture.credit,
+            curr_credit=credit)
+        creditchangehistory.change_count += 1
+        histories.append(creditchangehistory)
+    CreditChangeHistory.objects.bulk_update(histories, fields=['change_count'])
     return True
