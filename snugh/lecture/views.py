@@ -5,17 +5,14 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from lecture.models import * 
 from lecture.serializers import *
-from lecture.utils import lecturetype_history_generator
-from snugh.lecture.utils import credit_history_generator
 from user.models import *
 from requirement.models import *
 from django.core.paginator import Paginator
 from django.db.models.functions import Length
 from snugh.permissions import IsOwnerOrCreateReadOnly
 from snugh.exceptions import DuplicationError, NotOwner
-from lecture.utils import add_semester_credits, sub_semester_credits
+from lecture.utils import *
 from lecture.const import *
-from lecture.utils import update_lecture_info
 
 
 class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView):
