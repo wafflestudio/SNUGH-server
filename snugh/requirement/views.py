@@ -3,12 +3,12 @@ from rest_framework.response import Response
 from django.db import transaction
 from requirement.models import *
 from requirement.serializers import RequirementSerializer
-from requirement.utils import calculate_progress
+from requirement.utils import calculate_progress, requirement_histroy_generator
 from user.models import *
 from user.serializers import *
 from lecture.models import *
 from rest_framework.decorators import action
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Sum
 
 class RequirementViewSet(viewsets.GenericViewSet):
     queryset = Requirement.objects.all()
@@ -247,127 +247,121 @@ class RequirementViewSet(viewsets.GenericViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
 
-    # PUT /requirement/:planId/setting
-    @action(methods=['PUT'], detail=True)
+    # PUT /requirement/:planId
     @transaction.atomic
-    def setting(self, request, pk=None):
+    def update(self, request, pk=None):
+        """Update Plan Requirement."""
         user = request.user
-        if not user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        plan = Plan.objects.prefetch_related(
+            "planrequirement",
+            "planrequirement__requirement",
+            "planrequirement__requirement__major",
+            "planrequirement__requirement__major__majorlecture",
+            "planrequirement__requirement__major__majorlecture__lecture"
 
-        plan = Plan.objects.get(pk=pk)
-        majors = Major.objects.filter(planmajor__plan=plan)
-
-        major_credit_list = request.data.get('majors')
+        ).get(pk=pk)
+        majors = request.data.get('majors')
         all_credit = request.data.get('all')
         general_credit = request.data.get('general')
-
-        # update all&general planrequirements
-        # 자유전공학부 때문에 filter (자전 외에는 major가 두개인 경우는 없어야 정상)
-        all_requirement = Requirement.objects.filter(planrequirement__plan=plan,
-                                                     requirement_type=Requirement.ALL).order_by('-required_credit').first()
-        all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=all_requirement)
-        if all_planrequirement.required_credit != all_credit:
-            # requirementchangehistory
-            check_requirement_change_history(all_requirement, all_credit, user.userprofile.entrance_year)
-            # update
-            all_planrequirement.required_credit = all_credit
-            all_planrequirement.save()
-
-        general_requirement = Requirement.objects.filter(planrequirement__plan=plan,
-                                                         requirement_type=Requirement.GENERAL).order_by('-required_credit').first()
-        general_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=general_requirement)
-        if general_planrequirement.required_credit != general_credit:
-            # requirementchangehistory
-            check_requirement_change_history(general_requirement, general_credit, user.userprofile.entrance_year)
-            # update
-            general_planrequirement.required_credit = general_credit
-            general_planrequirement.save()
-
-        # update major planrequirements
-        for major_credit in major_credit_list:
-            major_name = major_credit["major_name"]
-            major_type = major_credit["major_type"]
-            major = Major.objects.get(major_name=major_name, major_type=major_type)
-
-            major_all_requirement = Requirement.objects.get(planrequirement__plan=plan,
-                                                            requirement_type=Requirement.MAJOR_ALL, major=major)
-            major_all_planrequirement = PlanRequirement.objects.get(plan=plan, requirement=major_all_requirement)
-            if major_all_planrequirement.required_credit != major_credit["major_credit"]:
-                check_requirement_change_history(major_all_requirement, major_credit["major_credit"],user.userprofile.entrance_year)
-                major_all_planrequirement.required_credit = major_credit["major_credit"]
-                major_all_planrequirement.save()
-
-            major_requirement_requirement = Requirement.objects.get(planrequirement__plan=plan,
-                                                                    requirement_type=Requirement.MAJOR_REQUIREMENT,
-                                                                    major=major)
-            major_requirement_planrequirement = PlanRequirement.objects.get(plan=plan,
-                                                                            requirement=major_requirement_requirement)
-            major_requirement_planrequirement.auto_calculate = major_credit["auto_calculate"]
-            if major_credit["auto_calculate"]:
-                major_requirement_credit = 0
-                mr_lectures = Lecture.objects.filter(majorlecture__major=major, majorlecture__lecture_type= Lecture.MAJOR_REQUIREMENT, majorlecture__start_year__lte=user.userprofile.entrance_year,
-                                                    majorlecture__end_year__gte=user.userprofile.entrance_year)
-                for mr_lecture in mr_lectures:
-                    major_requirement_credit += mr_lecture.credit
-
-                if major_requirement_planrequirement.required_credit != major_requirement_credit:
-                    check_requirement_change_history(major_requirement_requirement, major_requirement_credit, user.userprofile.entrance_year)
-                    major_requirement_planrequirement.required_credit = major_requirement_credit
-                    major_requirement_planrequirement.save()
-            else:
-                if major_requirement_planrequirement.required_credit != major_credit["major_requirement_credit"]:
-                    check_requirement_change_history(major_requirement_requirement, major_credit["major_requirement_credit"], user.userprofile.entrance_year)
-                    major_requirement_planrequirement.required_credit = major_credit["major_requirement_credit"]
-                    major_requirement_planrequirement.save()
-
-        major_requirement_list = []
-
-        for major in majors:
-            major_all_requirement = Requirement.objects.get(planrequirement__plan=plan,
-                                                            requirement_type=Requirement.MAJOR_ALL, major=major)
-            major_all_planrequirement = PlanRequirement.objects.get(plan=plan,
-                                                                    requirement=major_all_requirement)
-
-            major_requirement_requirement = Requirement.objects.get(planrequirement__plan=plan,
-                                                                    requirement_type=Requirement.MAJOR_REQUIREMENT,
-                                                                    major=major)
-            major_requirement_planrequirement = PlanRequirement.objects.get(plan=plan,
-                                                                            requirement=major_requirement_requirement)
-
-            data = {
-                "major_name": major.major_name,
-                "major_type": major.major_type,
-                "major_credit": major_all_planrequirement.required_credit,
-                "major_requirement_credit": major_requirement_planrequirement.required_credit,
-                "auto_calculate": major_requirement_planrequirement.auto_calculate
-            }
-
-            major_requirement_list.append(data)
-
         data = {
-            "majors": major_requirement_list,
-            "all": all_planrequirement.required_credit,
-            "general": general_planrequirement.required_credit
+            "majors": {},
+            "all": all_credit,
+            "general": general_credit
         }
 
-        return Response(data, status=status.HTTP_200_OK)
+        planrequirements = plan.planrequirement.all()
+        all_std = 0
+        gen_std = 0
+        year_std = user.userprofile.entrance_year
+        histories = []
+        pr_list = []
+        for pr in planrequirements:
+            req = pr.requirement
+            if not (req.major.major_name in data['majors'].keys()):
+                data['majors']['req.major.major_name'] = {
+                    'major_type': req.major.major_type,
+                    "major_credit":req.major.required_credit,
+                    "major_requirement_credit": req.major.required_credit,
+                    "auto_calculate": req.major.auto_calculate
 
-# Common Functions
-def check_requirement_change_history(requirement, changed_credit, entrance_year):
-    requirementchangehistory = RequirementChangeHistory.objects.filter(requirement=requirement,
-                                                                       entrance_year=entrance_year,
-                                                                       past_required_credit=requirement.required_credit,
-                                                                       curr_required_credit=changed_credit)
-    if requirementchangehistory.count() == 0:
-        RequirementChangeHistory.objects.create(requirement=requirement,
-                                               entrance_year=entrance_year,
-                                               past_required_credit=requirement.required_credit,
-                                               curr_required_credit=changed_credit)
-    else:
-        requirementchangehistory = RequirementChangeHistory.objects.get(requirement=requirement,
-                                                                       entrance_year=entrance_year,
-                                                                       past_required_credit=requirement.required_credit,
-                                                                       curr_required_credit=changed_credit)
-        requirementchangehistory.change_count += 1
-        requirementchangehistory.save()
+                }
+            if req.requirement_type==ALL:
+                if all_std < req.required_credit:
+                    all_std = req.required_credit
+                    all_pr = pr
+            elif req.requirement_type==GENERAL:
+                if gen_std < req.required_credit:
+                    gen_std = req.required_credit
+                    gen_pr = pr
+            elif req.requirement_type == MAJOR_ALL:
+                for major in majors:
+                    if req.major.major_name == major['major_name'] and req.major.major_type == major['major_type']:
+                        if pr.required_credit != major["major_credit"]: 
+                            pr.required_credit = major["major_credit"]
+                            histories.append(
+                                requirement_histroy_generator(
+                                    requirement=req,
+                                    entrance_year=year_std,
+                                    past_required_credit=pr.required_credit,
+                                    curr_required_credit=major["major_credit"]
+                                )
+                            )
+                            pr_list.append(pr)
+                            data['majors'][major['major_name']]['major_credit'] = major["major_credit"]
+            elif req.requirement_type == MAJOR_REQUIREMENT:
+                for major in majors:
+                    if req.major.major_name == major['major_name'] and req.major.major_type == major['major_type']:
+                        pr.auto_calculate = major['auto_calculate']
+                        if pr.auto_calculate:
+                            major_requirement_credit = req.major.majorlecture.filter(
+                                lecture_type= MAJOR_REQUIREMENT, 
+                                start_year__lte=year_std,
+                                end_year__gte=year_std).values(
+                                    'lecture__credit'
+                                ).aggregate(mrc=Sum('lecture__credit'))['mrc']
+                        else:
+                            major_requirement_credit = major["major_requirement_credit"]
+                            
+                        if pr.required_credit != major_requirement_credit:
+                            pr.required_credit = major_requirement_credit
+                            histories.append(
+                                requirement_histroy_generator(
+                                    requirement=req,
+                                    entrance_year=year_std,
+                                    past_required_credit=pr.required_credit,
+                                    curr_required_credit=major["major_credit"]
+                                )
+                            )
+                            pr_list.append(pr)
+                            data['majors'][major['major_name']]['major_requirement_credit'] = major_requirement_credit
+                            data['majors'][major['major_name']]['auto_calculate'] = major['auto_calculate']
+        if all_pr.required_credit != all_credit:
+            all_pr.required_credit = all_credit
+            histories.append(
+                requirement_histroy_generator(
+                    requirement=all_pr.req,
+                    entrance_year=year_std,
+                    past_required_credit=all_pr.required_credit,
+                    curr_required_credit=all_credit
+                )
+            )
+            pr_list.append(all_pr)
+        if gen_pr.required_credit != general_credit:
+            gen_pr.required_credit = general_credit
+            histories.append(
+                requirement_histroy_generator(
+                    requirement=gen_pr.req,
+                    entrance_year=year_std,
+                    past_required_credit=gen_pr.required_credit,
+                    curr_required_credit=general_credit
+                )
+            )
+            pr_list.append(gen_pr)
+        PlanRequirement.objects.bulk_update(pr_list, fields=["required_credit"])
+        RequirementChangeHistory.objects.bulk_update(histories, ["change_count"])
+
+        for major_name, value in data['majors'].items():
+            value['major_name'] = major_name
+        data['majors'] = list(data['majors'].values())
+
+        return Response(data, status=status.HTTP_200_OK)

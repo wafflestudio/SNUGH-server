@@ -27,7 +27,7 @@ class RequirementChangeHistory(models.Model):
     curr_required_credit = models.PositiveIntegerField(default=0)
     created_at = models.DateField(auto_now_add=True)
     updated_at = models.DateField(auto_now=True)
-    change_count = models.IntegerField(default=1)
+    change_count = models.IntegerField(default=0)
 
 
 class PlanRequirement(models.Model):
