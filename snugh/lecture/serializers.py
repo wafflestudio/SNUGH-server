@@ -1,11 +1,10 @@
-from rest_framework import serializers 
-from django.db import models
+from rest_framework import serializers
+from django.db.models import Case, When, IntegerField, Value
 from lecture.models import *
-from requirement.models import Requirement
 from requirement.models import PlanRequirement
 from user.serializers import MajorSerializer
 from snugh.exceptions import FieldError, NotFound
-from .const import *
+from lecture.const import *
 
 class PlanSerializer(serializers.ModelSerializer):
     majors = serializers.SerializerMethodField()
@@ -27,12 +26,12 @@ class PlanSerializer(serializers.ModelSerializer):
         return MajorSerializer(majors, many=True).data
 
     def get_semesters(self, plan):
-        semesters = plan.semester.annotate(semester_value=models.Case(
-            models.When(semester_type=FIRST, then=0),
-            models.When(semester_type=SUMMER, then=1),
-            models.When(semester_type=SECOND, then=2),
-            models.When(semester_type=WINTER, then=3),
-            output_field=models.IntegerField()
+        semesters = plan.semester.annotate(semester_value=Case(
+            When(semester_type=FIRST, then=Value(0)),
+            When(semester_type=SUMMER, then=Value(1)),
+            When(semester_type=SECOND, then=Value(2)),
+            When(semester_type=WINTER, then=Value(3)),
+            output_field=IntegerField()
         )).order_by('year', 'semester_value')
         return SemesterSerializer(semesters, many=True).data
 
