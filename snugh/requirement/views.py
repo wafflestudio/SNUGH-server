@@ -1,14 +1,16 @@
 from rest_framework import status, viewsets
 from rest_framework.response import Response
+from rest_framework.permissions import IsAdminUser
 from django.db import transaction
 from requirement.models import *
-from requirement.serializers import RequirementSerializer
+from lecture.serializers import PlanSerializer
 from requirement.utils import calculate_progress, requirement_histroy_generator
 from user.models import *
 from user.serializers import *
 from lecture.models import *
 from rest_framework.decorators import action
 from django.db.models import Prefetch, Sum
+from snugh.permissions import IsOwner
 
 
 class RequirementViewSet(viewsets.GenericViewSet):
@@ -16,8 +18,19 @@ class RequirementViewSet(viewsets.GenericViewSet):
     Generic ViewSet of Requirement Object.
     # TODO: Permission constraint for admin user
     """
-    queryset = Requirement.objects.all()
-    serializer_class = RequirementSerializer
+    queryset = Plan.objects.all()
+    serializer_class = PlanSerializer
+
+    def get_permissions(self):
+        """
+        Permissions for Requirement APIs.
+        Handling static model 'Requirement' needs Admin Authentication.  
+        """
+        if self.action == "create":
+            permission_classes = [IsAdminUser]
+        else:
+            permission_classes = [IsOwner]
+        return [permission() for permission in permission_classes]
 
     # POST /requirement
     @transaction.atomic
@@ -204,8 +217,8 @@ class RequirementViewSet(viewsets.GenericViewSet):
         return Response(data, status=status.HTTP_200_OK)
 
 
-    # GET /requirement
-    def list(self, request, pk=None):
+    # GET /requirement/:planId/check
+    def check(self, request, pk=None):
         """Get user plan's requirements."""
         plan = Plan.objects.prefetch_related(
             'planmajor', 
