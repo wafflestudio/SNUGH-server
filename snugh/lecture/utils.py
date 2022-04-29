@@ -6,8 +6,9 @@ from django.db.models import Case, When, Value, IntegerField
 from snugh.exceptions import NotOwner, NotFound
 from typing import List
 
+
 def add_semester_credits(semesterlecture: SemesterLecture, semester: Semester) -> Semester:
-    """ Add SemesterLecture's credits to Semester credits. """
+    """Add semesterLecture's credits to semester credits."""
     if semesterlecture.lecture_type == MAJOR_REQUIREMENT:
         semester.major_requirement_credit += semesterlecture.credit
     elif semesterlecture.lecture_type2 == MAJOR_REQUIREMENT:
@@ -20,8 +21,9 @@ def add_semester_credits(semesterlecture: SemesterLecture, semester: Semester) -
         semester.general_elective_credit += semesterlecture.credit
     return semester
 
+
 def sub_semester_credits(semesterlecture: SemesterLecture, semester: Semester) -> Semester:
-    """ Subtract SemesterLecture's credits to Semester credits. """
+    """Subtract semesterLecture's credits to semester credits."""
     if semesterlecture.lecture_type == MAJOR_REQUIREMENT:
         semester.major_requirement_credit -= semesterlecture.credit
     elif semesterlecture.lecture_type2 == MAJOR_REQUIREMENT:
@@ -34,12 +36,13 @@ def sub_semester_credits(semesterlecture: SemesterLecture, semester: Semester) -
         semester.general_elective_credit -= semesterlecture.credit
     return semester
 
+
 def update_lecture_info(\
     user: User, 
     plan_id: int, 
     semesterlectures: SemesterLecture = None, 
     semester: Semester = None) -> Plan:
-    """ Update lecture info """
+    """Update lecture info."""
     try:
         plan = Plan.objects.prefetch_related(
                 'user',
@@ -89,13 +92,14 @@ def update_lecture_info(\
         'general_elective_credit'])
     return plan
 
+
 def __update_lecture_info(
     user:User, 
     majors: Major, 
     semesterlectures: SemesterLecture, 
     semester: Semester,
     none_major: Major = Major.objects.get(id=DEFAULT_MAJOR_ID)) -> Semester:
-
+    """Private method using in updating lecture info."""
     updated_semesterlectures = []
     std1 = user.userprofile.entrance_year
     std2 = semester.year
@@ -180,6 +184,7 @@ def __update_lecture_info(
         'recognized_major2'])
     return semester
 
+
 def lecturetype_history_generator(
     user: User, 
     semesterlecture: SemesterLecture, 
@@ -187,7 +192,7 @@ def lecturetype_history_generator(
     curr_recognized_majors: List[Major] = [],
     curr_lecture_types: List[str] = []
     ) -> bool:
-    """ Generate LectureType Change History """
+    """Generate lecture type change history."""
     none_major = Major.objects.get(id=DEFAULT_MAJOR_ID)
     user_entrance = user.userprofile.entrance_year
     lecture = semesterlecture.lecture
@@ -197,7 +202,6 @@ def lecturetype_history_generator(
         past_lecture_types = [NONE, semesterlecture.lecture_type1, semesterlecture.lecture_type2]
         curr_lecture_types = [lecture_type, NONE, NONE]
 
-        # lecturetypechangehistory의 major가 default major 인 유일한 경우 --??
         for i in range(3):
             recognized_major = recognized_majors[i]
             past_lecture_type = past_lecture_types[i]

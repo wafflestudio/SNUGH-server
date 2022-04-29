@@ -6,6 +6,8 @@ from user.serializers import MajorSerializer
 from snugh.exceptions import FieldError, NotFound, DuplicationError, NotOwner
 from lecture.const import *
 
+# TODO: Comments about serializers.
+
 class PlanSerializer(serializers.ModelSerializer):
     majors = serializers.SerializerMethodField()
     semesters = serializers.SerializerMethodField()
@@ -39,6 +41,7 @@ class PlanSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         plan_name = validated_data.get('plan_name', '새로운 계획')
         return Plan.objects.create(user=user, plan_name=plan_name)
+
 
 class PlanMajorCreateSerializer(serializers.ModelSerializer):
 
@@ -79,6 +82,7 @@ class PlanMajorCreateSerializer(serializers.ModelSerializer):
                 raise NotFound("Does not exist [Major]")
         data['majors'] = major_instances
         return data
+
 
 class SemesterSerializer(serializers.ModelSerializer):
     lectures = serializers.SerializerMethodField()
@@ -136,6 +140,7 @@ class SemesterSerializer(serializers.ModelSerializer):
                 "recent_sequence": semesterlecture.recent_sequence
             })
         return ls
+
 
 class LectureSerializer(serializers.ModelSerializer):
     class Meta:

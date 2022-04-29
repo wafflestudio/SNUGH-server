@@ -17,7 +17,7 @@ from lecture.const import *
 
 class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView):
     """
-    Generic ViewSet of Plan Object
+    Generic ViewSet of Plan Object.
     """
     queryset = Plan.objects.all()
     serializer_class = PlanSerializer 
@@ -26,7 +26,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
     # POST /plan
     @transaction.atomic
     def create(self, request):
-        """Create new plan"""
+        """Create new plan."""
         data = request.data
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
@@ -39,22 +39,22 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
     # PUT /plan/:planId
     @transaction.atomic
     def update(self, request, pk=None):
-        """Update user's plan"""
+        """Update user's plan."""
         return super().update(request, pk)
     
     # DEL /plan/:planId
     def destroy(self, request, pk=None):
-        """Delete user's plan"""
+        """Delete user's plan."""
         return super().destroy(request, pk)
 
     # GET /plan/:planId
     def retrieve(self, request, pk=None):
-        """Retrieve user's plan"""
+        """Retrieve user's plan."""
         return super().retrieve(request, pk)
 
     # GET /plan
     def list(self, request):
-        """Get user's plans list"""
+        """Get user's plans list."""
         user = request.user
         plans = user.plan.all()
         return Response(self.get_serializer(plans, many=True).data, status=status.HTTP_200_OK)
@@ -64,7 +64,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
     @action(detail=True, methods=['PUT'])
     @transaction.atomic
     def calculate(self, request, pk=None):
-        """Calculate credits"""
+        """Calculate credits."""
         plan = update_lecture_info(request.user, pk)
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -73,7 +73,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
     @action(detail=True, methods=['PUT'])
     @transaction.atomic
     def major(self, request, pk=None):
-        """Update plan's majors"""
+        """Update plan's majors."""
         plan = self.get_object()
         # overwrite planmajors, planrequirements
         plan.planmajor.all().delete()
@@ -89,7 +89,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
     @action(detail=True, methods=['POST'])
     @transaction.atomic
     def copy(self, request, pk=None):
-        """Copy existing plan"""
+        """Copy existing plan."""
         try:
             plan = Plan.objects.prefetch_related(
                 'user', 
@@ -151,7 +151,7 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
 
 class SemesterViewSet(viewsets.GenericViewSet, generics.RetrieveDestroyAPIView):
     """
-    Generic ViewSet of Semester Object
+    Generic ViewSet of Semester Object.
     """
     queryset = Semester.objects.all()
     serializer_class = SemesterSerializer
@@ -160,7 +160,7 @@ class SemesterViewSet(viewsets.GenericViewSet, generics.RetrieveDestroyAPIView):
     # POST /semester
     @transaction.atomic
     def create(self, request):
-        """Create new semester"""
+        """Create new semester."""
         data = request.data
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
@@ -170,7 +170,7 @@ class SemesterViewSet(viewsets.GenericViewSet, generics.RetrieveDestroyAPIView):
     # PUT /semester/:semesterId
     @transaction.atomic
     def update(self, request, pk=None):
-        """Update semester"""
+        """Update semester."""
         data = request.data
         semester = self.get_object()
         year = data.get('year')
@@ -184,17 +184,17 @@ class SemesterViewSet(viewsets.GenericViewSet, generics.RetrieveDestroyAPIView):
     
     # DEL /semester/:semesterId
     def destroy(self, request, pk=None):
-        """Destroy semester"""
+        """Destroy semester."""
         return super().destroy(request, pk)
     
     # GET /semester/:semesterId
     def retrieve(self, request, pk=None):
-        """Retrieve semester"""
+        """Retrieve semester."""
         return super().retrieve(request, pk)
 
 class LectureViewSet(viewsets.GenericViewSet):
     """
-    Generic ViewSet of SemesterLecture Object
+    Generic ViewSet of SemesterLecture Object.
     """
     queryset = SemesterLecture.objects.all()
     serializer_class = SemesterLectureSerializer
@@ -247,7 +247,7 @@ class LectureViewSet(viewsets.GenericViewSet):
     @action(methods=['PUT'], detail=True)
     @transaction.atomic
     def position(self, request, pk=None):
-        """Position semester lecture"""
+        """Position semester lecture."""
         #TODO: API 문서 수정 -> lecture_id가 아닌 semesterlecture_id로 / request 형식 변경 
         target_lecture = SemesterLecture.objects.select_related('semester').get(pk=pk)
         semester_to = request.data.get('semester_to', None)
@@ -299,7 +299,7 @@ class LectureViewSet(viewsets.GenericViewSet):
     @action(methods=['PUT'], detail=True)
     @transaction.atomic
     def credit(self, request, pk=None):
-        """Change semester lecture credit"""
+        """Change semester lecture credit."""
         credit = request.data.get('credit', 0)
         if not 0<credit<5 :
             raise FieldError("Invalid field [credit]")
@@ -332,7 +332,7 @@ class LectureViewSet(viewsets.GenericViewSet):
     @action(methods=['PUT'], detail=True)
     @transaction.atomic
     def recognized_major(self, request, pk=None):
-        """Change semester lecture major, major_type, lecture_type"""
+        """Change semester lecture major, major_type, lecture_type."""
         semesterlecture = SemesterLecture.objects.select_related(
             'semester', 
             'lecture',
@@ -396,7 +396,7 @@ class LectureViewSet(viewsets.GenericViewSet):
     # DEL /lecture/:semlectureId
     @transaction.atomic
     def destroy(self, request, pk=None):
-        """Destroy semester lecture"""
+        """Destroy semester lecture."""
         semesterlecture = SemesterLecture.objects.select_related('semester').get(pk=pk)
         semester = sub_semester_credits(semesterlecture, semesterlecture.semester)
         semester.save()
@@ -406,7 +406,7 @@ class LectureViewSet(viewsets.GenericViewSet):
     # GET /lecture/?search_type=(string)&search_keyword=(string)&major=(string)&credit=(string)
     # TODO: n-gram 서치 고도화
     def list(self, request):
-        
+        """List semester lecture."""
         page = request.GET.get('page', '1')
         search_type = request.query_params.get("search_type")
         search_year = request.query_params.get("search_year")
