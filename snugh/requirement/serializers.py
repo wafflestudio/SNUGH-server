@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from requirement.models import Requirement, PlanRequirement
-from lecture.models import PlanMajor
+from requirement.models import PlanRequirement
 
+# TODO: Comments about serializers.
 
 class RequirementSerializer(serializers.ModelSerializer):
     id = serializers.SerializerMethodField()

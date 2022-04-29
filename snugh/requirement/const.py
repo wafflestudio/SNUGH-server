@@ -1,3 +1,5 @@
+"""Constants related to Requirement."""
+
 from snugh.const import *
 
 # Requirement

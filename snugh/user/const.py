@@ -1,3 +1,5 @@
+"""Constants related to Major, User."""
+
 from snugh.const import *
 
 MAJOR_TYPE = (

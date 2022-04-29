@@ -10,15 +10,21 @@ from lecture.models import *
 from rest_framework.decorators import action
 from django.db.models import Prefetch, Sum
 
+
 class RequirementViewSet(viewsets.GenericViewSet):
+    """
+    Generic ViewSet of Requirement Object.
+    # TODO: Permission constraint for admin user
+    """
     queryset = Requirement.objects.all()
     serializer_class = RequirementSerializer
-    # TODO: Permission constraint for admin user
 
     # POST /requirement
-    # 1회성 generating api
     @transaction.atomic
     def create(self, request):
+        """
+        Create new static requirements. Used for one-time purposes.
+        """
         majors = Major.objects.prefetch_related(
             Prefetch(
                 'requirement',
@@ -50,9 +56,11 @@ class RequirementViewSet(viewsets.GenericViewSet):
         body = {"majors": MajorSerializer(req_miss_majors, many=True).data}
         return Response(body, status=status.HTTP_201_CREATED)
 
-    # GET /requirement
-    def list(self, request):
 
+    # GET /requirement/:planId/calculate
+    @action(methods=['GET'], detail=True)
+    def calculate(self, request):
+        """Show user plan's current progress based on plan requirements."""
         plan_id = request.query_params.get('plan_id')
         plan = Plan.objects.prefetch_related(
             'planmajor', 
@@ -157,7 +165,6 @@ class RequirementViewSet(viewsets.GenericViewSet):
 
         other_requirement = {"earned_credit": all_earned_credit - general_earned_credit - major_earned_credit}
 
-        # TODO: need to check current_planmajors
         all_progress_summary = {"all": all_requirement,
                                 "major": major_requirement,
                                 "general": general_requirement,
@@ -196,9 +203,10 @@ class RequirementViewSet(viewsets.GenericViewSet):
                 "major_progress": major_progress}
         return Response(data, status=status.HTTP_200_OK)
 
-    # GET /requirement/:planId/loading
-    @action(methods=['GET'], detail=True)
-    def loading(self, request, pk=None):
+
+    # GET /requirement
+    def list(self, request, pk=None):
+        """Get user plan's requirements."""
         plan = Plan.objects.prefetch_related(
             'planmajor', 
             'planrequirement', 
@@ -247,10 +255,11 @@ class RequirementViewSet(viewsets.GenericViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
 
+
     # PUT /requirement/:planId
     @transaction.atomic
     def update(self, request, pk=None):
-        """Update Plan Requirement."""
+        """Update plan requirements required credits."""
         user = request.user
         plan = Plan.objects.prefetch_related(
             "planrequirement",

@@ -5,7 +5,10 @@ from requirement.const import *
 
 
 class Requirement(models.Model):
-
+    """
+    Static model related to Graduation Requirements.
+    # TODO: explain fields.
+    """
     class Meta:
         ordering = ['-end_year', '-start_year']
     major = models.ForeignKey(Major, related_name='requirement', on_delete=models.CASCADE)
@@ -21,6 +24,11 @@ class Requirement(models.Model):
 
 
 class RequirementChangeHistory(models.Model):
+    """
+    Model for saving histories of requirement required credit change in PlanRequirement.
+    It wiil be reflected to actual Requirement model's required credit according to the number of histories.
+    # TODO: explain fields.
+    """
     requirement = models.ForeignKey(Requirement, related_name='requirementchangehistory', on_delete=models.CASCADE)
     entrance_year = models.IntegerField(default=0)
     past_required_credit = models.PositiveIntegerField(default=0)
@@ -31,6 +39,10 @@ class RequirementChangeHistory(models.Model):
 
 
 class PlanRequirement(models.Model):
+    """
+    Model for relating Plan and Requirement models. Each plan has requirements based on plan's majors.
+    # TODO: explain fields.
+    """
     plan = models.ForeignKey(Plan, related_name='planrequirement', on_delete=models.CASCADE)
     requirement = models.ForeignKey(Requirement, related_name='planrequirement', on_delete=models.CASCADE)
     required_credit = models.PositiveSmallIntegerField(default=0)

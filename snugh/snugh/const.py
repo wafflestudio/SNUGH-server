@@ -1,3 +1,5 @@
+"""Basic Constants for SNUGH."""
+
 # 구분 없음
 NONE = 'none'
 DEFAULT_MAJOR_ID = 1
