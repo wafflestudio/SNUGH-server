@@ -264,6 +264,7 @@ def lecturetype_history_generator(
     LectureTypeChangeHistory.objects.bulk_update(histories, fields=['change_count'])
     return True
 
+
 def credit_history_generator(user: User, semesterlecture: SemesterLecture, credit: int) -> bool:
     """Create semester lecture credit change histroy"""
     none_major = Major.objects.get(id=DEFAULT_MAJOR_ID)

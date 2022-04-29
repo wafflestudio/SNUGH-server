@@ -1,3 +1,5 @@
+"""Constants related to Semester, Lecture, Plan."""
+
 from snugh.const import *
 
 # Semester Type
