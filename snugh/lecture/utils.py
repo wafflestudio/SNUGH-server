@@ -5,6 +5,7 @@ from lecture.const import *
 from django.db.models import Case, When, Value, IntegerField
 from snugh.exceptions import NotOwner, NotFound
 from typing import List
+from datetime import date
 
 
 def add_semester_credits(semesterlecture: SemesterLecture, semester: Semester) -> Semester:
@@ -215,6 +216,7 @@ def lecturetype_history_generator(
                     past_lecture_type=past_lecture_type,
                     curr_lecture_type=curr_lecture_type)
                 lecturetypechangehistory.change_count += 1
+                lecturetypechangehistory.updated_at = date.today()
                 histories.append(lecturetypechangehistory)
 
     elif lecture_type in [MAJOR_ELECTIVE, MAJOR_REQUIREMENT]:
@@ -238,6 +240,7 @@ def lecturetype_history_generator(
                                 past_lecture_type=past_lecture_types[i],
                                 curr_lecture_type=curr_lecture_types[j])
                             lecturetypechangehistory.change_count += 1
+                            lecturetypechangehistory.updated_at = date.today()
                             histories.append(lecturetypechangehistory)
 
             if not (past_recognized_major_check[i] or past_lecture_types[i] in [NONE, GENERAL_ELECTIVE]):
@@ -248,6 +251,7 @@ def lecturetype_history_generator(
                     past_lecture_type=past_lecture_types[i],
                     curr_lecture_type=NONE)
                 lecturetypechangehistory.change_count += 1
+                lecturetypechangehistory.updated_at = date.today()
                 histories.append(lecturetypechangehistory)
 
         for i, curr_recognized_major in enumerate(curr_recognized_majors):
@@ -259,9 +263,10 @@ def lecturetype_history_generator(
                     past_lecture_type=NONE,
                     curr_lecture_type=curr_lecture_types[i])
                 lecturetypechangehistory.change_count += 1
+                lecturetypechangehistory.updated_at = date.today()
                 histories.append(lecturetypechangehistory)
                 
-    LectureTypeChangeHistory.objects.bulk_update(histories, fields=['change_count'])
+    LectureTypeChangeHistory.objects.bulk_update(histories, fields=['change_count', 'updated_at'])
     return True
 
 
@@ -283,6 +288,7 @@ def credit_history_generator(user: User, semesterlecture: SemesterLecture, credi
             past_credit=semesterlecture.credit,
             curr_credit=credit)
         creditchangehistory.change_count += 1
+        creditchangehistory.updated_at = date.today()
         histories.append(creditchangehistory)
-    CreditChangeHistory.objects.bulk_update(histories, fields=['change_count'])
+    CreditChangeHistory.objects.bulk_update(histories, fields=['change_count', 'updated_at'])
     return True

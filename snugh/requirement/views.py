@@ -380,7 +380,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
             )
             pr_list.append(gen_pr)
         PlanRequirement.objects.bulk_update(pr_list, fields=["required_credit"])
-        RequirementChangeHistory.objects.bulk_update(histories, ["change_count"])
+        RequirementChangeHistory.objects.bulk_update(histories, ["change_count", "updated_at"])
 
         for major_name, value in data['majors'].items():
             value['major_name'] = major_name
