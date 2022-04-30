@@ -3,6 +3,10 @@ from django.contrib.auth.models import User
 
 
 class BugReport(models.Model):
+    """
+    Model for bug contents that user reports.
+    # TODO: explain fields.
+    """
     user = models.ForeignKey(User, related_name='bug_report', on_delete=models.CASCADE)
     title = models.CharField(max_length=300)
     description = models.CharField(max_length=500)

@@ -1,27 +1,26 @@
-from django.shortcuts import get_object_or_404
 from django.core.paginator import Paginator
-from rest_framework import status, viewsets
+from rest_framework import status, viewsets, generics
 from rest_framework.response import Response
 from faq.models import FAQ
 from faq.serializers import FAQSerializer
+from snugh.permissions import IsOwnerOrCreateReadOnly
 
 
-class FAQViewSet(viewsets.GenericViewSet):
+class FAQViewSet(
+    viewsets.GenericViewSet,
+    generics.CreateAPIView,
+    generics.RetrieveUpdateDestroyAPIView
+):
+    """
+    Generic ViewSet of FAQ Object.
+    """
     queryset = FAQ.objects.all()
     serializer_class = FAQSerializer
-
-    # POST /faq
-    def create(self, request):
-        body = request.data
-        question = body.get('question')
-        answer = body.get('answer')
-        category = body.get('category')
-        faq = FAQ.objects.create(question=question, answer=answer, category=category)
-        serializer = self.get_serializer(faq)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    permission_classes = [IsOwnerOrCreateReadOnly]
 
     # GET /faq
     def list(self, request):
+        """Get list of all FAQs."""
         default_order = '-read_count'
         page = request.GET.get('page', '1')
         order = request.GET.get('order', default_order)
@@ -35,15 +34,10 @@ class FAQViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(faqs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # DELETE /faq/:faqId
-    def delete(self, request, pk=None):
-        faq = get_object_or_404(FAQ, pk=pk)
-        faq.delete()
-        return Response(status=status.HTTP_200_OK)
-
     # GET /faq/:faqId
     def retrieve(self, request, pk=None):
-        faq = get_object_or_404(FAQ, pk=pk)
+        """Get certain faq."""
+        faq = self.get_object()
         faq.read_count += 1
         faq.save()
         serializer = self.get_serializer(faq)

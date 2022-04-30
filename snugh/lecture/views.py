@@ -176,7 +176,7 @@ class SemesterViewSet(viewsets.GenericViewSet, generics.RetrieveDestroyAPIView):
         year = data.get('year')
         semester_type = data.get('semester_type')
         if not (year or semester_type):
-            raise FieldError("body is empty")
+            raise FieldError("Field missing [year, semester_type]")
         serializer = self.get_serializer(semester, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.update(semester, serializer.validated_data)

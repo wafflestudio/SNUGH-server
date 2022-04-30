@@ -2,6 +2,10 @@ from django.db import models
 
 
 class FAQ(models.Model):
+    """
+    Model for FAQ from users.
+    # TODO: explain fields.
+    """
     question = models.CharField(max_length=500)
     answer = models.CharField(max_length=500)
     category = models.CharField(max_length=50, null=True)
