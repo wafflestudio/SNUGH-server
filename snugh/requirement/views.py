@@ -72,16 +72,15 @@ class RequirementViewSet(viewsets.GenericViewSet):
 
     # GET /requirement/:planId/calculate
     @action(methods=['GET'], detail=True)
-    def calculate(self, request):
+    def calculate(self, request, pk=None):
         """Show user plan's current progress based on plan requirements."""
-        plan_id = request.query_params.get('plan_id')
         plan = Plan.objects.prefetch_related(
             'planmajor', 
             'planrequirement', 
             'planrequirement__requirement', 
             'planrequirement__requirement__major', 
             'semester'
-            ).get(id=plan_id)
+            ).get(pk=pk)
         majors = plan.planmajor.all().values('major', 'major__major_name', 'major__major_type')
         majors_info = {}
         for major in majors:
@@ -218,6 +217,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
 
 
     # GET /requirement/:planId/check
+    @action(methods=['GET'], detail=True)
     def check(self, request, pk=None):
         """Get user plan's requirements."""
         plan = Plan.objects.prefetch_related(
@@ -300,12 +300,8 @@ class RequirementViewSet(viewsets.GenericViewSet):
         for pr in planrequirements:
             req = pr.requirement
             if not (req.major.major_name in data['majors'].keys()):
-                data['majors']['req.major.major_name'] = {
-                    'major_type': req.major.major_type,
-                    "major_credit":req.major.required_credit,
-                    "major_requirement_credit": req.major.required_credit,
-                    "auto_calculate": req.major.auto_calculate
-
+                data['majors'][req.major.major_name] = {
+                    'major_type': req.major.major_type
                 }
             if req.requirement_type==ALL:
                 if all_std < req.required_credit:
@@ -316,6 +312,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
                     gen_std = req.required_credit
                     gen_pr = pr
             elif req.requirement_type == MAJOR_ALL:
+                data['majors'][req.major.major_name]['major_credit'] = pr.required_credit
                 for major in majors:
                     if req.major.major_name == major['major_name'] and req.major.major_type == major['major_type']:
                         if pr.required_credit != major["major_credit"]: 
@@ -331,6 +328,8 @@ class RequirementViewSet(viewsets.GenericViewSet):
                             pr_list.append(pr)
                             data['majors'][major['major_name']]['major_credit'] = major["major_credit"]
             elif req.requirement_type == MAJOR_REQUIREMENT:
+                data['majors'][req.major.major_name]['major_requirement_credit'] = pr.required_credit
+                data['majors'][req.major.major_name]['auto_calculate'] = pr.auto_calculate
                 for major in majors:
                     if req.major.major_name == major['major_name'] and req.major.major_type == major['major_type']:
                         pr.auto_calculate = major['auto_calculate']
@@ -361,7 +360,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
             all_pr.required_credit = all_credit
             histories.append(
                 requirement_histroy_generator(
-                    requirement=all_pr.req,
+                    requirement=all_pr.requirement,
                     entrance_year=year_std,
                     past_required_credit=all_pr.required_credit,
                     curr_required_credit=all_credit
@@ -372,7 +371,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
             gen_pr.required_credit = general_credit
             histories.append(
                 requirement_histroy_generator(
-                    requirement=gen_pr.req,
+                    requirement=gen_pr.requirement,
                     entrance_year=year_std,
                     past_required_credit=gen_pr.required_credit,
                     curr_required_credit=general_credit

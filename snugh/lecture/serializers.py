@@ -55,10 +55,10 @@ class PlanMajorCreateSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         std = user.userprofile.entrance_year
         planmajors = []
+        planrequirements = []
         for major in majors:
             planmajors.append(PlanMajor(plan=plan, major=major))
             requirements = major.requirement.filter(start_year__lte=std, end_year__gte=std)
-            planrequirements = []
             for requirement in requirements:
                 planrequirements.append(PlanRequirement(plan=plan, 
                                                         requirement=requirement, 
