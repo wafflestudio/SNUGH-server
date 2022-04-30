@@ -268,7 +268,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         semester_to_lectures = semester_to.semester_to_lectures
 
         if not (0<=position<=len(semester_to_lectures)):
-            raise FieldError("position out of range")
+            raise FieldError("Invalid field [position]")
         semester_from = sub_semester_credits(target_lecture, semester_from)
         target_lecture.semester = semester_to
         target_lecture.recent_sequence = position
