@@ -1,7 +1,8 @@
 from django.db import models
-from django.contrib.auth.models import User
 from user.models import Major
 from lecture.const import *
+from semester.models import Semester
+from semester.const import *
 
 
 class LectureQuerySet(models.QuerySet):
@@ -64,71 +65,6 @@ class Lecture(BaseLecture):
     prev_lecture_name = models.CharField(max_length=50, null=True)
     recent_open_year = models.IntegerField(default=0)
     objects = LectureQuerySet.as_manager()
-    
-
-class LectureTypeChangeHistory(BaseChangeHistory):
-    """
-    Model for saving histories of lecture type change in SemesterLecture.
-    It wiil be reflected to actual Lecture model's lecture type according to the number of histories.
-    # TODO: explain fields.
-    """
-    major = models.ForeignKey(Major, related_name='lecturetypechangehistory', on_delete=models.CASCADE)
-    lecture = models.ForeignKey(Lecture, related_name='lecturetypechangehistory', on_delete=models.CASCADE)
-    past_lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
-    curr_lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
-
-
-class CreditChangeHistory(BaseChangeHistory):
-    """
-    Model for saving histories of credit change in SemesterLecture.
-    It wiil be reflected to actual Lecture model's credit according to the number of histories.
-    # TODO: explain fields.
-    """
-    major = models.ForeignKey(Major, related_name='creditchangehistory', on_delete=models.CASCADE)
-    lecture = models.ForeignKey(Lecture, related_name='creditchangehistory', on_delete=models.CASCADE)
-    year_taken = models.IntegerField(default=0)
-    past_credit = models.PositiveIntegerField(default=0)
-    curr_credit = models.PositiveIntegerField(default=0)
-
-
-class Plan(models.Model):
-    """
-    Model for plan that user makes. User adds semesters and lectures in the plan.
-    # TODO: explain fields.
-    """
-    user = models.ForeignKey(User, related_name='plan', on_delete=models.CASCADE, default=5)
-    plan_name = models.CharField(max_length=50, db_index=True, default="새로운 계획")
-    is_first_simulation = models.BooleanField(default = True)
-
-
-class Semester(models.Model):
-    """
-    Model for semester that user makes. User adds lectures in the semester.
-    # TODO: explain fields.
-    """
-    plan = models.ForeignKey(Plan, related_name='semester', on_delete=models.CASCADE)
-    year = models.PositiveIntegerField()
-    semester_type = models.CharField(max_length=50, choices=SEMESTER_TYPE)
-    major_requirement_credit = models.PositiveSmallIntegerField(default=0)
-    major_elective_credit = models.PositiveSmallIntegerField(default=0)
-    general_credit = models.PositiveSmallIntegerField(default=0)
-    general_elective_credit = models.PositiveSmallIntegerField(default=0)
-
-
-class PlanMajor(models.Model):
-    """
-    Model for relating Plan and Major models. Each plan has user-selected majors.
-    # TODO: explain fields.
-    """
-    plan = models.ForeignKey(Plan, related_name='planmajor', on_delete=models.CASCADE)
-    major = models.ForeignKey(Major, related_name='planmajor', on_delete=models.CASCADE)
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['plan', 'major'],
-                name='major already exists in plan.'
-            )
-        ]
 
 
 class SemesterLecture(models.Model):
@@ -153,6 +89,31 @@ class SemesterLecture(models.Model):
                 name='lecture already exists in semester.'
             )
         ]
+
+
+class LectureTypeChangeHistory(BaseChangeHistory):
+    """
+    Model for saving histories of lecture type change in SemesterLecture.
+    It wiil be reflected to actual Lecture model's lecture type according to the number of histories.
+    # TODO: explain fields.
+    """
+    major = models.ForeignKey(Major, related_name='lecturetypechangehistory', on_delete=models.CASCADE)
+    lecture = models.ForeignKey(Lecture, related_name='lecturetypechangehistory', on_delete=models.CASCADE)
+    past_lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
+    curr_lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
+
+
+class CreditChangeHistory(BaseChangeHistory):
+    """
+    Model for saving histories of credit change in SemesterLecture.
+    It wiil be reflected to actual Lecture model's credit according to the number of histories.
+    # TODO: explain fields.
+    """
+    major = models.ForeignKey(Major, related_name='creditchangehistory', on_delete=models.CASCADE)
+    lecture = models.ForeignKey(Lecture, related_name='creditchangehistory', on_delete=models.CASCADE)
+    year_taken = models.IntegerField(default=0)
+    past_credit = models.PositiveIntegerField(default=0)
+    curr_credit = models.PositiveIntegerField(default=0)
 
 
 class MajorLecture(BaseMajorLecture):

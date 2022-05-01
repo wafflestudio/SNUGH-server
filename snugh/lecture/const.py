@@ -1,23 +1,6 @@
-"""Constants related to Semester, Lecture, Plan."""
+"""Constants related to Lecture."""
 
 from snugh.const import *
-
-# Semester Type
-UNKNOWN = 'unknown'
-FIRST = 'first'
-SECOND = 'second'
-SUMMER = 'summer'
-WINTER = 'winter'
-ALL = 'all'
-
-SEMESTER_TYPE = (
-    (UNKNOWN, 'unknown'),
-    (FIRST, 'first'),
-    (SECOND, 'second'),
-    (SUMMER, 'summer'),
-    (WINTER, 'winter'),
-    (ALL, 'all'),
-)
 
 LECTURE_TYPE = (
     (NONE, "none"),
