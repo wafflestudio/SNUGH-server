@@ -83,3 +83,4 @@ class PlanMajorCreateSerializer(serializers.ModelSerializer):
                 raise NotFound("Does not exist [Major]")
         data['majors'] = major_instances
         return data
+        
