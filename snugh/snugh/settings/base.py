@@ -41,7 +41,8 @@ INSTALLED_APPS = [
     'faq.apps.FAQConfig',
     'bug_report.apps.BugReportConfig',
     'plan.apps.PlanConfig',
-    'semester.apps.SemesterConfig'
+    'semester.apps.SemesterConfig',
+    'history.apps.HistoryConfig'
 ]
 
 MIDDLEWARE = [

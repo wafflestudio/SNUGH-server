@@ -23,21 +23,6 @@ class Requirement(models.Model):
     updated_at = models.DateField(auto_now=True)
 
 
-class RequirementChangeHistory(models.Model):
-    """
-    Model for saving histories of requirement required credit change in PlanRequirement.
-    It wiil be reflected to actual Requirement model's required credit according to the number of histories.
-    # TODO: explain fields.
-    """
-    requirement = models.ForeignKey(Requirement, related_name='requirementchangehistory', on_delete=models.CASCADE)
-    entrance_year = models.IntegerField(default=0)
-    past_required_credit = models.PositiveIntegerField(default=0)
-    curr_required_credit = models.PositiveIntegerField(default=0)
-    created_at = models.DateField(auto_now_add=True)
-    updated_at = models.DateField(auto_now=True)
-    change_count = models.IntegerField(default=0)
-
-
 class PlanRequirement(models.Model):
     """
     Model for relating Plan and Requirement models. Each plan has requirements based on plan's majors.

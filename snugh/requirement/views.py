@@ -2,15 +2,18 @@ from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser
 from django.db import transaction
-from requirement.models import *
-from lecture.serializers import PlanSerializer
-from requirement.utils import calculate_progress, requirement_histroy_generator
-from user.models import *
-from user.serializers import *
-from lecture.models import *
+from requirement.models import Requirement, PlanRequirement
+from plan.serializers import PlanSerializer
+from requirement.utils import calculate_progress
+from user.models import Major
+from user.serializers import MajorSerializer
+from history.models import RequirementChangeHistory
+from history.utils import requirement_histroy_generator
+from plan.models import Plan
 from rest_framework.decorators import action
 from django.db.models import Prefetch, Sum
 from snugh.permissions import IsOwner
+from user.const import *
 
 
 class RequirementViewSet(viewsets.GenericViewSet):

@@ -1,7 +1,6 @@
 from rest_framework import serializers
-from lecture.models import *
-from lecture.const import *
 from lecture.models import Lecture, SemesterLecture
+from lecture.const import *
 # TODO: Comments about serializers.
 
 class LectureSerializer(serializers.ModelSerializer):

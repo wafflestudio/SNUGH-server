@@ -3,20 +3,21 @@ from django.db import transaction
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from lecture.models import * 
-from lecture.serializers import *
+from lecture.models import Lecture, SemesterLecture
+from lecture.serializers import SemesterLectureSerializer
 from semester.models import Semester
 from semester.serializers import SemesterSerializer
 from plan.models import Plan
-from user.models import *
-from requirement.models import *
+from user.models import Major, MajorEquivalent, DepartmentEquivalent
 from django.core.paginator import Paginator
 from django.db.models.functions import Length
 from snugh.permissions import IsOwnerOrCreateReadOnly
-from snugh.exceptions import DuplicationError, FieldError
-from lecture.utils import *
+from snugh.exceptions import DuplicationError, FieldError, NotFound
+from lecture.utils import update_lecture_info
 from lecture.const import *
-from semester.utils import *
+from user.const import *
+from semester.utils import add_semester_credits, sub_semester_credits
+from history.utils import credit_history_generator, lecturetype_history_generator
 
 
 class LectureViewSet(viewsets.GenericViewSet):
