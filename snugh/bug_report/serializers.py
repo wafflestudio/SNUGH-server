@@ -19,6 +19,7 @@ class BugReportSerializer(serializers.ModelSerializer):
             raise FieldError("Invalid field [credit]")
         if len(description) < 10:
             raise FieldError("Invalid field [description]")
+        return data
         
 
     def create(self, validated_data):

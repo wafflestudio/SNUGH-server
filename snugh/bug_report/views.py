@@ -23,7 +23,7 @@ class BugReportViewSet(
         page = request.GET.get('page', '1')
         category = request.GET.get('category')
 
-        bug_reports = self.get_queryset().order_by('created_at')
+        bug_reports = self.get_queryset().order_by('-created_at')
         if category:
             bug_reports.filter(category=category)
 

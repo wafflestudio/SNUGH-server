@@ -8,7 +8,7 @@ class FAQSerializer(serializers.ModelSerializer):
         model = FAQ
         fields = '__all__'
         extra_kwargs = {
-            "question": {"question": True}
+            "question": {"required": True}
         }
 
 
@@ -16,12 +16,13 @@ class FAQSerializer(serializers.ModelSerializer):
         question = data['question']
         if len(question) < 5:
             raise FieldError("Invalid field [question]")
+        return data
     
 
     def create(self, validated_data):
         return FAQ.objects.create(
-            user=self.context['request'].user, 
+            user=self.context['request'].user,
             question=self.validated_data['question'], 
-            answer=self.validated_data['answer'], 
+            answer=self.validated_data.get('answer', ""), 
             category=self.validated_data.get('category'))
 
