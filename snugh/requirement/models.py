@@ -1,6 +1,6 @@
 from django.db import models
 from user.models import Major
-from lecture.models import Plan
+from plan.models import Plan
 from requirement.const import *
 
 
