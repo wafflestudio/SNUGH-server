@@ -145,5 +145,5 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
                                                recent_sequence=semesterlecture.recent_sequence,
                                                is_modified=semesterlecture.is_modified))
             SemesterLecture.objects.bulk_create(new_semesterlectures)
-        serializer = PlanRetrieveSerializer(new_plan)
+        serializer = self.get_serializer(new_plan)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
