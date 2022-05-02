@@ -6,7 +6,7 @@ from rest_framework.decorators import action
 from snugh.permissions import IsOwnerOrCreateReadOnly
 from snugh.exceptions import NotOwner, NotFound, FieldError
 from lecture.utils import update_lecture_info
-from plan.serializers import PlanSerializer, PlanMajorCreateSerializer
+from plan.serializers import PlanSerializer, PlanRetrieveSerializer
 from plan.models import Plan, PlanMajor
 from plan.utils import plan_major_requirement_generator
 from semester.models import Semester
@@ -49,7 +49,8 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
     # GET /plan/:planId
     def retrieve(self, request, pk=None):
         """Retrieve user's plan."""
-        return super().retrieve(request, pk)
+        plan = self.get_object()
+        return Response(PlanRetrieveSerializer(plan).data, status=status.HTTP_200_OK)
 
     # GET /plan
     def list(self, request):
@@ -77,9 +78,8 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
         # overwrite planmajors, planrequirements
         plan.planmajor.all().delete()
         plan.planrequirement.all().delete()
-        planmajor = PlanMajorCreateSerializer(data={'plan':plan.id}, context={'request':request})
-        planmajor.is_valid(raise_exception=True)
-        planmajor.save()
+        majors = request.data.get('majors', [])
+        plan_major_requirement_generator(plan, majors, request.user.userprofile.entrance_year)
         self.calculate(request, pk=pk)
         serializer = self.get_serializer(plan)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -145,5 +145,5 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
                                                recent_sequence=semesterlecture.recent_sequence,
                                                is_modified=semesterlecture.is_modified))
             SemesterLecture.objects.bulk_create(new_semesterlectures)
-        serializer = self.get_serializer(new_plan)
+        serializer = PlanRetrieveSerializer(new_plan)
         return Response(serializer.data, status=status.HTTP_201_CREATED)

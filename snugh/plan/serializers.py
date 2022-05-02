@@ -6,7 +6,8 @@ from semester.serializers import SemesterSerializer
 from semester.const import *
 
 
-class PlanSerializer(serializers.ModelSerializer):
+class PlanRetrieveSerializer(serializers.ModelSerializer):
+    """Serializer for certain plan's details."""
     majors = serializers.SerializerMethodField()
     semesters = serializers.SerializerMethodField()
 
@@ -34,9 +35,26 @@ class PlanSerializer(serializers.ModelSerializer):
             output_field=IntegerField()
         )).order_by('year', 'semester_value')
         return SemesterSerializer(semesters, many=True).data
+        
 
+class PlanSerializer(serializers.ModelSerializer):
+    """Serializer for plans' overviews."""
+    majors = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Plan
+        fields = (
+            'id',
+            'plan_name',
+            'majors',
+        )
+    
     def create(self, validated_data):
         user = self.context['request'].user
         plan_name = validated_data.get('plan_name', '새로운 계획')
         return Plan.objects.create(user=user, plan_name=plan_name)
-        
+
+    def get_majors(self, plan):
+        planmajors = plan.planmajor.select_related('major').all()
+        majors = [planmajor.major for planmajor in planmajors]
+        return MajorSerializer(majors, many=True).data
