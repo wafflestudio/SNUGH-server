@@ -46,7 +46,6 @@ class LectureViewSet(viewsets.GenericViewSet):
         lecture_in_semester = semester.semesterlecture.all()
         n_lectures = lecture_in_semester.count()
 
-        default_major = Major.objects.get(id=DEFAULT_MAJOR_ID)
         semesterlectures=[]
         for i, lecture_id in enumerate(lecture_id_list):
             try :
@@ -54,19 +53,15 @@ class LectureViewSet(viewsets.GenericViewSet):
             except Lecture.DoesNotExist:
                 raise NotFound('lecture does not exist')
             lecture_type = lecture.lecture_type
-            recognized_major = default_major
-            
             sl = SemesterLecture.objects.create(
                 semester=semester,
                 lecture=lecture,
                 lecture_type=lecture_type,
-                recognized_major1=recognized_major,
-                lecture_type1=lecture_type,
                 credit=lecture.credit,
                 recent_sequence=n_lectures+i)
-            semesterlectures.append(sl)       
+            semesterlectures.append(sl)
             semester = add_semester_credits(sl, semester)
-
+    
         update_lecture_info(request.user, plan.id, semesterlectures, semester)
         data = SemesterSerializer(semester).data
         return Response(data, status=status.HTTP_201_CREATED)
@@ -76,7 +71,6 @@ class LectureViewSet(viewsets.GenericViewSet):
     @transaction.atomic
     def position(self, request, pk=None):
         """Position semester lecture."""
-        #TODO: API 문서 수정 -> lecture_id가 아닌 semesterlecture_id로 / request 형식 변경 
         target_lecture = SemesterLecture.objects.select_related('semester').get(pk=pk)
         semester_to = request.data.get('semester_to', None)
         semester_from = target_lecture.semester

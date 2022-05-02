@@ -69,13 +69,6 @@ class SemesterLecture(models.Model):
     credit = models.PositiveIntegerField(default=0)
     recent_sequence = models.PositiveSmallIntegerField()
     is_modified = models.BooleanField(default=False)
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['semester', 'lecture'],
-                name='lecture already exists in semester.'
-            )
-        ]
 
 
 class MajorLecture(BaseMajorLecture):
