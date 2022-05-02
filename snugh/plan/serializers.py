@@ -51,7 +51,7 @@ class PlanSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         user = self.context['request'].user
-        plan_name = validated_data.get('plan_name', '새로운 계획')
+        plan_name = validated_data.get('plan_name')
         return Plan.objects.create(user=user, plan_name=plan_name)
 
     def get_majors(self, plan):
