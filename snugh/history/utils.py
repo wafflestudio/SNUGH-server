@@ -121,7 +121,7 @@ def requirement_histroy_generator(
     entrance_year: int,
     past_required_credit: int,
     curr_required_credit: int
-    ):
+    ) -> RequirementChangeHistory:
     """
     Create requirement change histroy.
     Need to save returned requirement histroy. 

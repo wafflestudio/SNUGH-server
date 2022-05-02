@@ -4,7 +4,7 @@ from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from lecture.models import Lecture, SemesterLecture
-from lecture.serializers import SemesterLectureSerializer
+from lecture.serializers import SemesterLectureSerializer, LectureSerializer
 from semester.models import Semester
 from semester.serializers import SemesterSerializer
 from plan.models import Plan
