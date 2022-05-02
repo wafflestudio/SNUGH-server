@@ -1,3 +1,5 @@
+"""Utils related to Semester APIs."""
+
 from lecture.models import SemesterLecture
 from semester.models import Semester
 from lecture.const import *

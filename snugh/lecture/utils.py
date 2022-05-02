@@ -1,3 +1,5 @@
+"""Utils related to Lecture APIs."""
+
 from semester.models import Semester
 from lecture.models import SemesterLecture
 from plan.models import Plan

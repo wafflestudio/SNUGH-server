@@ -1,11 +1,8 @@
 from rest_framework import serializers
 from django.db.models import Case, When, IntegerField, Value
-from plan.models import Plan, PlanMajor
-from requirement.models import PlanRequirement
+from plan.models import Plan
 from user.serializers import MajorSerializer
 from semester.serializers import SemesterSerializer
-from snugh.exceptions import FieldError, NotFound
-from user.models import Major
 from semester.const import *
 
 
@@ -42,45 +39,4 @@ class PlanSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         plan_name = validated_data.get('plan_name', '새로운 계획')
         return Plan.objects.create(user=user, plan_name=plan_name)
-
-
-class PlanMajorCreateSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = PlanMajor 
-        fields = ('plan',)
-
-    def create(self, validated_data):
-        majors = validated_data['majors']
-        plan = validated_data['plan']
-        user = self.context['request'].user
-        std = user.userprofile.entrance_year
-        planmajors = []
-        planrequirements = []
-        for major in majors:
-            planmajors.append(PlanMajor(plan=plan, major=major))
-            requirements = major.requirement.filter(start_year__lte=std, end_year__gte=std)
-            for requirement in requirements:
-                planrequirements.append(PlanRequirement(plan=plan, 
-                                                        requirement=requirement, 
-                                                        required_credit=requirement.required_credit))
-        PlanRequirement.objects.bulk_create(planrequirements)
-        return PlanMajor.objects.bulk_create(planmajors)
-
-    def validate(self, data):
-        majors = self.context['request'].data.get('majors')
-        if not majors:
-            raise FieldError("Field missing [majors]")
-        major_instances = []
-        for major in majors:
-            major_name = major.get('major_name')
-            major_type = major.get('major_type')
-            if not (major_name and major_type):
-                raise FieldError("Field missing [major_name, major_type]")
-            try:
-                major_instances.append(Major.objects.get(major_name=major_name, major_type=major_type))
-            except Major.DoesNotExist:
-                raise NotFound("Does not exist [Major]")
-        data['majors'] = major_instances
-        return data
         

@@ -4,10 +4,11 @@ from rest_framework import status, viewsets, generics
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from snugh.permissions import IsOwnerOrCreateReadOnly
-from snugh.exceptions import NotOwner, NotFound
+from snugh.exceptions import NotOwner, NotFound, FieldError
 from lecture.utils import update_lecture_info
 from plan.serializers import PlanSerializer, PlanMajorCreateSerializer
 from plan.models import Plan, PlanMajor
+from plan.utils import plan_major_requirement_generator
 from semester.models import Semester
 from requirement.models import PlanRequirement
 from lecture.models import SemesterLecture
@@ -28,9 +29,10 @@ class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         plan = serializer.save()
-        planmajor = PlanMajorCreateSerializer(data={'plan':plan.id}, context={'request':request})
-        planmajor.is_valid(raise_exception=True)
-        planmajor.save()
+        majors = data.get('majors')
+        if not majors:
+            raise FieldError("Field missing [majors]")
+        plan_major_requirement_generator(plan, majors, request.user.userprofile.entrance_year)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     # PUT /plan/:planId
