@@ -16,3 +16,14 @@ class IsOwnerOrCreateReadOnly(permissions.BasePermission):
         elif hasattr(obj, 'semester') and hasattr(obj, 'lecture'):
             return obj.semester.plan.user == request.user
         return obj.user == request.user
+
+
+class IsOwner(permissions.BasePermission):
+    """
+    Only object's owner can access object.
+    """
+    message = 'Not allowed.'
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated
+    def has_object_permission(self, request, view, obj):
+        return obj.user == request.user

@@ -1,76 +1,21 @@
-from lecture.models import Semester, SemesterLecture, Plan
-from snugh.lecture.models import LectureTypeChangeHistory
+"""Utils related to Lecture APIs."""
+
+from semester.models import Semester
+from lecture.models import SemesterLecture
+from plan.models import Plan
 from user.models import Major, User
 from lecture.const import *
 from django.db.models import Case, When, Value, IntegerField
 from snugh.exceptions import NotOwner, NotFound
-from typing import List
+from semester.utils import add_semester_credits, sub_semester_credits
+from user.const import *
 
-# Common Functions
-def add_credits(semesterlecture):
-    semester = semesterlecture.semester
-    if semesterlecture.lecture_type == MAJOR_REQUIREMENT:
-        semester.major_requirement_credit += semesterlecture.credit
-    elif semesterlecture.lecture_type2 == MAJOR_REQUIREMENT:
-        semester.major_requirement_credit += semesterlecture.credit
-    elif semesterlecture.lecture_type == MAJOR_ELECTIVE or semesterlecture.lecture_type == TEACHING:
-        semester.major_elective_credit += semesterlecture.credit
-    elif semesterlecture.lecture_type == GENERAL:
-        semester.general_credit += semesterlecture.credit
-    elif semesterlecture.lecture_type == GENERAL_ELECTIVE:
-        semester.general_elective_credit += semesterlecture.credit
-    return semester
-
-
-def subtract_credits(semesterlecture):
-    semester = semesterlecture.semester
-    if semesterlecture.lecture_type == MAJOR_REQUIREMENT:
-        semester.major_requirement_credit -= semesterlecture.credit
-    elif semesterlecture.lecture_type2 == MAJOR_REQUIREMENT:
-        semester.major_requirement_credit -= semesterlecture.credit
-    elif semesterlecture.lecture_type == MAJOR_ELECTIVE or semesterlecture.lecture_type == TEACHING:
-        semester.major_elective_credit -= semesterlecture.credit
-    elif semesterlecture.lecture_type == GENERAL:
-        semester.general_credit -= semesterlecture.credit
-    elif semesterlecture.lecture_type == GENERAL_ELECTIVE:
-        semester.general_elective_credit -= semesterlecture.credit
-    return semester
-
-
-def add_semester_credits(semesterlecture: SemesterLecture, semester: Semester) -> Semester:
-    """ Add SemesterLecture's credits to Semester credits. """
-    if semesterlecture.lecture_type == MAJOR_REQUIREMENT:
-        semester.major_requirement_credit += semesterlecture.credit
-    elif semesterlecture.lecture_type2 == MAJOR_REQUIREMENT:
-        semester.major_requirement_credit += semesterlecture.credit
-    elif semesterlecture.lecture_type == MAJOR_ELECTIVE or semesterlecture.lecture_type == TEACHING:
-        semester.major_elective_credit += semesterlecture.credit
-    elif semesterlecture.lecture_type == GENERAL:
-        semester.general_credit += semesterlecture.credit
-    elif semesterlecture.lecture_type == GENERAL_ELECTIVE:
-        semester.general_elective_credit += semesterlecture.credit
-    return semester
-
-def sub_semester_credits(semesterlecture: SemesterLecture, semester: Semester) -> Semester:
-    """ Subtract SemesterLecture's credits to Semester credits. """
-    if semesterlecture.lecture_type == MAJOR_REQUIREMENT:
-        semester.major_requirement_credit -= semesterlecture.credit
-    elif semesterlecture.lecture_type2 == MAJOR_REQUIREMENT:
-        semester.major_requirement_credit -= semesterlecture.credit
-    elif semesterlecture.lecture_type == MAJOR_ELECTIVE or semesterlecture.lecture_type == TEACHING:
-        semester.major_elective_credit -= semesterlecture.credit
-    elif semesterlecture.lecture_type == GENERAL:
-        semester.general_credit -= semesterlecture.credit
-    elif semesterlecture.lecture_type == GENERAL_ELECTIVE:
-        semester.general_elective_credit -= semesterlecture.credit
-    return semester
-
-def update_lecture_info(\
+def update_lecture_info(
     user: User, 
     plan_id: int, 
     semesterlectures: SemesterLecture = None, 
     semester: Semester = None) -> Plan:
-    """ Update lecture info """
+    """Update lecture info."""
     try:
         plan = Plan.objects.prefetch_related(
                 'user',
@@ -88,17 +33,16 @@ def update_lecture_info(\
     if user != owner:
         raise NotOwner()
     planmajors = plan.planmajor.all()
-    #TODO: Major 없애기
     majors = Major.objects.filter(planmajor__in=planmajors)\
-        .annotate(custom_order=Case(When(major_type=Major.SINGLE_MAJOR, then=Value(0)),
-                                    When(major_type=Major.MAJOR, then=Value(1)),
-                                    When(major_type=Major.GRADUATE_MAJOR, then=Value(2)),
-                                    When(major_type=Major.INTERDISCIPLINARY_MAJOR, then=Value(3)),
-                                    When(major_type=Major.INTERDISCIPLINARY_MAJOR_FOR_TEACHER, then=Value(4)),
-                                    When(major_type=Major.DOUBLE_MAJOR, then=Value(5)),
-                                    When(major_type=Major.INTERDISCIPLINARY, then=Value(6)),
-                                    When(major_type=Major.MINOR, then=Value(7)),
-                                    When(major_type=Major.INTERDISCIPLINARY_PROGRAM, then=Value(8)),
+        .annotate(custom_order=Case(When(major_type=SINGLE_MAJOR, then=Value(0)),
+                                    When(major_type=MAJOR, then=Value(1)),
+                                    When(major_type=GRADUATE_MAJOR, then=Value(2)),
+                                    When(major_type=INTERDISCIPLINARY_MAJOR, then=Value(3)),
+                                    When(major_type=INTERDISCIPLINARY_MAJOR_FOR_TEACHER, then=Value(4)),
+                                    When(major_type=DOUBLE_MAJOR, then=Value(5)),
+                                    When(major_type=INTERDISCIPLINARY, then=Value(6)),
+                                    When(major_type=MINOR, then=Value(7)),
+                                    When(major_type=INTERDISCIPLINARY_PROGRAM, then=Value(8)),
                                     default=Value(9),
                                     output_field=IntegerField(), ))\
         .order_by('custom_order')
@@ -121,13 +65,14 @@ def update_lecture_info(\
         'general_elective_credit'])
     return plan
 
+
 def __update_lecture_info(
     user:User, 
     majors: Major, 
     semesterlectures: SemesterLecture, 
     semester: Semester,
     none_major: Major = Major.objects.get(id=DEFAULT_MAJOR_ID)) -> Semester:
-
+    """Private method using in updating lecture info."""
     updated_semesterlectures = []
     std1 = user.userprofile.entrance_year
     std2 = semester.year
@@ -211,83 +156,3 @@ def __update_lecture_info(
         'recognized_major1',
         'recognized_major2'])
     return semester
-
-def lecturetype_history_generator(
-    user: User, 
-    semesterlecture: SemesterLecture, 
-    lecture_type: str,
-    curr_recognized_majors: List[Major] = [],
-    curr_lecture_types: List[str] = []
-    ) -> bool:
-    """ Generate LectureType Change History """
-    none_major = Major.objects.get(id=DEFAULT_MAJOR_ID)
-    user_entrance = user.userprofile.entrance_year
-    lecture = semesterlecture.lecture
-    if lecture_type in [GENERAL, GENERAL_ELECTIVE]:
-        recognized_majors = [none_major, semesterlecture.recognized_major1, semesterlecture.recognized_major2]
-        past_lecture_types = [NONE, semesterlecture.lecture_type1, semesterlecture.lecture_type2]
-        curr_lecture_types = [lecture_type, NONE, NONE]
-
-        # lecturetypechangehistory의 major가 default major 인 유일한 경우 --??
-        for i in range(3):
-            recognized_major = recognized_majors[i]
-            past_lecture_type = past_lecture_types[i]
-            curr_lecture_type = curr_lecture_types[i]
-
-            if i==0 or recognized_major != none_major:
-                lecturetypechangehistory = LectureTypeChangeHistory.objects.get_or_create(
-                    major=recognized_major,
-                    lecture=lecture,
-                    entrance_year=user_entrance,
-                    past_lecture_type=past_lecture_type,
-                    curr_lecture_type=curr_lecture_type)
-                lecturetypechangehistory.change_count += 1
-                lecturetypechangehistory.save()
-
-    elif lecture_type in [MAJOR_ELECTIVE, MAJOR_REQUIREMENT]:
-
-        past_recognized_major_check = [False, False]
-        curr_recognized_major_check = [False, False]
-        past_recognized_majors = [semesterlecture.recognized_major1, semesterlecture.recognized_major2]
-        past_lecture_types = [semesterlecture.lecture_type1, semesterlecture.lecture_type2]
-
-        for i, past_recognized_major in enumerate(past_recognized_majors):
-            for j, curr_recognized_major in enumerate(curr_recognized_majors):
-                if curr_recognized_major_check[j] == False:
-                    if past_recognized_major == curr_recognized_major:
-                        curr_recognized_major_check[j] = True
-                        past_recognized_major_check[i] = True
-                        if past_lecture_types[i] != curr_lecture_types[j] and past_recognized_major != none_major:
-                            lecturetypechangehistory = LectureTypeChangeHistory.objects.get_or_create(
-                                major=past_recognized_major,
-                                lecture=lecture,
-                                entrance_year=user_entrance,
-                                past_lecture_type=past_lecture_types[i],
-                                curr_lecture_type=curr_lecture_types[j])
-                            lecturetypechangehistory.change_count += 1
-                            lecturetypechangehistory.save()
-
-            if past_recognized_major_check[i] == False and past_lecture_types[i] not in [NONE, GENERAL_ELECTIVE]:
-                lecturetypechangehistory = LectureTypeChangeHistory.objects.get_or_create(
-                    major=past_recognized_major,
-                    lecture=lecture,
-                    entrance_year=user_entrance,
-                    past_lecture_type=past_lecture_types[i],
-                    curr_lecture_type=NONE)
-                lecturetypechangehistory.change_count += 1
-                lecturetypechangehistory.save()
-
-        for i, curr_recognized_major in enumerate(curr_recognized_majors):
-            if curr_recognized_major_check[i] == False and curr_lecture_types[i] not in [NONE, GENERAL_ELECTIVE]:
-                lecturetypechangehistory = LectureTypeChangeHistory.objects.get_or_create(
-                    major=curr_recognized_major,
-                    lecture=lecture,
-                    entrance_year=user_entrance,
-                    past_lecture_type=NONE,
-                    curr_lecture_type=curr_lecture_types[i])
-                lecturetypechangehistory.change_count += 1
-                lecturetypechangehistory.save()
-
-    else :
-        return False
-    return True

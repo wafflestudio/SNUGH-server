@@ -8,6 +8,8 @@ import os
 urlpatterns = [
     path('', include('user.urls')),
     path('', include('lecture.urls')),
+    path('', include('semester.urls')),
+    path('', include('plan.urls')),
     path('', include('requirement.urls')),
     path('', include('faq.urls')),
     path('', include('bug_report.urls')),
