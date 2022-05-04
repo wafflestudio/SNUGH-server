@@ -4,7 +4,6 @@ from rest_framework.response import Response
 from faq.models import FAQ
 from faq.serializers import FAQSerializer
 from snugh.permissions import IsOwnerOrCreateReadOnly
-# TODO: FAQ 작동 방식? 공지 사항 형식 or 질문 & 답글 형식?
 
 class FAQViewSet(
     viewsets.GenericViewSet,
