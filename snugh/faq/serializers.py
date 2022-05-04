@@ -21,7 +21,6 @@ class FAQSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return FAQ.objects.create(
-            user=self.context['request'].user,
             question=self.validated_data['question'], 
             answer=self.validated_data.get('answer', ""), 
             category=self.validated_data.get('category'))
