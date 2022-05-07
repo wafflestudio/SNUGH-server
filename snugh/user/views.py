@@ -88,12 +88,12 @@ class UserViewSet(viewsets.GenericViewSet):
             return Response({'error': 'major missing'}, status=status.HTTP_400_BAD_REQUEST)
         elif len(major_list) == 1:
             major = major_list[0]
-            if major['major_type'] != Major.MAJOR:
+            if major['major_type'] != MAJOR:
                 return Response({'error': 'major_type not_allowed'}, status=status.HTTP_400_BAD_REQUEST)
         else:
             major_count = 0
             for major in major_list:
-                if major['major_type'] == Major.MAJOR:
+                if major['major_type'] == MAJOR:
                     major_count += 1
             if major_count == 0:
                 return Response({'error': 'major_type not_allowed'}, status=status.HTTP_400_BAD_REQUEST)
