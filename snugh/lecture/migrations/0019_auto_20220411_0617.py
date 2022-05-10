@@ -32,7 +32,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='semester',
-            constraint=models.UniqueConstraint(fields=('plan', 'year', 'semester'), name='semester already exists in plan.'),
+            constraint=models.UniqueConstraint(fields=('plan', 'year', 'semester_type'), name='semester already exists in plan.'),
         ),
         migrations.AddConstraint(
             model_name='semesterlecture',
