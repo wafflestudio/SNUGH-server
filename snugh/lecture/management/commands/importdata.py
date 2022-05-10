@@ -1,7 +1,10 @@
-import csv
+from datetime import date
 import re
 
 from django.core.management.base import BaseCommand, CommandError
+import requests
+import xlrd
+
 from lecture.models import Lecture
 import semester.const as SEMESTER_TYPES
 import lecture.const as LECTURE_TYPES
@@ -11,80 +14,106 @@ class Command(BaseCommand):
     help = "Imports data from csv search file"
 
     def add_arguments(self, parser):
-        parser.add_argument('filepath', help='Path of the CSV file to import.')
+        parser.add_argument('year', type=int, choices=range(2013, date.today().year + 1), help='Year to import.')
+        parser.add_argument('semester', choices=[SEMESTER_TYPES.FIRST,
+                                                 SEMESTER_TYPES.SECOND,
+                                                 SEMESTER_TYPES.SUMMER,
+                                                 SEMESTER_TYPES.WINTER],
+                            help='Semester to import.')
         parser.add_argument('--dry-run', action='store_true', help="Show the number of lectures that will be modified; don't actually update them.")
         parser.add_argument('--ignore-errors', action='store_true', help='Ignore unexpected errors detected while importing.')
         parser.add_argument('--noinput', '--no-input', action='store_false', dest='interactive', help='Do NOT prompt the user for input of any kind.')
 
     def handle(self, *args, **options):
-        filepath = options['filepath']
-        self.ignore_errors = options['ignore_errors']
+        year = options['year']
+        semester = options['semester']
+
         self.dry_run = options['dry_run']
+        self.ignore_errors = options['ignore_errors']
         self.interactive = options['interactive']
 
-        self.notice(f'Starting import from {filepath}')
-        with open(filepath, newline='') as csvfile:
-            csvreader = csv.reader(csvfile)
+        url = 'https://sugang.snu.ac.kr/sugang/cc/cc100InterfaceExcel.action'
+        semester_params = { SEMESTER_TYPES.FIRST: 'U000200001U000300001',
+                            SEMESTER_TYPES.SECOND: 'U000200002U000300001',
+                            SEMESTER_TYPES.SUMMER: 'U000200001U000300002',
+                            SEMESTER_TYPES.WINTER: 'U000200002U000300002' }
+        params = { 'workType': 'EX', 'srchOpenSchyy': f'{year}', 'srchOpenShtm': semester_params[semester], 'srchPageSize': '9999', 'srchCurrPage': '1' }
+        empty_keys = ['srchBdNo', 'srchCamp', 'srchCptnCorsFg', 'srchExcept', 'srchLsnProgType', 'srchMrksGvMthd',
+                      'srchOpenDeptCd', 'srchOpenMjCd', 'srchOpenPntMax', 'srchOpenPntMin', 'srchOpenSbjtDayNm',
+                      'srchOpenSbjtFldCd', 'srchOpenSbjtNm', 'srchOpenSbjtTm', 'srchOpenSbjtTmNm', 'srchOpenShyr',
+                      'srchOpenSubmattCorsFg', 'srchOpenSubmattFgCd1', 'srchOpenSubmattFgCd2', 'srchOpenSubmattFgCd3',
+                      'srchOpenSubmattFgCd4', 'srchOpenSubmattFgCd5', 'srchOpenSubmattFgCd6', 'srchOpenSubmattFgCd7',
+                      'srchOpenSubmattFgCd8', 'srchOpenSubmattFgCd9', 'srchOpenUpDeptCd', 'srchOpenUpSbjtFldCd',
+                      'srchProfNm', 'srchSbjtCd', 'srchSbjtNm', 'srchTlsnAplyCapaCntMax', 'srchTlsnAplyCapaCntMin',
+                      'srchTlsnRcntMax', 'srchTlsnRcntMin']
+        params |= { key: '' for key in empty_keys }
 
-            next(csvreader)
-            infoheader = next(csvreader)[0]
-            m = re.search(r'(\d+)학년도.*(1|2|여름|겨울)학기', infoheader)
-            year = int(m.group(1))
-            if not 2010 <= year <= 2030:
-                self.warn_error(f'Unexpected year {year}.')
+        self.notice(f'Downloading data for {year} {semester} semester from {url}...')
+        r = requests.get(url, params=params)
+        try:
+            book = xlrd.open_workbook(file_contents=r.content)
+            sh = book.sheet_by_index(0)
+        except xlrd.biffh.XLRDError:
+            raise CommandError(f'Unexpected spreadsheet data from {url}.')
 
-            if m.group(2) == '1':
-                semester = SEMESTER_TYPES.FIRST
-            elif m.group(2) == '2':
-                semester = SEMESTER_TYPES.SECOND
-            elif m.group(2) == '여름':
-                semester = SEMESTER_TYPES.SUMMER
-            elif m.group(2) == '겨울':
-                semester = SEMESTER_TYPES.WINTER
+        self.notice('Starting import...')
+
+        infoheader = sh.cell_value(1, 0)
+        m = re.search(r'(\d+)학년도.*(1|2|여름|겨울)학기', infoheader)
+        detected_year = int(m.group(1))
+
+        if year != detected_year:
+            self.warn_error(f'Expected year {year}, but detected {detected_year}.')
+
+        if m.group(2) == '1':
+            detected_semester = SEMESTER_TYPES.FIRST
+        elif m.group(2) == '2':
+            detected_semester = SEMESTER_TYPES.SECOND
+        elif m.group(2) == '여름':
+            detected_semester = SEMESTER_TYPES.SUMMER
+        elif m.group(2) == '겨울':
+            detected_semester = SEMESTER_TYPES.WINTER
+        else:
+            detected_semester = SEMESTER_TYPES.UNKNOWN
+
+        if semester != detected_semester:
+            self.warn_error(f'Expected semester {semester}, but detected {detected_semester}.')
+
+        lecture_values_list = []
+        for r in range(3, sh.nrows):
+            row = [sh.cell_value(r, c) for c in range(sh.ncols)]
+            if row[0] == '전필':
+                lecture_type = LECTURE_TYPES.MAJOR_REQUIREMENT
+            elif row[0] == '전선':
+                lecture_type = LECTURE_TYPES.MAJOR_ELECTIVE
+            elif row[0] == '교양':
+                lecture_type = LECTURE_TYPES.GENERAL
+            elif row[0] == '일선':
+                lecture_type = LECTURE_TYPES.GENERAL_ELECTIVE
+            elif row[0] == '교직':
+                lecture_type = LECTURE_TYPES.TEACHING
+            elif row[0] in ['공통', '논문', '대학원']:
+                lecture_type = LECTURE_TYPES.NONE
             else:
-                self.warn_error(f'Unexpected semester type {m.group(2)}.')
-                semester = SEMESTER_TYPES.UNKNOWN
+                self.warn_error(f'Unexpected lecture type {row[0]}.')
+                lecture_type = LECTURE_TYPES.NONE
 
-            if not self.boolean_input(f'Detected file as {year} {semester} semester.', 'Continue? [Y/n]', True):
-                raise CommandError('Aborted due to user request.')
+            try:
+                credit = int(row[9])
+            except ValueError:
+                self.warn_error(f'Unexpected credit {row[9]}.')
+                credit = 0
 
-            next(csvreader)
-
-            lecture_values_list = []
-            for row in csvreader:
-                # create variables
-                if row[0] == '전필':
-                    lecture_type = LECTURE_TYPES.MAJOR_REQUIREMENT
-                elif row[0] == '전선':
-                    lecture_type = LECTURE_TYPES.MAJOR_ELECTIVE
-                elif row[0] == '교양':
-                    lecture_type = LECTURE_TYPES.GENERAL
-                elif row[0] == '일선':
-                    lecture_type = LECTURE_TYPES.GENERAL_ELECTIVE
-                elif row[0] == '교직':
-                    lecture_type = LECTURE_TYPES.TEACHING
-                elif row[0] in ['공통', '논문', '대학원']:
-                    lecture_type = LECTURE_TYPES.NONE
-                else:
-                    self.warn_error(f'Unexpected lecture type {row[0]}.')
-                    lecture_type = LECTURE_TYPES.NONE
-
-                try:
-                    credit = int(row[9])
-                except ValueError:
-                    self.warn_error(f'Unexpected credit {row[9]}.')
-                    credit = 0
-
-                lecture_values_list.append({
-                    'lecture_code': row[5],
-                    'lecture_name': row[7],
-                    'open_department': row[1],
-                    'open_major': row[2],
-                    'open_semester': semester,
-                    'lecture_type': lecture_type,
-                    'credit': credit,
-                    'recent_open_year': year
-                })
+            lecture_values_list.append({
+                'lecture_code': row[5],
+                'lecture_name': row[7],
+                'open_department': row[1],
+                'open_major': row[2],
+                'open_semester': semester,
+                'lecture_type': lecture_type,
+                'credit': credit,
+                'recent_open_year': year
+            })
 
 
         existing_lectures = Lecture.objects.filter(lecture_code__in=[values['lecture_code'] for values in lecture_values_list])
@@ -148,9 +177,10 @@ class Command(BaseCommand):
     def warn_error(self, msg):
         if self.ignore_errors:
             self.warning(msg)
+        elif self.boolean_input(self.style.WARNING(f'Possible error found: {msg}'), 'Ignore this specific error and continue? [y/N]', False):
+            self.info('Continuing. To ignore all errors, try the --ignore-errors option.')
         else:
-            raise CommandError(f'Possible error found: {msg}\n' \
-                               'To ignore errors, try the --ignore-errors option.')
+            raise CommandError('Aborted due to user request.')
 
     def info(self, msg, ending=None):
         self.stdout.write(msg, ending=ending)
