@@ -3,6 +3,8 @@ import re
 
 from django.core.management.base import BaseCommand, CommandError
 from lecture.models import Lecture
+import semester.const as SEMESTER_TYPES
+import lecture.const as LECTURE_TYPES
 
 
 class Command(BaseCommand):
@@ -32,16 +34,16 @@ class Command(BaseCommand):
                 self.warn_error(f'Unexpected year {year}.')
 
             if m.group(2) == '1':
-                semester = Lecture.FIRST
+                semester = SEMESTER_TYPES.FIRST
             elif m.group(2) == '2':
-                semester = Lecture.SECOND
+                semester = SEMESTER_TYPES.SECOND
             elif m.group(2) == '여름':
-                semester = Lecture.SUMMER
+                semester = SEMESTER_TYPES.SUMMER
             elif m.group(2) == '겨울':
-                semester = Lecture.WINTER
+                semester = SEMESTER_TYPES.WINTER
             else:
                 self.warn_error(f'Unexpected semester type {m.group(2)}.')
-                semester = Lecture.UNKNOWN
+                semester = SEMESTER_TYPES.UNKNOWN
 
             if not self.boolean_input(f'Detected file as {year} {semester} semester.', 'Continue? [Y/n]', True):
                 raise CommandError('Aborted due to user request.')
@@ -52,20 +54,20 @@ class Command(BaseCommand):
             for row in csvreader:
                 # create variables
                 if row[0] == '전필':
-                    lecture_type = Lecture.MAJOR_REQUIREMENT
+                    lecture_type = LECTURE_TYPES.MAJOR_REQUIREMENT
                 elif row[0] == '전선':
-                    lecture_type = Lecture.MAJOR_ELECTIVE
+                    lecture_type = LECTURE_TYPES.MAJOR_ELECTIVE
                 elif row[0] == '교양':
-                    lecture_type = Lecture.GENERAL
+                    lecture_type = LECTURE_TYPES.GENERAL
                 elif row[0] == '일선':
-                    lecture_type = Lecture.GENERAL_ELECTIVE
+                    lecture_type = LECTURE_TYPES.GENERAL_ELECTIVE
                 elif row[0] == '교직':
-                    lecture_type = Lecture.TEACHING
+                    lecture_type = LECTURE_TYPES.TEACHING
                 elif row[0] in ['공통', '논문', '대학원']:
-                    lecture_type = Lecture.NONE
+                    lecture_type = LECTURE_TYPES.NONE
                 else:
                     self.warn_error(f'Unexpected lecture type {row[0]}.')
-                    lecture_type = Lecture.NONE
+                    lecture_type = LECTURE_TYPES.NONE
 
                 try:
                     credit = int(row[9])
@@ -93,22 +95,22 @@ class Command(BaseCommand):
 
         lectures_to_set_year = existing_lectures.filter(recent_open_year__lt=year)
 
-        if semester in [Lecture.FIRST, Lecture.SECOND]:
-            insignificant_semesters = [Lecture.UNKNOWN, Lecture.SUMMER, Lecture.WINTER]
-            other_semester = Lecture.SECOND if semester == Lecture.FIRST else Lecture.FIRST
-        elif semester in [Lecture.SUMMER, Lecture.WINTER]:
-            insignificant_semesters = [Lecture.UNKNOWN]
-            other_semester = Lecture.WINTER if semester == Lecture.SUMMER else Lecture.SUMMER
+        if semester in [SEMESTER_TYPES.FIRST, SEMESTER_TYPES.SECOND]:
+            insignificant_semesters = [SEMESTER_TYPES.UNKNOWN, SEMESTER_TYPES.SUMMER, SEMESTER_TYPES.WINTER]
+            other_semester = SEMESTER_TYPES.SECOND if semester == SEMESTER_TYPES.FIRST else SEMESTER_TYPES.FIRST
+        elif semester in [SEMESTER_TYPES.SUMMER, SEMESTER_TYPES.WINTER]:
+            insignificant_semesters = [SEMESTER_TYPES.UNKNOWN]
+            other_semester = SEMESTER_TYPES.WINTER if semester == SEMESTER_TYPES.SUMMER else SEMESTER_TYPES.SUMMER
         else:
             insignificant_semesters = []
-            other_semester = Lecture.UNKNOWN
+            other_semester = SEMESTER_TYPES.UNKNOWN
 
         lectures_to_set_semester = existing_lectures.filter(open_semester__in=insignificant_semesters)
         lectures_to_add_semester = existing_lectures.filter(open_semester=other_semester)
 
         self.info(f'{lectures_to_set_year.count()} lectures will be updated recent_open_year to {year}.')
         self.info(f'{lectures_to_set_semester.count()} lectures will be updated open_semester to {semester}.')
-        self.info(f'{lectures_to_add_semester.count()} lectures will be updated open_semester to {Lecture.ALL}.')
+        self.info(f'{lectures_to_add_semester.count()} lectures will be updated open_semester to {SEMESTER_TYPES.ALL}.')
 
         if not self.dry_run:
             self.notice('Creating new lectures...')
@@ -117,13 +119,13 @@ class Command(BaseCommand):
             self.notice('Updating open year of existing lectures...')
             lectures_to_set_year.update(recent_open_year=year)
             self.notice('Updating open semester of existing lectures...')
-            if semester in [Lecture.FIRST, Lecture.SECOND]:
+            if semester in [SEMESTER_TYPES.FIRST, SEMESTER_TYPES.SECOND]:
                 lectures_to_set_semester.update(open_semester=semester)
-                lectures_to_add_semester.update(open_semester=Lecture.ALL)
-            elif semester in [Lecture.SUMMER, Lecture.WINTER]:
+                lectures_to_add_semester.update(open_semester=SEMESTER_TYPES.ALL)
+            elif semester in [SEMESTER_TYPES.SUMMER, SEMESTER_TYPES.WINTER]:
                 lectures_to_set_semester.update(open_semester=semester)
-                lectures_to_add_semester.update(open_semester=Lecture.ALL)
-                existing_lectures.filter(open_semester=Lecture.UNKNOWN).update(open_semester=semester)
+                lectures_to_add_semester.update(open_semester=SEMESTER_TYPES.ALL)
+                existing_lectures.filter(open_semester=SEMESTER_TYPES.UNKNOWN).update(open_semester=semester)
             self.success('Successfully imported all lectures.')
         else:
             self.notice('No lectures were created or updated because --dry-run was requested.')
