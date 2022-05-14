@@ -21,10 +21,17 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+    - name: Start MySQL
+      run: |
+        sudo systemctl start mysql.service
     - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r ./snugh/requirements.txt
     - name: Run Tests
       run: |
+        export SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(100))')"
+        export LOCAL_DB_NAME=snugh
+        export LOCAL_DB_USER=root
+        export LOCAL_DB_PASSWORD=root
         python ./snugh/manage.py test
