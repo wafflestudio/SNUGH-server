@@ -11,7 +11,7 @@ import lecture.const as LECTURE_TYPES
 
 
 class Command(BaseCommand):
-    help = "Imports data from csv search file"
+    help = "Import lectures from sugang.snu.ac.kr"
 
     def add_arguments(self, parser):
         parser.add_argument('year', type=int, choices=range(2013, date.today().year + 1), help='Year to import.')
