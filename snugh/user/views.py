@@ -8,6 +8,7 @@ from rest_framework.decorators import action
 from django.contrib.auth.models import User
 from user.models import *
 from user.serializers import *
+from user.const import *
 from django.core.mail.message import EmailMessage
 
 
@@ -88,12 +89,12 @@ class UserViewSet(viewsets.GenericViewSet):
             return Response({'error': 'major missing'}, status=status.HTTP_400_BAD_REQUEST)
         elif len(major_list) == 1:
             major = major_list[0]
-            if major['major_type'] != Major.MAJOR:
+            if major['major_type'] != MAJOR:
                 return Response({'error': 'major_type not_allowed'}, status=status.HTTP_400_BAD_REQUEST)
         else:
             major_count = 0
             for major in major_list:
-                if major['major_type'] == Major.MAJOR:
+                if major['major_type'] == MAJOR:
                     major_count += 1
             if major_count == 0:
                 return Response({'error': 'major_type not_allowed'}, status=status.HTTP_400_BAD_REQUEST)
@@ -182,7 +183,7 @@ class UserViewSet(viewsets.GenericViewSet):
             user.first_name = body.get('full_name')
         if 'password' in body:
             user.set_password(body.get('password'))
-        
+
         serializer = self.get_serializer(user, data=body, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -230,7 +231,7 @@ class UserViewSet(viewsets.GenericViewSet):
 
         if not Major.objects.filter(major_name=major_name, major_type=major_type).exists():
             return Response({'error': 'major not_exist'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         searched_major = Major.objects.get(major_name=major_name, major_type=major_type)
 
         # POST /user/major
@@ -240,10 +241,10 @@ class UserViewSet(viewsets.GenericViewSet):
 
             UserMajor.objects.create(user=user, major=searched_major)
             try:
-                changed_usermajor = UserMajor.objects.get(user=user, major__major_type=Major.SINGLE_MAJOR)
+                changed_usermajor = UserMajor.objects.get(user=user, major__major_type=SINGLE_MAJOR)
                 not_only_major = changed_usermajor.major
                 changed_usermajor.delete()
-                new_type_major = Major.objects.get(major_name=not_only_major.major_name, major_type=Major.MAJOR)
+                new_type_major = Major.objects.get(major_name=not_only_major.major_name, major_type=MAJOR)
                 UserMajor.objects.create(user=user, major=new_type_major)
             except UserMajor.DoesNotExist:
                 pass
@@ -262,9 +263,9 @@ class UserViewSet(viewsets.GenericViewSet):
             changed_usermajor = UserMajor.objects.filter(user=user)
             if changed_usermajor.count() == 1:
                 only_major = changed_usermajor.first().major
-                if only_major.major_type == Major.MAJOR:
+                if only_major.major_type == MAJOR:
                     changed_usermajor.first().delete()
-                    new_type_major = Major.objects.get(major_name=only_major.major_name, major_type=Major.SINGLE_MAJOR)
+                    new_type_major = Major.objects.get(major_name=only_major.major_name, major_type=SINGLE_MAJOR)
                     UserMajor.objects.create(user=user, major=new_type_major)
 
         majors = Major.objects.filter(usermajor__user=user)
@@ -274,7 +275,7 @@ class UserViewSet(viewsets.GenericViewSet):
             return Response(body, status=status.HTTP_201_CREATED)
         else:
             return Response(body, status=status.HTTP_200_OK)
-        
+
     def login_redirect(request):
         return redirect('http://snugh.s3-website.ap-northeast-2.amazonaws.com')
 
@@ -286,9 +287,9 @@ class MajorViewSet(viewsets.GenericViewSet):
     def list(self, request):
         search_keyword = request.query_params.get('search_keyword')
         major_type = request.query_params.get('major_type')
-        
+
         majors = self.get_queryset().all()
-        
+
         # filtering
         if search_keyword:
             majors = majors.filter(major_name__icontains=search_keyword)

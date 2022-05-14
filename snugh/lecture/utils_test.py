@@ -1,5 +1,8 @@
 from factory.django import DjangoModelFactory
-from .models import Plan, Semester, Lecture, Semester, SemesterLecture, Major
+from user.models import Major
+from semester.models import Semester
+from plan.models import Plan
+from .models import Lecture, SemesterLecture
 
 
 class SemesterFactory(DjangoModelFactory):

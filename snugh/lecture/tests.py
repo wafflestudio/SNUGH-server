@@ -7,7 +7,13 @@ from user.utils import UserFactory, UserMajorFactory
 from .utils_test import SemesterFactory, SemesterLectureFactory
 
 from user.models import User, Major, UserMajor, UserProfile
-from .models import Lecture, Plan, PlanMajor, Semester, SemesterLecture
+from semester.models import Semester
+from plan.models import Plan, PlanMajor
+from .models import Lecture, SemesterLecture
+
+from .const import *
+from user.const import *
+from semester.const import *
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -26,7 +32,7 @@ class LectureTestCase(TestCase):
 
         cls.user = UserFactory.auto_create()
         cls.user_token = "Token " + str(cls.user.auth_token)
-        
+
         cls.plan = Plan.objects.create(user=cls.user, plan_name="test")
 
         cls.semesters = SemesterFactory.create(
@@ -45,16 +51,16 @@ class LectureTestCase(TestCase):
                 }
             ]
         )
-        
+
         # bulk_create()가 mysql에서는 id가 none인 저장 안된 object들을 retrieve하기 때문에
-        # .get으로 별도로 retrieve 해줬습니다. 
+        # .get으로 별도로 retrieve 해줬습니다.
         cls.semester_2016 = Semester.objects.get(year=2016, semester_type="first")
         cls.semester_2021 = Semester.objects.get(year=2021, semester_type="first")
         cls.major = Major.objects.get(major_name="경영학과", major_type="major")
         cls.planmajor = PlanMajor.objects.create(major=cls.major, plan=cls.plan)
         cls.my_lectures = [
-            "경영과학", 
-            "디자인 사고와 혁신", 
+            "경영과학",
+            "디자인 사고와 혁신",
             "고급회계",
             "공급사슬관리",
             "국제경영"
@@ -66,7 +72,7 @@ class LectureTestCase(TestCase):
             lectures=cls.lectures,
             recognized_majors=[cls.major]*5
         )
-        
+
         cls.plan_post = Plan.objects.create(user=cls.user, plan_name="example plan")
 
         cls.semester = SemesterFactory(
@@ -74,10 +80,10 @@ class LectureTestCase(TestCase):
                 {
                     "plan": cls.plan,
                     "year": 2022,
-                    "semester_type": Semester.FIRST
+                    "semester_type": FIRST
                 }
             ]
-        )
+        )[0]
 
         cls.post_data = {
             "semester_id": cls.semester.id,
@@ -132,7 +138,7 @@ class LectureTestCase(TestCase):
         self.assertEqual(body["general_elective_credit"], 17)
         self.assertIn("lectures", body)
         self.assertEqual(len(body["lectures"]), 6)
-        
+
     def test_lecture_list(self):
         """
         Test [GET] lecture/
@@ -140,9 +146,9 @@ class LectureTestCase(TestCase):
 
         # 과거 기준 전필 조회
         body = {
-            "search_type": "major_requirement", 
-            "search_year": 2016, 
-            "search_keyword":"", 
+            "search_type": "major_requirement",
+            "search_year": 2016,
+            "search_keyword":"",
             "major_name":self.major.major_name,
             "plan_id":self.plan.id
         }
@@ -171,9 +177,9 @@ class LectureTestCase(TestCase):
 
         # 미래 기준 전필 조회
         body = {
-            "search_type": "major_requirement", 
-            "search_year": 2021, 
-            "search_keyword":"", 
+            "search_type": "major_requirement",
+            "search_year": 2021,
+            "search_keyword":"",
             "major_name":self.major.major_name,
             "plan_id":self.plan.id
         }
@@ -201,9 +207,9 @@ class LectureTestCase(TestCase):
 
         # 과거 기준 전선 조회
         body = {
-            "search_type": "major_elective", 
-            "search_year": 2016, 
-            "search_keyword":"", 
+            "search_type": "major_elective",
+            "search_year": 2016,
+            "search_keyword":"",
             "major_name":self.major.major_name,
             "plan_id":self.plan.id
         }
@@ -228,12 +234,12 @@ class LectureTestCase(TestCase):
             if i!=cnt-1:
                 # 정렬 check
                 self.assertEqual((data[i]["lecture_name"]<=data[i+1]["lecture_name"]), True)
-                
+
         # 미래 기준 전선 조회
         body = {
-            "search_type": "major_elective", 
-            "search_year": 2021, 
-            "search_keyword":"", 
+            "search_type": "major_elective",
+            "search_year": 2021,
+            "search_keyword":"",
             "major_name":self.major.major_name,
             "plan_id":self.plan.id
         }
@@ -262,9 +268,9 @@ class LectureTestCase(TestCase):
 
         # 과거 기준 키워드 검색
         body = {
-            "search_type": "keyword", 
-            "search_year": 2016, 
-            "search_keyword":"경영", 
+            "search_type": "keyword",
+            "search_year": 2016,
+            "search_keyword":"경영",
             "major_name":self.major.major_name,
             "plan_id":self.plan.id
         }
@@ -287,9 +293,9 @@ class LectureTestCase(TestCase):
 
         # 미래 기준 키워드 검색
         body = {
-            "search_type": "keyword", 
-            "search_year": 2021, 
-            "search_keyword":"경영", 
+            "search_type": "keyword",
+            "search_year": 2021,
+            "search_keyword":"경영",
             "major_name":self.major.major_name,
             "plan_id":self.plan.id
         }
@@ -312,13 +318,13 @@ class LectureTestCase(TestCase):
 
     def test_lecture_list_error(self):
         """
-        Test error [GET] lecture/ 
+        Test error [GET] lecture/
         """
 
         wrong_body = {
-            "search_type": "", 
-            "search_year": 2021, 
-            "search_keyword":"", 
+            "search_type": "",
+            "search_year": 2021,
+            "search_keyword":"",
             "major_name":self.major.major_name,
             "plan_id":self.plan.id
         }
@@ -333,8 +339,8 @@ class LectureTestCase(TestCase):
         self.assertEqual(data['error'], "search_type missing")
 
         wrong_body = {
-            "search_type": "major_elective", 
-            "search_keyword":"", 
+            "search_type": "major_elective",
+            "search_keyword":"",
             "major_name":self.major.major_name,
             "plan_id":self.plan.id
         }
@@ -349,8 +355,8 @@ class LectureTestCase(TestCase):
         self.assertEqual(data['error'], "search_year missing")
 
         wrong_body = {
-            "search_type": "keyword", 
-            "search_keyword":"", 
+            "search_type": "keyword",
+            "search_keyword":"",
             "major_name":self.major.major_name,
             "plan_id":self.plan.id
         }
@@ -365,9 +371,9 @@ class LectureTestCase(TestCase):
         self.assertEqual(data['error'], "search_year missing")
 
         wrong_body = {
-            "search_type": "major_requirement", 
-            "search_year": 2021, 
-            "search_keyword":"", 
+            "search_type": "major_requirement",
+            "search_year": 2021,
+            "search_keyword":"",
             "major_name":"",
             "plan_id":self.plan.id
         }
@@ -382,9 +388,9 @@ class LectureTestCase(TestCase):
         self.assertEqual(data['error'], "major_name missing")
 
         wrong_body = {
-            "search_type": "major_requirement", 
-            "search_year": 2021, 
-            "search_keyword":"", 
+            "search_type": "major_requirement",
+            "search_year": 2021,
+            "search_keyword":"",
             "major_name":self.major.major_name
         }
         response = self.client.get(
@@ -398,9 +404,9 @@ class LectureTestCase(TestCase):
         self.assertEqual(data['error'], "plan_id missing")
 
         wrong_body = {
-            "search_type": "keyword", 
-            "search_year": 2021, 
-            "search_keyword":"", 
+            "search_type": "keyword",
+            "search_year": 2021,
+            "search_keyword":"",
             "major_name":self.major.major_name
         }
         response = self.client.get(
@@ -412,18 +418,18 @@ class LectureTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         data = response.json()
         self.assertEqual(data['error'], "plan_id missing")
-        
-        
+
+
     def test_lecture_delete(self):
         """
         Test [DELETE] lecture/
         """
-        
+
         self.assertEqual(
             self.semester_2016.semesterlecture.filter(
                 lecture__lecture_name="공급사슬관리").exists(), True)
         lecture_id = self.semester_2016.semesterlecture.get(lecture__lecture_name="공급사슬관리").id
-        
+
         response = self.client.delete(
             f"/lecture/{lecture_id}/",
             content_type="application/json",
@@ -457,7 +463,7 @@ class LectureTestCase(TestCase):
 
         semester_to_list = [target_lecture.id]
         semester_from_list = list(lectures_2016.exclude(lecture_name="경영과학").values_list("id", flat=True))
-        
+
         body = {
             "semester_to_id":semester_to_id,
             "semester_from_id":semester_from_id,
@@ -478,7 +484,7 @@ class LectureTestCase(TestCase):
         self.assertEqual(data[0]['semester_type'], "first")
         self.assertEqual(data[0]['major_requirement_credit'], self.semester_2016.major_requirement_credit-3)
         self.assertEqual(data[0]['major_elective_credit'], self.semester_2016.major_elective_credit)
-        
+
         for i, lecture in enumerate(data[0]['lectures']) :
             self.assertNotEqual(lecture["lecture_name"], "경영과학")
             self.assertEqual(lecture['recent_sequence'], i)
@@ -490,7 +496,7 @@ class LectureTestCase(TestCase):
         self.assertEqual(data[1]['semester_type'], "first")
         self.assertEqual(data[1]['major_requirement_credit'], self.semester_2021.major_requirement_credit+3)
         self.assertEqual(data[1]['major_elective_credit'], self.semester_2021.major_elective_credit)
-        
+
         self.assertEqual(data[1]['lectures'][0]["lecture_name"], '경영과학')
         self.assertEqual(data[1]['lectures'][0]['recent_sequence'], 0)
         self.assertEqual(
@@ -523,18 +529,18 @@ class LectureTestCase(TestCase):
 
 class SemesterTestCase(TestCase):
     """
-    # Test 
+    # Test
 
     [GET] semester/<semester_id>/
     [DELETE] semester/<semester_id>/
     [PUT] semester/<semester_id>/
     """
-    
+
     @classmethod
     def setUpTestData(cls):
         cls.user = UserFactory.auto_create()
         cls.user_token = "Token " + str(cls.user.auth_token)
-        
+
         cls.plan = Plan.objects.create(user=cls.user, plan_name="test")
 
         cls.semesters = SemesterFactory.create(
@@ -558,22 +564,22 @@ class SemesterTestCase(TestCase):
                 }
             ]
         )
-        
+
         # bulk_create()가 mysql에서는 id가 none인 저장 안된 object들을 retrieve하기 때문에
-        # .get으로 별도로 retrieve 해줬습니다. 
+        # .get으로 별도로 retrieve 해줬습니다.
         cls.semester_2016 = Semester.objects.get(year=2016, semester_type="first")
-        
+
         # for testing deletion
         cls.semester_2021 = Semester.objects.get(year=2021, semester_type="first")
-        
+
         cls.major = Major.objects.get(major_name="경영학과", major_type="major")
         cls.planmajor = PlanMajor.objects.create(major=cls.major, plan=cls.plan)
         cls.lectures_list_2016 = [
-            "경영과학", 
+            "경영과학",
             "고급회계",
             "공급사슬관리",
             "국제경영",
-            "디자인 사고와 혁신" 
+            "디자인 사고와 혁신"
         ]
         cls.lectures_2016 = Lecture.objects.filter(lecture_name__in=cls.lectures_list_2016)
 
@@ -588,7 +594,7 @@ class SemesterTestCase(TestCase):
             lectures=cls.lectures_2016,
             recognized_majors=[cls.major]*5
         )
-        
+
 
         cls.plan_post = Plan.objects.create(user=cls.user, plan_name="example plan")
 
@@ -597,7 +603,7 @@ class SemesterTestCase(TestCase):
                 {
                     "plan": cls.plan,
                     "year": 2022,
-                    "semester_type": Semester.FIRST
+                    "semester_type": FIRST
                 }
             ]
         )
@@ -609,14 +615,14 @@ class SemesterTestCase(TestCase):
         body = response.json()
         self.assertEqual(body['error'], "year missing")
 
-        data = {"plan": self.plan_post.id, "year": 2022, "semester_type": Semester.FIRST}
+        data = {"plan": self.plan_post.id, "year": 2022, "semester_type": FIRST}
         response = self.client.post('/semester/', data=data, HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         body = response.json()
         self.assertEqual(body['error'], "semester already_exist")
 
     def test_create_sememster(self):
-        data = {"plan": self.plan_post.id, "year": 2022, "semester_type": Semester.SECOND}
+        data = {"plan": self.plan_post.id, "year": 2022, "semester_type": SECOND}
         response = self.client.post('/semester/', data=data, HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
@@ -666,7 +672,7 @@ class SemesterTestCase(TestCase):
             HTTP_AUTHORIZATION=self.user_token,
         )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-    
+
     def test_semester_delete(self):
         """
         Test [DELETE] semester/<semester_id>/
@@ -683,7 +689,7 @@ class SemesterTestCase(TestCase):
         semester_2021 = Semester.objects.filter(plan=self.plan, year=2021, semester_type='first').exists()
         self.assertEqual(semester_2021, False)
 
-    
+
     def test_semester_update(self):
         """
         Test [PUT] semester/<semester_id>/
@@ -799,7 +805,7 @@ class PlanTestCase(TestCase):
 
         cls.user = UserFactory.auto_create()
         cls.user_token = "Token " + str(cls.user.auth_token)
-        
+
         cls.plan_1 = Plan.objects.create(user=cls.user, plan_name="test_1")
 
         cls.p1_semesters = SemesterFactory.create(
@@ -827,7 +833,7 @@ class PlanTestCase(TestCase):
         cls.major_1 = Major.objects.get(major_name="경영학과", major_type="major")
         cls.p1_planmajor = PlanMajor.objects.create(major=cls.major_1, plan=cls.plan_1)
         cls.p1_lectures_1 = [
-            "디자인 사고와 혁신", 
+            "디자인 사고와 혁신",
             "고급회계",
             "국제경영"
         ]
@@ -944,8 +950,8 @@ class PlanTestCase(TestCase):
 
         plan = Plan.objects.filter(user=self.user, plan_name="example plan")
         self.assertTrue(plan)
-        major = Major.objects.get(major_name="컴퓨터공학부", major_type=Major.MAJOR)
-        double_major = Major.objects.get(major_name="경영학과", major_type=Major.DOUBLE_MAJOR)
+        major = Major.objects.get(major_name="컴퓨터공학부", major_type=MAJOR)
+        double_major = Major.objects.get(major_name="경영학과", major_type=DOUBLE_MAJOR)
         self.assertTrue(PlanMajor.objects.filter(plan=plan[0], major=major))
         self.assertTrue(PlanMajor.objects.filter(plan=plan[0], major=double_major))
 
@@ -964,7 +970,7 @@ class PlanTestCase(TestCase):
 
         plan = Plan.objects.filter(user=self.user, plan_name="single plan")
         self.assertTrue(plan)
-        major = Major.objects.get(major_name="컴퓨터공학부", major_type=Major.SINGLE_MAJOR)
+        major = Major.objects.get(major_name="컴퓨터공학부", major_type=SINGLE_MAJOR)
         self.assertTrue(PlanMajor.objects.filter(plan=plan[0], major=major))
 
         body = response.json()
@@ -995,7 +1001,7 @@ class PlanTestCase(TestCase):
         self.assertEqual(len(plan_1['majors']), 1)
         self.assertEqual(plan_1['majors'][0]['major_name'], self.major_1.major_name)
         self.assertEqual(plan_1['majors'][0]['major_type'], self.major_1.major_type)
-        
+
         self.assertEqual(len(plan_1['semesters']), 2)
         self.assertEqual(plan_1['semesters'][0]['year'], self.p1_semester_1.year)
         self.assertEqual(plan_1['semesters'][0]['semester_type'], self.p1_semester_1.semester_type)
@@ -1016,7 +1022,7 @@ class PlanTestCase(TestCase):
         self.assertEqual(plan_2['majors'][0]['major_type'], self.major_1.major_type)
         self.assertEqual(plan_2['majors'][1]['major_name'], self.major_2.major_name)
         self.assertEqual(plan_2['majors'][1]['major_type'], self.major_2.major_type)
-        
+
         self.assertEqual(len(plan_2['semesters']), 2)
         self.assertEqual(plan_2['semesters'][0]['year'], self.p2_semester_1.year)
         self.assertEqual(plan_2['semesters'][0]['semester_type'], self.p2_semester_1.semester_type)
@@ -1030,7 +1036,7 @@ class PlanTestCase(TestCase):
         self.assertEqual(plan_2['semesters'][1]['major_elective_credit'], self.p2_semester_2.major_elective_credit)
         self.assertEqual(len(plan_2['semesters'][1]['lectures']), 1)
 
-   
+
     def test_plan_retrieve(self):
         """
         Test [GET] plan/<plan_id>/
@@ -1048,7 +1054,7 @@ class PlanTestCase(TestCase):
         self.assertEqual(len(data['majors']), 1)
         self.assertEqual(data['majors'][0]['major_name'], self.major_1.major_name)
         self.assertEqual(data['majors'][0]['major_type'], self.major_1.major_type)
-        
+
         self.assertEqual(len(data['semesters']), 2)
         self.assertEqual(data['semesters'][0]['year'], self.p1_semester_1.year)
         self.assertEqual(data['semesters'][0]['semester_type'], self.p1_semester_1.semester_type)
@@ -1129,7 +1135,7 @@ class PlanTestCase(TestCase):
         self.assertEqual(data['majors'][0]['major_type'], self.major_1.major_type)
         self.assertEqual(data['majors'][1]['major_name'], self.major_2.major_name)
         self.assertEqual(data['majors'][1]['major_type'], self.major_2.major_type)
-        
+
         self.assertEqual(len(data['semesters']), 2)
         self.assertEqual(data['semesters'][0]['year'], self.p2_semester_1.year)
         self.assertEqual(data['semesters'][0]['semester_type'], self.p2_semester_1.semester_type)
@@ -1174,7 +1180,7 @@ class PlanTestCase(TestCase):
         self.assertEqual(data['majors'][0]['major_type'], self.major_1.major_type)
         self.assertEqual(data['majors'][1]['major_name'], "심리학과")
         self.assertEqual(data['majors'][1]['major_type'], "double_major")
-        
+
         self.assertEqual(len(data['semesters']), 2)
         self.assertEqual(data['semesters'][0]['year'], self.p2_semester_1.year)
         self.assertEqual(data['semesters'][0]['semester_type'], self.p2_semester_1.semester_type)
