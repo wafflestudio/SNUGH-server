@@ -71,7 +71,7 @@ class LectureViewSet(viewsets.GenericViewSet):
     @transaction.atomic
     def position(self, request, pk=None):
         """Position semester lecture."""
-        target_lecture = SemesterLecture.objects.select_related('semester').get(pk=pk)
+        target_lecture = self.get_object()
         semester_to = request.data.get('semester_to', None)
         semester_from = target_lecture.semester
         position = request.data.get('position', 0)
@@ -244,6 +244,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         except Plan.DoesNotExist:
             raise NotFound()
         search_year = int(search_year)
+
         # Case 1: major requirement or major elective
         if search_type in [MAJOR_REQUIREMENT, MAJOR_ELECTIVE]:
             major_name = request.query_params.get("major_name")
