@@ -28,7 +28,10 @@ class SemesterViewSet(viewsets.GenericViewSet, generics.RetrieveDestroyAPIView):
     # PUT /semester/:semesterId
     @transaction.atomic
     def update(self, request, pk=None):
-        """Update semester."""
+        """
+        Update semester.
+        # TODO: SemesterLectures? Duplication Error?
+        """
         data = request.data
         semester = self.get_object()
         year = data.get('year')

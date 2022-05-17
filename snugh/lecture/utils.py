@@ -71,7 +71,7 @@ def __update_lecture_info(
     majors: Major, 
     semesterlectures: SemesterLecture, 
     semester: Semester,
-    none_major: Major = Major.objects.get(id=DEFAULT_MAJOR_ID)) -> Semester:
+    none_major: Major) -> Semester:
     """Private method using in updating lecture info."""
     updated_semesterlectures = []
     std1 = user.userprofile.entrance_year

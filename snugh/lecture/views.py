@@ -1,3 +1,4 @@
+from urllib import response
 from django.db.models import Case, When, Q, Value, IntegerField, F, Prefetch
 from django.db import transaction
 from rest_framework import status, viewsets
@@ -219,11 +220,14 @@ class LectureViewSet(viewsets.GenericViewSet):
     @transaction.atomic
     def destroy(self, request, pk=None):
         """Destroy semester lecture."""
-        semesterlecture = SemesterLecture.objects.select_related('semester').get(pk=pk)
+        try:
+            semesterlecture = self.get_object()
+        except SemesterLecture.DoesNotExist:
+            raise NotFound()
         semester = sub_semester_credits(semesterlecture, semesterlecture.semester)
         semester.save()
         semesterlecture.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT) 
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     # GET /lecture/?search_type=(string)&search_keyword=(string)&major=(string)&credit=(string)
     # TODO: n-gram 서치 고도화
