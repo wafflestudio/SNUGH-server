@@ -1,4 +1,3 @@
-from urllib import response
 from django.db.models import Case, When, Q, Value, IntegerField, F, Prefetch
 from django.db import transaction
 from rest_framework import status, viewsets

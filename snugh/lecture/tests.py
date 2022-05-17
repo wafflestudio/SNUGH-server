@@ -15,7 +15,6 @@ class LectureTestCase(TestCase):
         [POST] lecture/
         [GET] lecture/
         [DELETE] lecture/
-        [PUT] lecture/<lecture_id>/position/
     """
 
     @classmethod
@@ -458,82 +457,160 @@ class LectureTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 
-    # # PUT lecture/<lecture_id>/position
-    # def test_lecture_position(self):
-    #     """
-    #     Test [PUT] lecture/<lecture_id>/position
-    #     """
+class LecturePositionChangeTestCase(TestCase):
+    """
+    # Test Lecture APIs.
+        [PUT] lecture/<lecture_id>/position/
+    """
 
-    #     lectures_2016 = self.lectures
-    #     target_lecture = lectures_2016.get(lecture_name="경영과학")
-
-    #     semester_from_id = self.semester_2016.id
-    #     semester_to_id = self.semester_2021.id
-
-    #     semester_to_list = [target_lecture.id]
-    #     semester_from_list = list(lectures_2016.exclude(lecture_name="경영과학").values_list("id", flat=True))
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = UserFactory.create(
+            email = "jaejae2374@test.com",
+            password = "waffle1234",
+            entrance_year = 2018,
+            full_name = "test user",
+            majors = [{
+                "major_name":"경영학과",
+                "major_type":"major"
+            }],
+            status = ACTIVE
+        )
+        cls.user_token = "Token " + str(cls.user.auth_token)
+        cls.stranger = UserFactory.auto_create()
+        cls.stranger_token = "Token " + str(cls.stranger.auth_token)
         
-    #     body = {
-    #         "semester_to_id":semester_to_id,
-    #         "semester_from_id":semester_from_id,
-    #         "semester_to":semester_to_list,
-    #         "semester_from":semester_from_list
-    #     }
+        cls.plan = Plan.objects.create(user=cls.user, plan_name="plan example")
 
-    #     response = self.client.put(
-    #         f"/lecture/{target_lecture.id}/position/",
-    #         data=body,
-    #         content_type="application/json",
-    #         HTTP_AUTHORIZATION=self.user_token,
-    #     )
-    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
-    #     data = response.json()
-
-    #     self.assertEqual(data[0]['year'], 2016)
-    #     self.assertEqual(data[0]['semester_type'], "first")
-    #     self.assertEqual(data[0]['major_requirement_credit'], self.semester_2016.major_requirement_credit-3)
-    #     self.assertEqual(data[0]['major_elective_credit'], self.semester_2016.major_elective_credit)
+        cls.semester_1 = Semester.objects.create(plan=cls.plan, year=2018, semester_type=FIRST)
+        cls.semester_2 = Semester.objects.create(
+            plan=cls.plan,
+            year=2018, 
+            semester_type=SECOND,
+            major_requirement_credit=9,
+            major_elective_credit=6,
+            general_credit=3,
+            general_elective_credit=3)
         
-    #     for i, lecture in enumerate(data[0]['lectures']) :
-    #         self.assertNotEqual(lecture["lecture_name"], "경영과학")
-    #         self.assertEqual(lecture['recent_sequence'], i)
-    #     self.assertEqual(
-    #         self.semester_2016.semesterlecture.filter(
-    #             lecture=target_lecture).exists(), False)
+        cls.major = Major.objects.get(major_name="경영학과", major_type="single_major")
+        cls.planmajor = PlanMajor.objects.create(major=cls.major, plan=cls.plan)
+        cls.major_lectures_names = [
+            "경영과학",
+            "경영학원론",
+            "마케팅관리",
+            "마케팅사례연구",
+            "국제경영"
+        ]
+        cls.general_lectures_names = [
+            "대학영어2",
+            "알고리즘"
+        ]
+        cls.major_lectures = Lecture.objects.filter(lecture_name__in=cls.major_lectures_names)
+        # cls.major_lectures_id = list(Lecture.objects.filter(lecture_name__in=cls.major_lectures_names).values_list(flat=True))
+        for idx, lecture in enumerate(list(cls.major_lectures)):
+            SemesterLecture.objects.create(
+                semester=cls.semester_2,
+                lecture=lecture,
+                lecture_type=lecture.lecture_type,
+                recognized_major1=cls.major,
+                lecture_type1=lecture.lecture_type,
+                credit=lecture.credit,
+                recent_sequence=idx
+                )
+        cls.lecture_general = Lecture.objects.get(lecture_name="대학영어2")
+        SemesterLecture.objects.create(
+            semester=cls.semester_2,
+            lecture=cls.lecture_general,
+            lecture_type=cls.lecture_general.lecture_type,
+            lecture_type1=cls.lecture_general.lecture_type,
+            credit=cls.lecture_general.credit,
+            recent_sequence=idx+1
+            )
+        cls.lecture_general_elective = Lecture.objects.get(lecture_name="알고리즘")
+        SemesterLecture.objects.create(
+            semester=cls.semester_2,
+            lecture=cls.lecture_general_elective,
+            lecture_type=GENERAL_ELECTIVE,
+            lecture_type1=GENERAL_ELECTIVE,
+            credit=cls.lecture_general_elective.credit,
+            recent_sequence=idx+2
+            )
+    
+    
+    def test_lecture_position(self):
+        """
+        Test cases in positioning lecture.
+        """
 
-    #     self.assertEqual(data[1]['year'], 2021)
-    #     self.assertEqual(data[1]['semester_type'], "first")
-    #     self.assertEqual(data[1]['major_requirement_credit'], self.semester_2021.major_requirement_credit+3)
-    #     self.assertEqual(data[1]['major_elective_credit'], self.semester_2021.major_elective_credit)
+        lectures_2016 = self.lectures
+        target_lecture = lectures_2016.get(lecture_name="경영과학")
+
+        semester_from_id = self.semester_2016.id
+        semester_to_id = self.semester_2021.id
+
+        semester_to_list = [target_lecture.id]
+        semester_from_list = list(lectures_2016.exclude(lecture_name="경영과학").values_list("id", flat=True))
         
-    #     self.assertEqual(data[1]['lectures'][0]["lecture_name"], '경영과학')
-    #     self.assertEqual(data[1]['lectures'][0]['recent_sequence'], 0)
-    #     self.assertEqual(
-    #         self.semester_2021.semesterlecture.filter(
-    #             lecture=target_lecture).exists(), True)
+        body = {
+            "semester_to_id":semester_to_id,
+            "semester_from_id":semester_from_id,
+            "semester_to":semester_to_list,
+            "semester_from":semester_from_list
+        }
 
-    #     # 원래는 에러가 발생해야하는 상황
-    #     # 디자인 사고와 혁신 과목이 2016년에 마지막으로 열린 강의라서
-    #     # 2021년도 학기에 추가가 되지 말아야 함
-    #     target_lecture = lectures_2016.get(lecture_name="디자인 사고와 혁신")
-    #     semester_to_list.insert(0, target_lecture.id)
-    #     semester_from_list = list(lectures_2016.exclude(
-    #         lecture_name__in=["경영과학", "디자인 사고와 혁신"]).values_list("id", flat=True))
+        response = self.client.put(
+            f"/lecture/{target_lecture.id}/position/",
+            data=body,
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.user_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
 
-    #     body = {
-    #         "semester_to_id":semester_to_id,
-    #         "semester_from_id":semester_from_id,
-    #         "semester_to":semester_to_list,
-    #         "semester_from":semester_from_list
-    #     }
+        self.assertEqual(data[0]['year'], 2016)
+        self.assertEqual(data[0]['semester_type'], "first")
+        self.assertEqual(data[0]['major_requirement_credit'], self.semester_2016.major_requirement_credit-3)
+        self.assertEqual(data[0]['major_elective_credit'], self.semester_2016.major_elective_credit)
+        
+        for i, lecture in enumerate(data[0]['lectures']) :
+            self.assertNotEqual(lecture["lecture_name"], "경영과학")
+            self.assertEqual(lecture['recent_sequence'], i)
+        self.assertEqual(
+            self.semester_2016.semesterlecture.filter(
+                lecture=target_lecture).exists(), False)
 
-    #     response = self.client.put(
-    #         f"/lecture/{target_lecture.id}/position/",
-    #         data=body,
-    #         content_type="application/json",
-    #         HTTP_AUTHORIZATION=self.user_token,
-    #     )
-    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
-    #     data = response.json()
+        self.assertEqual(data[1]['year'], 2021)
+        self.assertEqual(data[1]['semester_type'], "first")
+        self.assertEqual(data[1]['major_requirement_credit'], self.semester_2021.major_requirement_credit+3)
+        self.assertEqual(data[1]['major_elective_credit'], self.semester_2021.major_elective_credit)
+        
+        self.assertEqual(data[1]['lectures'][0]["lecture_name"], '경영과학')
+        self.assertEqual(data[1]['lectures'][0]['recent_sequence'], 0)
+        self.assertEqual(
+            self.semester_2021.semesterlecture.filter(
+                lecture=target_lecture).exists(), True)
 
+        # 원래는 에러가 발생해야하는 상황
+        # 디자인 사고와 혁신 과목이 2016년에 마지막으로 열린 강의라서
+        # 2021년도 학기에 추가가 되지 말아야 함
+        target_lecture = lectures_2016.get(lecture_name="디자인 사고와 혁신")
+        semester_to_list.insert(0, target_lecture.id)
+        semester_from_list = list(lectures_2016.exclude(
+            lecture_name__in=["경영과학", "디자인 사고와 혁신"]).values_list("id", flat=True))
 
+        body = {
+            "semester_to_id":semester_to_id,
+            "semester_from_id":semester_from_id,
+            "semester_to":semester_to_list,
+            "semester_from":semester_from_list
+        }
+
+        response = self.client.put(
+            f"/lecture/{target_lecture.id}/position/",
+            data=body,
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.user_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        
