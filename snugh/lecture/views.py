@@ -80,16 +80,14 @@ class LectureViewSet(viewsets.GenericViewSet):
         position_prev = target_lecture.recent_sequence
         semester_from_lectures = semester_from.semesterlecture.filter(recent_sequence__gt=position_prev).order_by('recent_sequence')
         try:
-            semester_to = Semester.objects.prefetch_related(
-                Prefetch(
-                    'semesterlecture', 
-                    queryset=SemesterLecture.objects.filter(recent_sequence__gte=position).order_by('recent_sequence'), 
-                    to_attr='semester_to_lectures')).get(id=semester_to)
+            semester_to = Semester.objects.prefetch_related('semesterlecture').get(id=semester_to)
         except Semester.DoesNotExist:
             raise NotFound('semester does not exist')
-        semester_to_lectures = semester_to.semester_to_lectures
+        semester_to_lectures = semester_to.semesterlecture.all()
+        max_num = len(semester_to_lectures)
+        semester_to_lectures = semester_to_lectures.filter(recent_sequence__gte=position).order_by('recent_sequence')
 
-        if not (0<=position<=len(semester_to_lectures)):
+        if not (0<=position<=max_num):
             raise FieldError("Invalid field [position]")
         semester_from = sub_semester_credits(target_lecture, semester_from)
         target_lecture.semester = semester_to
