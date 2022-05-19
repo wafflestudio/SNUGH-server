@@ -18,6 +18,7 @@ from lecture.const import *
 from user.const import *
 from semester.utils import add_semester_credits, sub_semester_credits
 from history.utils import credit_history_generator, lecturetype_history_generator
+from typing import List
 
 
 class LectureViewSet(viewsets.GenericViewSet):
@@ -27,6 +28,16 @@ class LectureViewSet(viewsets.GenericViewSet):
     queryset = SemesterLecture.objects.all()
     serializer_class = SemesterLectureSerializer
     permission_classes = [IsOwnerOrCreateReadOnly]
+
+
+    def get_select_related_object(self, pk: int, select_instances: List[str]) -> SemesterLecture:
+        """Get object using select related."""
+        try:
+            semesterlecture = SemesterLecture.objects.select_related(*select_instances).get(pk=pk)
+            self.check_object_permissions(self.request, semesterlecture)
+            return semesterlecture
+        except SemesterLecture.DoesNotExist:
+            raise NotFound()
 
     # POST /lecture
     @transaction.atomic
@@ -71,7 +82,7 @@ class LectureViewSet(viewsets.GenericViewSet):
     @transaction.atomic
     def position(self, request, pk=None):
         """Position semester lecture."""
-        target_lecture = self.get_object()
+        target_lecture = self.get_select_related_object(pk, ["semester"])
         semester_to = request.data.get('semester_to', None)
         semester_from = target_lecture.semester
         position = request.data.get('position', 0)
@@ -123,16 +134,12 @@ class LectureViewSet(viewsets.GenericViewSet):
         credit = request.data.get('credit', 0)
         if not 0<credit<5 :
             raise FieldError("Invalid field [credit]")
-        try:
-            semesterlecture = SemesterLecture.objects.select_related(
-                'semester',
-                'recognized_major1',
-                'recognized_major2',
-                'lecture'
-            ).get(pk=pk)
-        except SemesterLecture.DoesNotExist:
-            raise NotFound("semesterlecture does not exist")
-
+        semesterlecture = self.get_select_related_object(
+            pk, 
+            ['semester',
+            'recognized_major1',
+            'recognized_major2',
+            'lecture'])
         semester = semesterlecture.semester
         if credit == semesterlecture.credit:
             return Response(SemesterLectureSerializer(semesterlecture).data, status=status.HTTP_200_OK)
@@ -153,11 +160,12 @@ class LectureViewSet(viewsets.GenericViewSet):
     @transaction.atomic
     def recognized_major(self, request, pk=None):
         """Change semester lecture major, major_type, lecture_type."""
-        semesterlecture = SemesterLecture.objects.select_related(
-            'semester', 
+        semesterlecture = self.get_select_related_object(
+            pk, 
+            ['semester', 
             'lecture',
             'recognized_major1',
-            'recognized_major2').get(pk=pk)
+            'recognized_major2'])
         lecture_type = request.data.get('lecture_type', None)
         user = request.user
         semester = semesterlecture.semester
@@ -200,7 +208,6 @@ class LectureViewSet(viewsets.GenericViewSet):
                 "lecture_type2": lecture_type2,
                 "is_modified": True
             }
-
         else:
             raise FieldError("Invalid field [lecture_type]")
 
@@ -217,10 +224,7 @@ class LectureViewSet(viewsets.GenericViewSet):
     @transaction.atomic
     def destroy(self, request, pk=None):
         """Destroy semester lecture."""
-        try:
-            semesterlecture = self.get_object()
-        except SemesterLecture.DoesNotExist:
-            raise NotFound()
+        semesterlecture = self.get_select_related_object(pk, ['semester'])
         semester = sub_semester_credits(semesterlecture, semesterlecture.semester)
         semester.save()
         semesterlecture.delete()
