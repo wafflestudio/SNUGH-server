@@ -1,5 +1,5 @@
 from django.test import TestCase
-from lecture.models import MajorLecture, Lecture
+from lecture.models import Lecture
 from lecture.utils_test import SemesterLectureFactory
 from user.utils import UserFactory
 from plan.models import Plan, PlanMajor
@@ -12,7 +12,6 @@ class SemesterTestCase(TestCase):
     # Test Semester APIs.
         [GET] semester/<semester_id>/
         [DELETE] semester/<semester_id>/
-        [PUT] semester/<semester_id>/
     """
     
     @classmethod
@@ -163,34 +162,6 @@ class SemesterTestCase(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Semester.objects.filter(plan=self.plan, year=2017, semester_type='first').exists(), False)
-
-
-    def test_semester_update(self):
-        """
-        Test cases in updating semester.
-        # TODO: Need to be specify.
-        """
-        semester = Semester.objects.create(
-            plan=self.plan,
-            year=2017,
-            semester_type="first"
-        )
-        body = {
-            "year": 2022,
-            "semester_type": "second"
-        }
-        response = self.client.put(
-            f"/semester/{semester.id}/",
-            data=body,
-            content_type="application/json",
-            HTTP_AUTHORIZATION=self.user_token,
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        data = response.json()
-        self.assertEqual(data['id'], semester.id)
-        self.assertEqual(data['plan'], self.plan.id)
-        self.assertEqual(data['year'], 2022)
-        self.assertEqual(data['semester_type'], "second")
 
 
     def test_semester_retrieve(self):

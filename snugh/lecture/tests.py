@@ -856,6 +856,7 @@ class LectureChangeTestCase(TestCase):
     """
     # Test Lecture APIs.
         [PUT] lecture/<semesterLecture_id>/credit/
+        [PUT] lecture/<semesterLecture_id>/recognized_major/
     """
 
     @classmethod
