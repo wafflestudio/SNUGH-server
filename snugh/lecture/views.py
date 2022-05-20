@@ -18,6 +18,7 @@ from lecture.const import *
 from user.const import *
 from semester.utils import add_semester_credits, sub_semester_credits
 from history.utils import credit_history_generator, lecturetype_history_generator
+from typing import List
 
 
 class LectureViewSet(viewsets.GenericViewSet):
@@ -27,6 +28,16 @@ class LectureViewSet(viewsets.GenericViewSet):
     queryset = SemesterLecture.objects.all()
     serializer_class = SemesterLectureSerializer
     permission_classes = [IsOwnerOrCreateReadOnly]
+
+
+    def get_select_related_object(self, pk: int, select_instances: List[str]) -> SemesterLecture:
+        """Get object using select related."""
+        try:
+            semesterlecture = SemesterLecture.objects.select_related(*select_instances).get(pk=pk)
+            self.check_object_permissions(self.request, semesterlecture)
+            return semesterlecture
+        except SemesterLecture.DoesNotExist:
+            raise NotFound()
 
     # POST /lecture
     @transaction.atomic
@@ -71,7 +82,7 @@ class LectureViewSet(viewsets.GenericViewSet):
     @transaction.atomic
     def position(self, request, pk=None):
         """Position semester lecture."""
-        target_lecture = SemesterLecture.objects.select_related('semester').get(pk=pk)
+        target_lecture = self.get_select_related_object(pk, ["semester"])
         semester_to = request.data.get('semester_to', None)
         semester_from = target_lecture.semester
         position = request.data.get('position', 0)
@@ -80,16 +91,14 @@ class LectureViewSet(viewsets.GenericViewSet):
         position_prev = target_lecture.recent_sequence
         semester_from_lectures = semester_from.semesterlecture.filter(recent_sequence__gt=position_prev).order_by('recent_sequence')
         try:
-            semester_to = Semester.objects.prefetch_related(
-                Prefetch(
-                    'semesterlecture', 
-                    queryset=SemesterLecture.objects.filter(recent_sequence__gte=position).order_by('recent_sequence'), 
-                    to_attr='semester_to_lectures')).get(id=semester_to)
+            semester_to = Semester.objects.prefetch_related('semesterlecture').get(id=semester_to)
         except Semester.DoesNotExist:
             raise NotFound('semester does not exist')
-        semester_to_lectures = semester_to.semester_to_lectures
+        semester_to_lectures = semester_to.semesterlecture.all()
+        max_num = len(semester_to_lectures)
+        semester_to_lectures = semester_to_lectures.filter(recent_sequence__gte=position).order_by('recent_sequence')
 
-        if not (0<=position<=len(semester_to_lectures)):
+        if not (0<=position<=max_num):
             raise FieldError("Invalid field [position]")
         semester_from = sub_semester_credits(target_lecture, semester_from)
         target_lecture.semester = semester_to
@@ -125,16 +134,12 @@ class LectureViewSet(viewsets.GenericViewSet):
         credit = request.data.get('credit', 0)
         if not 0<credit<5 :
             raise FieldError("Invalid field [credit]")
-        try:
-            semesterlecture = SemesterLecture.objects.select_related(
-                'semester',
-                'recognized_major1',
-                'recognized_major2',
-                'lecture'
-            ).get(pk=pk)
-        except SemesterLecture.DoesNotExist:
-            raise NotFound("semesterlecture does not exist")
-
+        semesterlecture = self.get_select_related_object(
+            pk, 
+            ['semester',
+            'recognized_major1',
+            'recognized_major2',
+            'lecture'])
         semester = semesterlecture.semester
         if credit == semesterlecture.credit:
             return Response(SemesterLectureSerializer(semesterlecture).data, status=status.HTTP_200_OK)
@@ -155,11 +160,12 @@ class LectureViewSet(viewsets.GenericViewSet):
     @transaction.atomic
     def recognized_major(self, request, pk=None):
         """Change semester lecture major, major_type, lecture_type."""
-        semesterlecture = SemesterLecture.objects.select_related(
-            'semester', 
+        semesterlecture = self.get_select_related_object(
+            pk, 
+            ['semester', 
             'lecture',
             'recognized_major1',
-            'recognized_major2').get(pk=pk)
+            'recognized_major2'])
         lecture_type = request.data.get('lecture_type', None)
         user = request.user
         semester = semesterlecture.semester
@@ -202,7 +208,6 @@ class LectureViewSet(viewsets.GenericViewSet):
                 "lecture_type2": lecture_type2,
                 "is_modified": True
             }
-
         else:
             raise FieldError("Invalid field [lecture_type]")
 
@@ -219,11 +224,11 @@ class LectureViewSet(viewsets.GenericViewSet):
     @transaction.atomic
     def destroy(self, request, pk=None):
         """Destroy semester lecture."""
-        semesterlecture = SemesterLecture.objects.select_related('semester').get(pk=pk)
+        semesterlecture = self.get_select_related_object(pk, ['semester'])
         semester = sub_semester_credits(semesterlecture, semesterlecture.semester)
         semester.save()
         semesterlecture.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT) 
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     # GET /lecture/?search_type=(string)&search_keyword=(string)&major=(string)&credit=(string)
     # TODO: n-gram 서치 고도화
@@ -241,6 +246,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         except Plan.DoesNotExist:
             raise NotFound()
         search_year = int(search_year)
+
         # Case 1: major requirement or major elective
         if search_type in [MAJOR_REQUIREMENT, MAJOR_ELECTIVE]:
             major_name = request.query_params.get("major_name")

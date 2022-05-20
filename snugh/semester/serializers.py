@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from semester.models import Semester
-from snugh.exceptions import DuplicationError, NotOwner
+from snugh.exceptions import DuplicationError, NotOwner, FieldError
 from lecture.const import *
 
 
@@ -20,10 +20,6 @@ class SemesterSerializer(serializers.ModelSerializer):
             'general_elective_credit',
             'lectures',
         )
-        extra_kwargs = {
-            "plan": {"required": True},
-            "year": {"required": True},
-            "semester_type": {"required": True}}
 
     def create(self, validated_data):
         plan = validated_data['plan']
@@ -36,6 +32,7 @@ class SemesterSerializer(serializers.ModelSerializer):
             raise DuplicationError("Already exists [Semester]")
         else:
             return Semester.objects.create(plan=plan, semester_type=semester_type, year=year)
+
 
     def get_lectures(self, semester):
         semesterlectures = semester.semesterlecture.select_related('lecture', 'recognized_major1', 'recognized_major2').all().order_by('recent_sequence')
