@@ -155,6 +155,7 @@ class LectureTestCase(TestCase):
         body = response.json()
         self.assertEqual(body['detail'], "some lecture already exists in plan.")
         
+
     def test_lecture_list(self):
         """
         Test cases in listing lecture.
@@ -197,9 +198,9 @@ class LectureTestCase(TestCase):
 
         # 2) search future lectures [major_requirement].
         body = {
-            "search_type": "major_requirement", 
-            "search_year": 2021, 
-            "search_keyword":"", 
+            "search_type": "major_requirement",
+            "search_year": 2021,
+            "search_keyword":"",
             "major_name":self.major.major_name,
             "plan_id":self.plan.id
         }
@@ -253,9 +254,9 @@ class LectureTestCase(TestCase):
                 
         # 4) search future lectures [major_elective].
         body = {
-            "search_type": "major_elective", 
-            "search_year": 2021, 
-            "search_keyword":"", 
+            "search_type": "major_elective",
+            "search_year": 2021,
+            "search_keyword":"",
             "major_name":self.major.major_name,
             "plan_id":self.plan.id
         }
@@ -305,9 +306,9 @@ class LectureTestCase(TestCase):
 
         # 5) search future lectures [keyword].
         body = {
-            "search_type": "keyword", 
-            "search_year": 2021, 
-            "search_keyword":"경영", 
+            "search_type": "keyword",
+            "search_year": 2021,
+            "search_keyword":"경영",
             "major_name":self.major.major_name,
             "plan_id":self.plan.id
         }
@@ -330,6 +331,7 @@ class LectureTestCase(TestCase):
 
     def test_list_lecture_errors(self):
         """
+<<<<<<< HEAD
         Error cases in listing semester lecture.
             1) query parameter missing [search_type].
             2) query parameter missing [search_year].
@@ -417,8 +419,8 @@ class LectureTestCase(TestCase):
             HTTP_AUTHORIZATION=self.user_token,
         )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        
-        
+
+
     def test_lecture_delete(self):
         """
         Test cases in deleting semester lecture.
@@ -1014,7 +1016,7 @@ class LectureChangeTestCase(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        
+
         self.assertEqual(data['credit'], 1)
         self.assertEqual(data['is_modified'], True)
         self.semester.refresh_from_db()
@@ -1044,7 +1046,6 @@ class LectureChangeTestCase(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        
         self.assertEqual(data['credit'], 4)
         self.assertEqual(data['is_modified'], True)
         self.semester.refresh_from_db()
@@ -1293,6 +1294,7 @@ class LectureChangeTestCase(TestCase):
         target_lecture = self.semester.semesterlecture.get(lecture__lecture_name="알고리즘")
         before_major_requirement_credit = self.semester.major_requirement_credit
         before_general_elective_credit = self.semester.general_elective_credit
+
         body = {
             "lecture_type": MAJOR_REQUIREMENT,
             "recognized_major_name1":"경영학과",
@@ -1313,7 +1315,6 @@ class LectureChangeTestCase(TestCase):
         self.semester.refresh_from_db()
         self.assertEqual(before_general_elective_credit-3, self.semester.general_elective_credit)
         self.assertEqual(before_major_requirement_credit+3, self.semester.major_requirement_credit)
-        l = LectureTypeChangeHistory.objects.get(lecture=target_lecture.lecture)
         self.assertEqual(
             LectureTypeChangeHistory.objects.filter(
                 major=self.major_1,

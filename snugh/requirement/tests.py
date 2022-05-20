@@ -4,8 +4,15 @@ from lecture.utils_test import SemesterFactory, SemesterLectureFactory
 from django.test import TestCase
 from rest_framework import status
 
-from lecture.models import Plan, PlanMajor, Major, Semester, Lecture, SemesterLecture
+from user.models import Major
+from plan.models import Plan, PlanMajor
+from semester.models import Semester
+from lecture.models import Lecture, SemesterLecture
 from .models import Requirement, PlanRequirement
+
+from lecture.const import *
+from semester.const import *
+from .const import *
 
 
 class RequirementTestCase(TestCase):
@@ -31,7 +38,7 @@ class RequirementTestCase(TestCase):
 
         cls.plan = Plan.objects.create(user=cls.user, plan_name="example plan")
 
-        cls.semester = Semester.objects.create(plan=cls.plan, year=2021, semester_type=Semester.SECOND)
+        cls.semester = Semester.objects.create(plan=cls.plan, year=2021, semester_type=SECOND)
 
         for major in majors:
             searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
@@ -55,14 +62,14 @@ class RequirementTestCase(TestCase):
             lecture_type = lecture.lecture_type
             recognized_major_name = recognized_major_name_list[i]
 
-            if lecture_type in [Lecture.MAJOR_REQUIREMENT, Lecture.MAJOR_ELECTIVE, Lecture.TEACHING]:
+            if lecture_type in [MAJOR_REQUIREMENT, MAJOR_ELECTIVE, TEACHING]:
                 if PlanMajor.objects.filter(plan=cls.plan, major__major_name=recognized_major_name).exists():
                     recognized_major = Major.objects.get(planmajor__plan=cls.plan, major_name=recognized_major_name)
                 else:
-                    recognized_major = Major.objects.get(id=Major.DEFAULT_MAJOR_ID)
-                    lecture_type = Lecture.GENERAL_ELECTIVE
+                    recognized_major = Major.objects.get(id=DEFAULT_MAJOR_ID)
+                    lecture_type = GENERAL_ELECTIVE
             else:
-                recognized_major = Major.objects.get(id=Major.DEFAULT_MAJOR_ID)
+                recognized_major = Major.objects.get(id=DEFAULT_MAJOR_ID)
 
             semlecture = SemesterLecture.objects.create(semester=cls.semester,
                                                         lecture=lecture,
@@ -73,16 +80,16 @@ class RequirementTestCase(TestCase):
                                                         recent_sequence=len(lecture_id_list)+i)
             semlecture.save()
 
-            if lecture_type == SemesterLecture.MAJOR_REQUIREMENT:
+            if lecture_type == MAJOR_REQUIREMENT:
                 cls.semester.major_requirement_credit += lecture.credit
                 cls.semester.save()
-            elif lecture_type == SemesterLecture.MAJOR_ELECTIVE or lecture_type == SemesterLecture.TEACHING:
+            elif lecture_type == MAJOR_ELECTIVE or lecture_type == TEACHING:
                 cls.semester.major_elective_credit += lecture.credit
                 cls.semester.save()
-            elif lecture_type == SemesterLecture.GENERAL:
+            elif lecture_type == GENERAL:
                 cls.semester.general_credit += lecture.credit
                 cls.semester.save()
-            elif lecture_type == SemesterLecture.GENERAL_ELECTIVE:
+            elif lecture_type == GENERAL_ELECTIVE:
                 cls.semester.general_elective_credit += lecture.credit
                 cls.semester.save()
 
@@ -134,4 +141,3 @@ class RequirementTestCase(TestCase):
         self.assertIn("general", body)
         self.assertIn("is_first_simulation", body)
         self.assertIn("is_necessary", body)
-
