@@ -331,7 +331,6 @@ class LectureTestCase(TestCase):
 
     def test_list_lecture_errors(self):
         """
-<<<<<<< HEAD
         Error cases in listing semester lecture.
             1) query parameter missing [search_type].
             2) query parameter missing [search_year].
