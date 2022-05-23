@@ -74,7 +74,7 @@ class LectureTestCase(TestCase):
                 credit=lecture.credit,
                 recent_sequence=idx
                 )
-        
+
 
     def test_create_lecture_errors(self):
         """
