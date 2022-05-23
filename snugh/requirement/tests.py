@@ -267,17 +267,17 @@ class RequirementTestCase(TestCase):
         body = {
             "majors": [
                 {
-                    "major_name": "컴퓨터공학부",
-                    "major_type": "major",
-                    "major_credit": 45,
-                    "major_requirement_credit": 31,
-                    "auto_calculate": False
-                },
-                {
                     "major_name": "경영학과",
                     "major_type": "double_major",
                     "major_credit": 40,
                     "major_requirement_credit": 33,
+                    "auto_calculate": False
+                },
+                {
+                    "major_name": "컴퓨터공학부",
+                    "major_type": "major",
+                    "major_credit": 45,
+                    "major_requirement_credit": 31,
                     "auto_calculate": False
                 }
             ],
@@ -291,5 +291,5 @@ class RequirementTestCase(TestCase):
             content_type="application/json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        self.assertIn(body, data)
+        self.assertEqual(body, data)
     
