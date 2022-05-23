@@ -135,7 +135,7 @@ class SemesterTestCase(TestCase):
         self.assertIn("lectures", body)
 
 
-    def test_semester_delete(self):
+    def test_delete_semester(self):
         """
         Test cases in deleting semester.
             1) not semester's owner.
@@ -164,7 +164,7 @@ class SemesterTestCase(TestCase):
         self.assertEqual(Semester.objects.filter(plan=self.plan, year=2017, semester_type='first').exists(), False)
 
 
-    def test_semester_retrieve(self):
+    def test_retrieve_semester(self):
         """
         Test cases in retrieving semester.
             1) retrieve semester.

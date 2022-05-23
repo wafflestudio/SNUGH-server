@@ -1,27 +1,39 @@
-from user.utils import UserFactory, UserMajorFactory
-from lecture.utils_test import SemesterFactory, SemesterLectureFactory
+from user.utils import UserFactory
 
 from django.test import TestCase
 from rest_framework import status
 
 from user.models import Major
 from plan.models import Plan, PlanMajor
+from requirement.models import Requirement
 from semester.models import Semester
 from lecture.models import Lecture, SemesterLecture
-from .models import Requirement, PlanRequirement
 
 from lecture.const import *
 from semester.const import *
-from .const import *
+from requirement.const import *
+from user.const import *
+from plan.utils import plan_major_requirement_generator
 
 
 class RequirementTestCase(TestCase):
+    """
+    # Test Requirement APIs.
+        [GET] requirement/<plan_id>/calculate/
+        [PUT] requirement/<plan_id>/
+    """
+
     @classmethod
     def setUpTestData(cls):
-        cls.user = UserFactory.auto_create()
-        cls.user_token = "Token " + str(cls.user.auth_token)
+        """
+            1) create plan.
+            2) create plan major & plan requirement.
+            3) create semester.
+            4) create semester lectures.
+        """
 
-        majors = [
+        # 1) create plan.
+        cls.majors = [
             {
                 "major_name": "경영학과",
                 "major_type": "double_major"
@@ -31,113 +43,253 @@ class RequirementTestCase(TestCase):
                 "major_type": "major"
             }
         ]
-        cls.post_data = {
-            "plan_name": "example plan",
-            "majors": majors
-        }
+        cls.user = UserFactory.create(
+            email = "jaejae2374@test.com",
+            password = "waffle1234",
+            entrance_year = 2018,
+            full_name = "test user",
+            majors = cls.majors,
+            status = ACTIVE
+        )
+        cls.user_token = "Token " + str(cls.user.auth_token)
+        cls.stranger = UserFactory.auto_create()
+        cls.stranger_token = "Token " + str(cls.stranger.auth_token)
+        
+        cls.plan = Plan.objects.create(user=cls.user, plan_name="plan example")
 
-        cls.plan = Plan.objects.create(user=cls.user, plan_name="example plan")
+        # 2) create plan major & plan requirement.
+        plan_major_requirement_generator(cls.plan, cls.majors, 2018)
+        cls.major_1 = Major.objects.get(major_name=cls.majors[0]['major_name'], major_type=cls.majors[0]['major_type'])
+        cls.major_2 = Major.objects.get(major_name=cls.majors[1]['major_name'], major_type=cls.majors[1]['major_type'])
 
-        cls.semester = Semester.objects.create(plan=cls.plan, year=2021, semester_type=SECOND)
+        # 3) create semester.
+        cls.semester_1 = Semester.objects.create(
+            plan=cls.plan,
+            year=2018, 
+            semester_type=FIRST,
+            major_requirement_credit=6,
+            major_elective_credit=6,
+            general_credit=3,
+            general_elective_credit=3)
 
-        for major in majors:
-            searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-            PlanMajor.objects.create(plan=cls.plan, major=searched_major)
+        cls.semester_2 = Semester.objects.create(
+            plan=cls.plan,
+            year=2018, 
+            semester_type=SECOND,
+            major_requirement_credit=3,
+            major_elective_credit=3,
+            general_credit=0,
+            general_elective_credit=0)
 
-        for major in majors:
-            searched_major = Major.objects.get(major_name=major['major_name'], major_type=major['major_type'])
-            requirements = Requirement.objects.filter(major=searched_major,
-                                                      start_year__lte=cls.user.userprofile.entrance_year,
-                                                      end_year__gte=cls.user.userprofile.entrance_year)
-            for requirement in requirements:
-                PlanRequirement.objects.create(plan=cls.plan, requirement=requirement,
-                                               required_credit=requirement.required_credit)
+        # 4) create semester lectures.
+        # 4-1) create semester_1's major_requirement, major_elective semester lectures.
+        cls.lectures_names_1 = [
+            "경영과학",
+            "마케팅관리",
+            "국제경영",
+            "고급회계"
+        ]
+        cls.lectures_1 = Lecture.objects.filter(lecture_name__in=cls.lectures_names_1)
+        for idx, lecture in enumerate(list(cls.lectures_1)):
+            SemesterLecture.objects.create(
+                semester=cls.semester_1,
+                lecture=lecture,
+                lecture_type=lecture.lecture_type,
+                recognized_major1=cls.major_1,
+                lecture_type1=lecture.lecture_type,
+                credit=lecture.credit,
+                recent_sequence=idx
+                )
 
-        lecture_id_list = [364, 365, 401, 403, 433, 434]
-        recognized_major_name_list = ["컴퓨터공학부", "컴퓨터공학부", "컴퓨터공학부", "컴퓨터공학부", "경영학과", "경영학과"]
+        # 4-2) create semester_1's general, general_elective semester lectures.
+        cls.lecture_general = Lecture.objects.get(lecture_name="법과 문학")
+        SemesterLecture.objects.create(
+            semester=cls.semester_1,
+            lecture=cls.lecture_general,
+            lecture_type=cls.lecture_general.lecture_type,
+            lecture_type1=cls.lecture_general.lecture_type,
+            credit=cls.lecture_general.credit,
+            recent_sequence=idx+1
+            )
+        cls.lecture_general_elective = Lecture.objects.get(lecture_name="뇌-마음-행동")
+        SemesterLecture.objects.create(
+            semester=cls.semester_1,
+            lecture=cls.lecture_general_elective,
+            lecture_type=GENERAL_ELECTIVE,
+            lecture_type1=GENERAL_ELECTIVE,
+            credit=cls.lecture_general_elective.credit,
+            recent_sequence=idx+2
+            )
 
-        for i in range(len(lecture_id_list)):
-            lecture_id = lecture_id_list[i]
-            lecture = Lecture.objects.get(id=lecture_id)
-            lecture_type = lecture.lecture_type
-            recognized_major_name = recognized_major_name_list[i]
+        # 4-3) create semester_2's major_requirement, major_elective semester lectures.
+        cls.lectures_names_2 = [
+            "알고리즘",
+            "인공지능"
+        ]
+        cls.lectures_2 = Lecture.objects.filter(lecture_name__in=cls.lectures_names_2)
+        for idx, lecture in enumerate(list(cls.lectures_2)):
+            SemesterLecture.objects.create(
+                semester=cls.semester_2,
+                lecture=lecture,
+                lecture_type=lecture.lecture_type,
+                recognized_major1=cls.major_2,
+                lecture_type1=lecture.lecture_type,
+                credit=lecture.credit,
+                recent_sequence=idx
+                )
+        
 
-            if lecture_type in [MAJOR_REQUIREMENT, MAJOR_ELECTIVE, TEACHING]:
-                if PlanMajor.objects.filter(plan=cls.plan, major__major_name=recognized_major_name).exists():
-                    recognized_major = Major.objects.get(planmajor__plan=cls.plan, major_name=recognized_major_name)
-                else:
-                    recognized_major = Major.objects.get(id=DEFAULT_MAJOR_ID)
-                    lecture_type = GENERAL_ELECTIVE
-            else:
-                recognized_major = Major.objects.get(id=DEFAULT_MAJOR_ID)
+    def test_check_requirement(self):
+        """
+        Test cases in checking plan's requirements.
+            1) check plan's requirements.
+            2) not plan's owner.
+            3) plan does not exist.
+        """
+        # 1) check plan's requirements.
+        response = self.client.get(
+            f'/requirement/{self.plan.id}/check/', 
+            HTTP_AUTHORIZATION=self.user_token, 
+            content_type="application/json")
+        data = response.json()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        major_2, major_1 = data['majors']
+        major_1_all = self.plan.planrequirement.get(requirement__major=self.major_1, requirement__requirement_type=MAJOR_ALL)
+        major_1_requirement = self.plan.planrequirement.get(requirement__major=self.major_1, requirement__requirement_type=MAJOR_REQUIREMENT)
+        major_2_all = self.plan.planrequirement.get(requirement__major=self.major_2, requirement__requirement_type=MAJOR_ALL)
+        major_2_requirement = self.plan.planrequirement.get(requirement__major=self.major_2, requirement__requirement_type=MAJOR_REQUIREMENT)
+        self.assertEqual(major_1['major_name'], self.major_1.major_name)
+        self.assertEqual(major_1['major_type'], self.major_1.major_type)
+        self.assertEqual(major_1['major_credit'], major_1_all.required_credit)
+        self.assertEqual(major_1['major_requirement_credit'], major_1_requirement.required_credit)
+        self.assertIn("auto_calculate", major_1)
+        self.assertEqual(major_2['major_name'], self.major_2.major_name)
+        self.assertEqual(major_2['major_type'], self.major_2.major_type)
+        self.assertEqual(major_2['major_credit'], major_2_all.required_credit)
+        self.assertEqual(major_2['major_requirement_credit'], major_2_requirement.required_credit)
+        self.assertIn("auto_calculate", major_2)
+        self.assertEqual(
+            data["all"],
+            max(self.plan.planrequirement.filter(requirement__requirement_type=ALL).values_list("required_credit", flat=True))
+        )
+        self.assertEqual(
+            data["general"],
+            max(self.plan.planrequirement.filter(requirement__requirement_type=GENERAL).values_list("required_credit", flat=True))
+        )
+        self.assertIn("is_first_simulation", data)
+        self.assertIn("is_necessary", data)
 
-            semlecture = SemesterLecture.objects.create(semester=cls.semester,
-                                                        lecture=lecture,
-                                                        lecture_type=lecture_type,
-                                                        recognized_major1=recognized_major,
-                                                        lecture_type1=lecture_type,
-                                                        credit=lecture.credit,
-                                                        recent_sequence=len(lecture_id_list)+i)
-            semlecture.save()
+        # 2) not plan's owner.
+        response = self.client.get(
+            f'/requirement/{self.plan.id}/check/', 
+            HTTP_AUTHORIZATION=self.stranger_token, 
+            content_type="application/json")
+        data = response.json()
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-            if lecture_type == MAJOR_REQUIREMENT:
-                cls.semester.major_requirement_credit += lecture.credit
-                cls.semester.save()
-            elif lecture_type == MAJOR_ELECTIVE or lecture_type == TEACHING:
-                cls.semester.major_elective_credit += lecture.credit
-                cls.semester.save()
-            elif lecture_type == GENERAL:
-                cls.semester.general_credit += lecture.credit
-                cls.semester.save()
-            elif lecture_type == GENERAL_ELECTIVE:
-                cls.semester.general_elective_credit += lecture.credit
-                cls.semester.save()
-
-    # GET /requirement/
-
-    def test_list_requirement_wrong_request(self):
-        plan_id = str(self.plan.id + 1)
-        response = self.client.get('/requirement/?plan_id=' + plan_id, HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
+        # 3) plan does not exist.
+        response = self.client.get(
+            '/requirement/9999/check/', 
+            HTTP_AUTHORIZATION=self.stranger_token, 
+            content_type="application/json")
+        data = response.json()
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_list_requirement(self):
-        plan_id = str(self.plan.id)
-        response = self.client.get('/requirement/?plan_id=' + plan_id, HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        body = response.json()
-        all_progress = body['all_progress']
-        major_progress = body['major_progress']
+    def test_calculate_requirement(self):
+        """
+        Test cases in calculating plan's requirements.
+            1) calculate plan's requirements.
+            2) not plan's owner.
+            3) plan does not exist.
+        """
+        # 1) calculate plan's requirements.
+        response = self.client.get(
+            f'/requirement/{self.plan.id}/calculate/', 
+            HTTP_AUTHORIZATION=self.user_token, 
+            content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        all_progress = data['all_progress']
+        major_progress = data['major_progress']
         self.assertEqual(all_progress['all']['required_credit'], 130)
-        self.assertEqual(all_progress['all']['earned_credit'], 18)
+        self.assertEqual(all_progress['all']['earned_credit'], 24)
+        self.assertEqual(all_progress['all']['progress'], 0.18)
         self.assertEqual(all_progress['major']['earned_credit'], 18)
-        self.assertEqual(all_progress['general']['earned_credit'], 0)
-        self.assertEqual(all_progress['other']['earned_credit'], 0)
-        self.assertEqual(len(all_progress['current_planmajors']), 2)
-        self.assertEqual(major_progress[0]['major_id'], 17)
-        self.assertEqual(major_progress[1]['major_id'], 335)
+        self.assertEqual(all_progress['major']['progress'], 0.23)
+        self.assertEqual(all_progress['general']['earned_credit'], 3)
+        self.assertEqual(all_progress['general']['progress'], 0.08)
+        self.assertEqual(all_progress['other']['earned_credit'], 3)
+        self.assertIn(self.majors[0], all_progress['current_planmajors'])
+        self.assertIn(self.majors[1], all_progress['current_planmajors'])
 
-    # GET /requirement/{plan_id}/loading/
+        major_1_progress = {
+            'major_id': 17, 
+            'major_name': '컴퓨터공학부', 
+            'major_type': 'major', 
+            'major_requirement_credit': {'required_credit': 37, 'earned_credit': 3, 'progress': 0.08}, 
+            'major_all_credit': {'required_credit': 41, 'earned_credit': 6, 'progress': 0.15}}
+        major_2_progress = {
+            'major_id': 335, 
+            'major_name': '경영학과', 
+            'major_type': 'double_major', 
+            'major_requirement_credit': {'required_credit': 30, 'earned_credit': 6, 'progress': 0.2}, 
+            'major_all_credit': {'required_credit': 39, 'earned_credit': 12, 'progress': 0.31}}
 
-    def test_retrieve_requirement_wrong_request(self):
-        plan_id = str(self.plan.id + 1)
-        response = self.client.get('/requirement/' + plan_id + '/loading/', HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
+        self.assertIn(major_1_progress, major_progress)
+        self.assertIn(major_2_progress, major_progress)
+
+        # 2) not plan's owner.
+        response = self.client.get(
+            f'/requirement/{self.plan.id}/check/', 
+            HTTP_AUTHORIZATION=self.stranger_token, 
+            content_type="application/json")
+        data = response.json()
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # 3) plan does not exist.
+        response = self.client.get(
+            '/requirement/9999/check/', 
+            HTTP_AUTHORIZATION=self.stranger_token, 
+            content_type="application/json")
+        data = response.json()
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_retrieve_requirement(self):
-        plan_id = str(self.plan.id)
-        response = self.client.get('/requirement/' + plan_id + '/loading/', HTTP_AUTHORIZATION=self.user_token, content_type="application/json")
-        self.assertTrue(Plan.objects.filter(id=plan_id))
+    def test_update_requirement(self):
+        """
+        Test cases in updating plan's requirements required credits.
+            1) change all, general, majors requirement credit.
+            2) change all requirement credit.
+            3) change general requirement credit.
+            4) change major_1 requirement credit.
+            5) change major_2 requirement credit.
+        """
+        body = {
+            "majors": [
+                {
+                    "major_name": "컴퓨터공학부",
+                    "major_type": "major",
+                    "major_credit": 45,
+                    "major_requirement_credit": 31,
+                    "auto_calculate": False
+                },
+                {
+                    "major_name": "경영학과",
+                    "major_type": "double_major",
+                    "major_credit": 40,
+                    "major_requirement_credit": 33,
+                    "auto_calculate": False
+                }
+            ],
+            "all": 135,
+            "general": 36
+        }
+        response = self.client.put(
+            f'/requirement/{self.plan.id}/', 
+            HTTP_AUTHORIZATION=self.user_token,
+            data=body,
+            content_type="application/json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-        body = response.json()
-        self.assertEqual(len(body["majors"]), 2)
-        self.assertIn("major_name", body["majors"][0])
-        self.assertIn("major_type", body["majors"][0])
-        self.assertIn("major_credit", body["majors"][0])
-        self.assertIn("major_requirement_credit", body["majors"][0])
-        self.assertIn("auto_calculate", body["majors"][0])
-        self.assertIn("all", body)
-        self.assertIn("general", body)
-        self.assertIn("is_first_simulation", body)
-        self.assertIn("is_necessary", body)
+        data = response.json()
+        self.assertIn(body, data)
+    

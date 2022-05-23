@@ -231,7 +231,7 @@ class PlanTestCase(TestCase):
         self.assertEqual(plan_2['majors'][0]['major_type'], self.major_2.major_type)
 
     
-    def test_plan_delete(self):
+    def test_delete_plan(self):
         """
         Test cases in deleting plan.
             1) not plan's owner.
@@ -256,7 +256,7 @@ class PlanTestCase(TestCase):
         self.assertEqual(self.user.plan.filter(plan_name="example plan").exists(), False)
 
     
-    def test_plan_update(self):
+    def test_update_plan(self):
         """
         Test cases in updating plan's name.
             1) not plan's owner.
@@ -297,7 +297,7 @@ class PlanTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 
-    def test_plan_retrieve(self):
+    def test_retrieve_plan(self):
         """
         Test cases in retrieving plan's name.
             1) retrieve plan.

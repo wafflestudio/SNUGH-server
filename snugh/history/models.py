@@ -44,7 +44,7 @@ class CreditChangeHistory(BaseChangeHistory):
     curr_credit = models.PositiveIntegerField(default=0) 
 
 
-class RequirementChangeHistory(models.Model):
+class RequirementChangeHistory(BaseChangeHistory):
     """
     Model for saving histories of requirement required credit change in PlanRequirement.
     It wiil be reflected to actual Requirement model's required credit according to the number of histories.

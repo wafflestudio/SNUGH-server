@@ -15,6 +15,7 @@ from django.db.models import Prefetch, Sum
 from snugh.permissions import IsOwner
 from user.const import *
 from snugh.exceptions import NotFound, FieldError
+from typing import List
 
 
 class RequirementViewSet(viewsets.GenericViewSet):
@@ -24,6 +25,17 @@ class RequirementViewSet(viewsets.GenericViewSet):
     """
     queryset = Plan.objects.all()
     serializer_class = PlanSerializer
+
+
+    def get_prefetch_related_object(self, pk: int, prefetch_instances: List[str]) -> Plan:
+        """Get object using prefetch related."""
+        try:
+            plan = Plan.objects.prefetch_related(*prefetch_instances).get(pk=pk)
+            self.check_object_permissions(self.request, plan)
+            return plan
+        except Plan.DoesNotExist:
+            raise NotFound()
+
 
     def get_permissions(self):
         """
@@ -42,6 +54,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
         """
         Create new static requirements. Used for one-time purposes.
         """
+        self.check_object_permissions(self.request)
         majors = Major.objects.prefetch_related(
             Prefetch(
                 'requirement',
@@ -78,16 +91,14 @@ class RequirementViewSet(viewsets.GenericViewSet):
     @action(methods=['GET'], detail=True)
     def calculate(self, request, pk=None):
         """Show user plan's current progress based on plan requirements."""
-        try:
-            plan = Plan.objects.prefetch_related(
-                'planmajor', 
-                'planrequirement', 
-                'planrequirement__requirement', 
-                'planrequirement__requirement__major', 
-                'semester'
-                ).get(pk=pk)
-        except Plan.DoesNotExist:
-            raise NotFound("Does not exist [Plan]")
+        plan = self.get_prefetch_related_object(
+            pk,
+            ['planmajor', 
+            'planrequirement', 
+            'planrequirement__requirement', 
+            'planrequirement__requirement__major', 
+            'semester']
+        )
         majors = plan.planmajor.all().values('major', 'major__major_name', 'major__major_type')
         majors_info = {}
         for major in majors:
@@ -227,16 +238,14 @@ class RequirementViewSet(viewsets.GenericViewSet):
     @action(methods=['GET'], detail=True)
     def check(self, request, pk=None):
         """Get user plan's requirements."""
-        try:
-            plan = Plan.objects.prefetch_related(
-                'planmajor', 
-                'planrequirement', 
-                'planrequirement__requirement', 
-                'planrequirement__requirement__major', 
-                'semester'
-                ).get(pk=pk)
-        except Plan.DoesNotExist: 
-            raise NotFound("Does not exist [Plan]") 
+        plan = self.get_prefetch_related_object(
+            pk,
+            ['planmajor', 
+            'planrequirement', 
+            'planrequirement__requirement', 
+            'planrequirement__requirement__major', 
+            'semester']
+        )
         majors = plan.planmajor.all().values('major', 'major__major_name', 'major__major_type')
         majors_info = {}
         for major in majors:
@@ -284,17 +293,14 @@ class RequirementViewSet(viewsets.GenericViewSet):
     def update(self, request, pk=None):
         """Update plan requirements required credits."""
         user = request.user
-        try:
-            plan = Plan.objects.prefetch_related(
-                "planrequirement",
-                "planrequirement__requirement",
-                "planrequirement__requirement__major",
-                "planrequirement__requirement__major__majorlecture",
-                "planrequirement__requirement__major__majorlecture__lecture"
-
-            ).get(pk=pk)
-        except Plan.DoesNotExist:
-            raise NotFound("Does not exist [Plan]")
+        plan = self.get_prefetch_related_object(
+            pk,
+            ["planrequirement",
+            "planrequirement__requirement",
+            "planrequirement__requirement__major",
+            "planrequirement__requirement__major__majorlecture",
+            "planrequirement__requirement__major__majorlecture__lecture"]
+        )
         majors = request.data.get('majors')
         all_credit = request.data.get('all', -1)
         general_credit = request.data.get('general', -1)
