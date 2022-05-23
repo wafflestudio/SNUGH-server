@@ -242,8 +242,8 @@ class LectureViewSet(viewsets.GenericViewSet):
         if not (search_type and search_year and plan_id):
             raise FieldError('query parameter missing [search_type, search_year, plan_id]')
         try:
-            existing_lectures = list(Plan.objects.get(id=plan_id).semester.values_list('semesterlecture__lecture', flat=True)).remove(None)
-            if not existing_lectures: existing_lectures = []
+            existing_lectures = Plan.objects.get(id=plan_id).semester.values_list('semesterlecture__lecture__id', flat=True)
+            existing_lectures = list(filter(lambda x: x!=None, existing_lectures))
         except Plan.DoesNotExist:
             raise NotFound()
         search_year = int(search_year)
