@@ -7,6 +7,7 @@ from user.models import Major
 from semester.models import Semester
 from lecture.models import Lecture
 from lecture.utils_test import SemesterLectureFactory
+from requirement.models import PlanRequirement
 
 
 class PlanTestCase(TestCase):
@@ -160,11 +161,21 @@ class PlanTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         plan = Plan.objects.filter(user=self.user, plan_name="plan with double major")
-        self.assertTrue(plan)
+        self.assertTrue(plan.exists())
         major = Major.objects.get(major_name="컴퓨터공학부", major_type=MAJOR)
         double_major = Major.objects.get(major_name="경영학과", major_type=DOUBLE_MAJOR)
-        self.assertTrue(PlanMajor.objects.filter(plan=plan[0], major=major))
-        self.assertTrue(PlanMajor.objects.filter(plan=plan[0], major=double_major))
+        self.assertTrue(PlanMajor.objects.filter(plan=plan[0], major=major).exists())
+        self.assertTrue(PlanMajor.objects.filter(plan=plan[0], major=double_major).exists())
+        self.assertTrue(PlanRequirement.objects.filter(
+            plan=plan[0], 
+            requirement__major=major,
+            requirement__start_year__lte=self.user.userprofile.entrance_year,
+            requirement__end_year__gte=self.user.userprofile.entrance_year).exists())
+        self.assertTrue(PlanRequirement.objects.filter(
+            plan=plan[0], 
+            requirement__major=double_major,
+            requirement__start_year__lte=self.user.userprofile.entrance_year,
+            requirement__end_year__gte=self.user.userprofile.entrance_year).exists())
 
         body = response.json()
         self.assertIn("id", body)
@@ -190,9 +201,14 @@ class PlanTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         plan = Plan.objects.filter(user=self.user, plan_name="plan with single major")
-        self.assertTrue(plan)
+        self.assertTrue(plan.exists())
         major = Major.objects.get(major_name="컴퓨터공학부", major_type=SINGLE_MAJOR)
-        self.assertTrue(PlanMajor.objects.filter(plan=plan[0], major=major))
+        self.assertTrue(PlanMajor.objects.filter(plan=plan[0], major=major).exists())
+        self.assertTrue(PlanRequirement.objects.filter(
+            plan=plan[0], 
+            requirement__major=major,
+            requirement__start_year__lte=self.user.userprofile.entrance_year,
+            requirement__end_year__gte=self.user.userprofile.entrance_year).exists())
 
         body = response.json()
         self.assertIn("id", body)
@@ -290,7 +306,7 @@ class PlanTestCase(TestCase):
 
         # 3) not found.
         response = self.client.put(
-            f"/plan/9999/",
+            "/plan/9999/",
             content_type="application/json",
             HTTP_AUTHORIZATION=self.user_token,
         )
@@ -344,9 +360,10 @@ class PlanTestCase(TestCase):
 
         # 2) not found.
         response = self.client.get(
-            f"/plan/9999/",
+            "/plan/9999/",
             content_type="application/json",
             HTTP_AUTHORIZATION=self.user_token,
         )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         
+# TODO: major, copy test.

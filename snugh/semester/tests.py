@@ -10,6 +10,7 @@ from user.models import Major
 class SemesterTestCase(TestCase):
     """
     # Test Semester APIs.
+        [POST] semester/
         [GET] semester/<semester_id>/
         [DELETE] semester/<semester_id>/
     """

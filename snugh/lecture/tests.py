@@ -156,7 +156,7 @@ class LectureTestCase(TestCase):
         self.assertEqual(body['detail'], "some lecture already exists in plan.")
         
 
-    def test_lecture_list(self):
+    def test_list_lecture(self):
         """
         Test cases in listing lecture.
             1) search past lectures [major_requirement].
