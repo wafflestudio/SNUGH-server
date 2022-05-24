@@ -4,8 +4,7 @@ from django.test import TestCase
 from rest_framework import status
 
 from user.models import Major
-from plan.models import Plan, PlanMajor
-from requirement.models import Requirement
+from plan.models import Plan
 from semester.models import Semester
 from lecture.models import Lecture, SemesterLecture
 from history.models import RequirementChangeHistory

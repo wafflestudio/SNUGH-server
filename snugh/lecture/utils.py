@@ -82,7 +82,6 @@ def __update_lecture_info(
         if not semesterlecture.is_modified:
             semester = sub_semester_credits(semesterlecture, semester)
             lecture = semesterlecture.lecture
-
             if semesterlecture.lecture_type != GENERAL:
                 major_count = 0
                 majorlectures = lecture.majorlecture.all()
@@ -145,7 +144,6 @@ def __update_lecture_info(
 
             if lecturecredits.exists():
                 semesterlecture.credit = lecturecredits[0].credit
-            
             semester = add_semester_credits(semesterlecture, semester)
             updated_semesterlectures.append(semesterlecture)
     SemesterLecture.objects.bulk_update(

@@ -8,7 +8,9 @@ from semester.models import Semester
 from lecture.models import Lecture
 from lecture.utils_test import SemesterLectureFactory
 from requirement.models import PlanRequirement
-
+from plan.utils import plan_major_requirement_generator
+from semester.const import *
+from lecture.models import SemesterLecture
 
 class PlanTestCase(TestCase):
     """
@@ -366,4 +368,365 @@ class PlanTestCase(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         
-# TODO: major, copy test.
+
+class PlanMajorCopyTestCase(TestCase):
+    """
+    # Test Plan APIs.
+        [POST] plan/<plan_id>/copy/
+        [PUT] plan/<plan_id>/major/
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        """
+            1) create plan.
+            2) create plan major & plan requirement.
+            3) create semester.
+            4) create semester lectures.
+        """
+
+        # 1) create plan.
+        cls.majors = [
+            {
+                "major_name": "경영학과",
+                "major_type": "major"
+            }
+        ]
+        cls.user = UserFactory.create(
+            email = "jaejae2374@test.com",
+            password = "waffle1234",
+            entrance_year = 2018,
+            full_name = "test user",
+            majors = cls.majors,
+            status = ACTIVE
+        )
+        cls.user_token = "Token " + str(cls.user.auth_token)
+        cls.stranger = UserFactory.auto_create()
+        cls.stranger_token = "Token " + str(cls.stranger.auth_token)
+        
+        cls.plan = Plan.objects.create(user=cls.user, plan_name="plan example")
+
+        # 2) create plan major & plan requirement.
+        plan_major_requirement_generator(cls.plan, cls.majors, 2018)
+        cls.major_1 = Major.objects.get(major_name="경영학과", major_type="major")
+        cls.major_2 = Major.objects.get(major_name="컴퓨터공학부", major_type="major")
+
+        # 3) create semester.
+        cls.semester_1 = Semester.objects.create(
+            plan=cls.plan,
+            year=2018, 
+            semester_type=FIRST,
+            major_requirement_credit=3,
+            major_elective_credit=3,
+            general_credit=3,
+            general_elective_credit=3)
+
+        cls.semester_2 = Semester.objects.create(
+            plan=cls.plan,
+            year=2018, 
+            semester_type=SECOND,
+            major_requirement_credit=3,
+            major_elective_credit=3,
+            general_credit=0,
+            general_elective_credit=6)
+
+        # 4) create semester lectures.
+        # 4-1) create semester_1's major_requirement, major_elective semester lectures.
+        cls.lectures_names_1 = [
+            "경영과학",
+            "고급회계",
+        ]
+        cls.lectures_1 = Lecture.objects.filter(lecture_name__in=cls.lectures_names_1)
+        for idx, lecture in enumerate(list(cls.lectures_1)):
+            SemesterLecture.objects.create(
+                semester=cls.semester_1,
+                lecture=lecture,
+                lecture_type=lecture.lecture_type,
+                recognized_major1=cls.major_1,
+                lecture_type1=lecture.lecture_type,
+                credit=lecture.credit,
+                recent_sequence=idx
+                )
+
+        # 4-2) create semester_1's general, general_elective semester lectures.
+        cls.lecture_general = Lecture.objects.get(lecture_name="법과 문학")
+        SemesterLecture.objects.create(
+            semester=cls.semester_1,
+            lecture=cls.lecture_general,
+            lecture_type=cls.lecture_general.lecture_type,
+            lecture_type1=cls.lecture_general.lecture_type,
+            credit=cls.lecture_general.credit,
+            recent_sequence=idx+1
+            )
+        cls.lecture_general_elective_1 = Lecture.objects.get(lecture_name="알고리즘")
+        SemesterLecture.objects.create(
+            semester=cls.semester_1,
+            lecture=cls.lecture_general_elective_1,
+            lecture_type=GENERAL_ELECTIVE,
+            lecture_type1=GENERAL_ELECTIVE,
+            credit=cls.lecture_general_elective_1.credit,
+            recent_sequence=idx+2
+            )
+
+        # 4-3) create semester_2's major_requirement, major_elective semester lectures.
+        cls.lectures_names_2 = [
+            "마케팅관리",
+            "국제경영"
+        ]
+        cls.lectures_2 = Lecture.objects.filter(lecture_name__in=cls.lectures_names_2)
+        for idx, lecture in enumerate(list(cls.lectures_2)):
+            SemesterLecture.objects.create(
+                semester=cls.semester_2,
+                lecture=lecture,
+                lecture_type=lecture.lecture_type,
+                recognized_major1=cls.major_1,
+                lecture_type1=lecture.lecture_type,
+                credit=lecture.credit,
+                recent_sequence=idx
+                )
+
+        # 4-2) create semester_2's general elective semester lectures.
+        cls.lecture_general_elective_2 = Lecture.objects.get(lecture_name="뇌-마음-행동")
+        SemesterLecture.objects.create(
+            semester=cls.semester_2,
+            lecture=cls.lecture_general_elective_2,
+            lecture_type=GENERAL_ELECTIVE,
+            lecture_type1=GENERAL_ELECTIVE,
+            credit=cls.lecture_general_elective_2.credit,
+            recent_sequence=idx+1
+            )
+        cls.lecture_general_elective_3 = Lecture.objects.get(lecture_name="인공지능")
+        SemesterLecture.objects.create(
+            semester=cls.semester_2,
+            lecture=cls.lecture_general_elective_3,
+            lecture_type=GENERAL_ELECTIVE,
+            lecture_type1=GENERAL_ELECTIVE,
+            credit=cls.lecture_general_elective_3.credit,
+            recent_sequence=idx+2
+            )
+
+    
+    def test_major_update(self):
+        """
+        Test cases in updating plan's major.
+            1) update plan's major.
+            2) not plan's owner.
+            3) not found.
+        """
+        # 1) update plan's major.
+        response = self.client.put(
+            f"/plan/{self.plan.id}/major/",
+            data={
+                "majors": [
+                    {
+                        "major_name": "컴퓨터공학부",
+                        "major_type": "major"
+                    }
+                ]
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.user_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertEqual(data['id'], self.plan.id)
+        self.assertEqual(data['plan_name'], "plan example")
+        self.assertEqual(data['majors'][0]['major_name'], "컴퓨터공학부")
+        self.assertEqual(data['majors'][0]['major_type'], "major")
+        self.assertFalse(self.plan.planmajor.filter(
+            plan=self.plan,
+            major=self.major_1
+        ).exists())
+        self.assertTrue(self.plan.planmajor.filter(
+            plan=self.plan,
+            major=self.major_2
+        ).exists())
+        self.assertFalse(self.plan.planrequirement.filter(
+            plan=self.plan, 
+            requirement__major=self.major_1,
+            requirement__start_year__lte=self.user.userprofile.entrance_year,
+            requirement__end_year__gte=self.user.userprofile.entrance_year
+        ).exists())
+        self.assertTrue(self.plan.planrequirement.filter(
+            plan=self.plan, 
+            requirement__major=self.major_2,
+            requirement__start_year__lte=self.user.userprofile.entrance_year,
+            requirement__end_year__gte=self.user.userprofile.entrance_year
+        ).exists())
+        
+        self.assertEqual(
+            self.semester_1.semesterlecture.get(
+                lecture=self.lectures_1.get(lecture_name="경영과학")
+            ).lecture_type,
+            GENERAL_ELECTIVE
+        )
+        self.assertEqual(
+            self.semester_1.semesterlecture.get(
+                lecture=self.lectures_1.get(lecture_name="고급회계")
+            ).lecture_type,
+            GENERAL_ELECTIVE
+        )
+        self.assertEqual(
+            self.semester_1.semesterlecture.get(
+                lecture=self.lecture_general_elective_1
+            ).lecture_type,
+            MAJOR_REQUIREMENT
+        )
+        self.assertEqual(
+            self.semester_1.semesterlecture.get(
+                lecture=self.lecture_general
+            ).lecture_type,
+            GENERAL
+        )
+        self.semester_1.refresh_from_db()
+        self.assertEqual(self.semester_1.major_requirement_credit, 3)
+        self.assertEqual(self.semester_1.major_elective_credit, 0)
+        self.assertEqual(self.semester_1.general_credit, 3)
+        self.assertEqual(self.semester_1.general_elective_credit, 6)
+
+        self.assertEqual(
+            self.semester_2.semesterlecture.get(
+                lecture=self.lectures_2.get(lecture_name="국제경영")
+            ).lecture_type,
+            MAJOR_ELECTIVE
+        )
+        self.assertEqual(
+            self.semester_2.semesterlecture.get(
+                lecture=self.lectures_2.get(lecture_name="마케팅관리")
+            ).lecture_type,
+            MAJOR_ELECTIVE
+        )
+        self.assertEqual(
+            self.semester_2.semesterlecture.get(
+                lecture=self.lecture_general_elective_2
+            ).lecture_type,
+            GENERAL_ELECTIVE
+        )
+        self.assertEqual(
+            self.semester_2.semesterlecture.get(
+                lecture=self.lecture_general_elective_3
+            ).lecture_type,
+            MAJOR_ELECTIVE
+        )
+        self.semester_2.refresh_from_db()
+        self.assertEqual(self.semester_2.major_requirement_credit, 0)
+        self.assertEqual(self.semester_2.major_elective_credit, 9)
+        self.assertEqual(self.semester_2.general_credit, 0)
+        self.assertEqual(self.semester_2.general_elective_credit, 3)
+
+        # 2) not plan's owner.
+        response = self.client.put(
+            f"/plan/{self.plan.id}/major/",
+            data={
+                "majors": [
+                    {
+                        "major_name": "컴퓨터공학부",
+                        "major_type": "major"
+                    }
+                ]
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.stranger_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # 3) not found.
+        response = self.client.put(
+            "/plan/9999/major/",
+            data={
+                "majors": [
+                    {
+                        "major_name": "컴퓨터공학부",
+                        "major_type": "major"
+                    }
+                ]
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.user_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+
+    def test_copy_plan(self):
+        """
+        Test cases in copying plan.
+            1) copy plan.
+            2) not plan's owner.
+            3) not found.
+        """
+        # 1) copy plan.
+        response = self.client.post(
+            f"/plan/{self.plan.id}/copy/",
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.user_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        data = response.json()
+        self.assertNotEqual(data['id'], self.plan.id)
+        self.assertEqual(data['plan_name'], "plan example (복사본)")
+        self.assertEqual(data['majors'][0]['major_name'], "경영학과")
+        self.assertEqual(data['majors'][0]['major_type'], "major")
+
+        new_plan = Plan.objects.get(id=data['id'])
+
+        self.assertTrue(new_plan.planmajor.filter(major=self.major_1).exists())
+        self.assertTrue(new_plan.planrequirement.filter(
+            requirement__major=self.major_1,
+            requirement__start_year__lte=self.user.userprofile.entrance_year,
+            requirement__end_year__gte=self.user.userprofile.entrance_year
+        ).exists())
+        new_semester_1 = new_plan.semester.filter(
+            year=self.semester_1.year,
+            semester_type=self.semester_1.semester_type,
+            major_requirement_credit=self.semester_1.major_requirement_credit,
+            major_elective_credit=self.semester_1.major_elective_credit,
+            general_credit=self.semester_1.general_credit,
+            general_elective_credit=self.semester_1.general_elective_credit,
+        )
+        self.assertTrue(new_semester_1.exists())
+        new_semester_2 = new_plan.semester.filter(
+            year=self.semester_2.year,
+            semester_type=self.semester_2.semester_type,
+            major_requirement_credit=self.semester_2.major_requirement_credit,
+            major_elective_credit=self.semester_2.major_elective_credit,
+            general_credit=self.semester_2.general_credit,
+            general_elective_credit=self.semester_2.general_elective_credit,
+        )
+        self.assertTrue(new_semester_2.exists())
+        semesterlectures_1 = [
+            "경영과학",
+            "고급회계",
+            "법과 문학",
+            "알고리즘"
+        ]
+        for lecture_name in semesterlectures_1:
+            self.assertTrue(new_semester_1[0].semesterlecture.filter(
+            lecture__lecture_name=lecture_name
+            ).exists())
+
+        semesterlectures_2 = [
+            "마케팅관리",
+            "국제경영",
+            "뇌-마음-행동",
+            "인공지능"
+        ]
+        for lecture_name in semesterlectures_2:
+            self.assertTrue(new_semester_2[0].semesterlecture.filter(
+            lecture__lecture_name=lecture_name
+            ).exists())
+
+        # 2) not plan's owner.
+        response = self.client.post(
+            f"/plan/{self.plan.id}/copy/",
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.stranger_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # 3) not found.
+        response = self.client.post(
+            "/plan/9999/copy/",
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.user_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
