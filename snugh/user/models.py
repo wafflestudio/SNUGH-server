@@ -1,11 +1,18 @@
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AbstractUser, UserManager
 from django.db import models
 from user.const import *
+from django.contrib.auth import get_user_model
+
+
+class User(AbstractUser):
+
+    class Meta:
+        db_table = 'auth_user'
 
 
 class UserProfile(models.Model):
 
-    user = models.OneToOneField(User, related_name='userprofile', on_delete=models.CASCADE)
+    user = models.OneToOneField(get_user_model(), related_name='userprofile', on_delete=models.CASCADE)
     entrance_year = models.IntegerField(default=0)
     status = models.CharField(max_length=50, choices=STUDENT_STATUS, default=ACTIVE)
 
@@ -42,7 +49,7 @@ class MajorEquivalent(models.Model):
 
 
 class UserMajor(models.Model):
-    user = models.ForeignKey(User, related_name='usermajor', on_delete=models.CASCADE)
+    user = models.ForeignKey(get_user_model(), related_name='usermajor', on_delete=models.CASCADE)
     major = models.ForeignKey(Major, related_name='usermajor', on_delete=models.CASCADE)
 
     class Meta:

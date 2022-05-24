@@ -5,11 +5,13 @@ from rest_framework import status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from django.contrib.auth.models import User
 from user.models import *
 from user.serializers import *
 from user.const import *
 from django.core.mail.message import EmailMessage
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
 class UserViewSet(viewsets.GenericViewSet):

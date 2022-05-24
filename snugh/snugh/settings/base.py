@@ -45,6 +45,8 @@ INSTALLED_APPS = [
     'history.apps.HistoryConfig'
 ]
 
+AUTH_USER_MODEL = 'user.User'
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',

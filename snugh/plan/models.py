@@ -1,5 +1,8 @@
 from django.db import models
-from user.models import Major, User
+from user.models import Major
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
 class Plan(models.Model):

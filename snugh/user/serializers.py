@@ -1,7 +1,8 @@
 from rest_framework import serializers
-from django.contrib.auth.models import User
 from user.models import Major
+from django.contrib.auth import get_user_model
 
+User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField()
