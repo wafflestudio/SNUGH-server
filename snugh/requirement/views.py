@@ -301,7 +301,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
             "planrequirement__requirement__major__majorlecture",
             "planrequirement__requirement__major__majorlecture__lecture"]
         )
-        majors = request.data.get('majors')
+        majors = request.data.get('majors', [])
         all_credit = request.data.get('all', -1)
         general_credit = request.data.get('general', -1)
         data = {
@@ -321,12 +321,12 @@ class RequirementViewSet(viewsets.GenericViewSet):
                     'major_type': req.major.major_type
                 }
             if req.requirement_type==ALL:
-                if all_std < req.required_credit:
-                    all_std = req.required_credit
+                if all_std < pr.required_credit:
+                    all_std = pr.required_credit
                     all_pr = pr
             elif req.requirement_type==GENERAL:
-                if gen_std < req.required_credit:
-                    gen_std = req.required_credit
+                if gen_std < pr.required_credit:
+                    gen_std = pr.required_credit
                     gen_pr = pr
             elif req.requirement_type == MAJOR_ALL:
                 for major in majors:
@@ -334,7 +334,6 @@ class RequirementViewSet(viewsets.GenericViewSet):
                         if req.major.major_name == major['major_name'] and req.major.major_type == major['major_type']:
                             major_credit = major.get("major_credit", -1)
                             if major_credit >= 0 and pr.required_credit != major_credit: 
-                                pr.required_credit = major_credit
                                 histories.append(
                                     requirement_histroy_generator(
                                         requirement=req,
@@ -343,6 +342,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
                                         curr_required_credit=major_credit
                                     )
                                 )
+                                pr.required_credit = major_credit
                                 pr_list.append(pr)
                     except KeyError:
                         raise FieldError("Field missing [major_name, major_type]")
@@ -354,7 +354,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
                             pr.auto_calculate = major.get('auto_calculate', False)
                             if pr.auto_calculate:
                                 major_requirement_credit = req.major.majorlecture.filter(
-                                    lecture_type= MAJOR_REQUIREMENT, 
+                                    lecture_type=MAJOR_REQUIREMENT, 
                                     start_year__lte=year_std,
                                     end_year__gte=year_std).values(
                                         'lecture__credit'
@@ -363,7 +363,6 @@ class RequirementViewSet(viewsets.GenericViewSet):
                                 major_requirement_credit = major.get("major_requirement_credit", -1)
                                 
                             if major_requirement_credit >= 0 and pr.required_credit != major_requirement_credit:
-                                pr.required_credit = major_requirement_credit
                                 histories.append(
                                     requirement_histroy_generator(
                                         requirement=req,
@@ -372,13 +371,13 @@ class RequirementViewSet(viewsets.GenericViewSet):
                                         curr_required_credit=major_requirement_credit
                                     )
                                 )
+                                pr.required_credit = major_requirement_credit
                                 pr_list.append(pr)
                     except KeyError:
                         raise FieldError("Field missing [major_name, major_type]")
                 data['majors'][req.major.major_name]['major_requirement_credit'] = pr.required_credit
                 data['majors'][req.major.major_name]['auto_calculate'] = pr.auto_calculate
         if all_credit >= 0 and all_pr.required_credit != all_credit:
-            all_pr.required_credit = all_credit
             histories.append(
                 requirement_histroy_generator(
                     requirement=all_pr.requirement,
@@ -387,9 +386,9 @@ class RequirementViewSet(viewsets.GenericViewSet):
                     curr_required_credit=all_credit
                 )
             )
+            all_pr.required_credit = all_credit
             pr_list.append(all_pr)
         if general_credit >= 0 and gen_pr.required_credit != general_credit:
-            gen_pr.required_credit = general_credit
             histories.append(
                 requirement_histroy_generator(
                     requirement=gen_pr.requirement,
@@ -398,6 +397,7 @@ class RequirementViewSet(viewsets.GenericViewSet):
                     curr_required_credit=general_credit
                 )
             )
+            gen_pr.required_credit = general_credit
             pr_list.append(gen_pr)
         data["all"] = all_pr.required_credit
         data["general"] = gen_pr.required_credit

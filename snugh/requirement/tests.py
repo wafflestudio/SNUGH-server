@@ -8,6 +8,7 @@ from plan.models import Plan, PlanMajor
 from requirement.models import Requirement
 from semester.models import Semester
 from lecture.models import Lecture, SemesterLecture
+from history.models import RequirementChangeHistory
 
 from lecture.const import *
 from semester.const import *
@@ -61,6 +62,12 @@ class RequirementTestCase(TestCase):
         plan_major_requirement_generator(cls.plan, cls.majors, 2018)
         cls.major_1 = Major.objects.get(major_name=cls.majors[0]['major_name'], major_type=cls.majors[0]['major_type'])
         cls.major_2 = Major.objects.get(major_name=cls.majors[1]['major_name'], major_type=cls.majors[1]['major_type'])
+        cls.major_1_all = cls.plan.planrequirement.get(requirement__major=cls.major_1, requirement__requirement_type=MAJOR_ALL)
+        cls.major_1_requirement = cls.plan.planrequirement.get(requirement__major=cls.major_1, requirement__requirement_type=MAJOR_REQUIREMENT)
+        cls.major_2_all = cls.plan.planrequirement.get(requirement__major=cls.major_2, requirement__requirement_type=MAJOR_ALL)
+        cls.major_2_requirement = cls.plan.planrequirement.get(requirement__major=cls.major_2, requirement__requirement_type=MAJOR_REQUIREMENT)
+        cls.all_pr = cls.plan.planrequirement.filter(requirement__requirement_type=ALL).order_by("-required_credit")[0]
+        cls.gen_pr = cls.plan.planrequirement.filter(requirement__requirement_type=GENERAL).order_by("-required_credit")[0]
 
         # 3) create semester.
         cls.semester_1 = Semester.objects.create(
@@ -255,15 +262,25 @@ class RequirementTestCase(TestCase):
         data = response.json()
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+
     def test_update_requirement(self):
         """
         Test cases in updating plan's requirements required credits.
             1) change all, general, majors requirement credit.
-            2) change all requirement credit.
-            3) change general requirement credit.
-            4) change major_1 requirement credit.
-            5) change major_2 requirement credit.
+            2) non-field does not change requirement credit.
+            3) non-credit-change does not make requirement history.
+            4) not plan's owner.
+            5) plan does not exist.
+            6) auto_calculate = True.
         """
+        major_1_all_credit = self.major_1_all.required_credit
+        major_1_requirement_credit = self.major_1_requirement.required_credit
+        major_2_all_credit = self.major_2_all.required_credit
+        major_2_requirement_credit = self.major_2_requirement.required_credit
+        all_credit = self.all_pr.required_credit
+        all_requirement = self.all_pr.requirement
+        general_credit = self.gen_pr.required_credit
+        general_requirement = self.gen_pr.requirement
         body = {
             "majors": [
                 {
@@ -282,7 +299,7 @@ class RequirementTestCase(TestCase):
                 }
             ],
             "all": 135,
-            "general": 36
+            "general": 40
         }
         response = self.client.put(
             f'/requirement/{self.plan.id}/', 
@@ -292,4 +309,230 @@ class RequirementTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         self.assertEqual(body, data)
+        self.major_1_all.refresh_from_db()
+        self.assertEqual(
+            True,
+            RequirementChangeHistory.objects.filter(
+                requirement=self.major_1_all.requirement,
+                past_required_credit=major_1_all_credit,
+                curr_required_credit=self.major_1_all.required_credit,
+                change_count=1,
+                entrance_year=2018
+            ).exists()
+        )
+        self.major_1_requirement.refresh_from_db()
+        self.assertEqual(
+            True,
+            RequirementChangeHistory.objects.filter(
+                requirement=self.major_1_requirement.requirement,
+                past_required_credit=major_1_requirement_credit,
+                curr_required_credit=self.major_1_requirement.required_credit,
+                change_count=1,
+                entrance_year=2018
+            ).exists()
+        )
+        self.major_2_all.refresh_from_db()
+        self.assertEqual(
+            True,
+            RequirementChangeHistory.objects.filter(
+                requirement=self.major_2_all.requirement,
+                past_required_credit=major_2_all_credit,
+                curr_required_credit=self.major_2_all.required_credit,
+                change_count=1,
+                entrance_year=2018
+            ).exists()
+        )
+        self.major_2_requirement.refresh_from_db()
+        self.assertEqual(
+            True,
+            RequirementChangeHistory.objects.filter(
+                requirement=self.major_2_requirement.requirement,
+                past_required_credit=major_2_requirement_credit,
+                curr_required_credit=self.major_2_requirement.required_credit,
+                change_count=1,
+                entrance_year=2018
+            ).exists()
+        )
+        self.all_pr.refresh_from_db()
+        self.assertEqual(
+            True,
+            RequirementChangeHistory.objects.filter(
+                requirement=all_requirement,
+                past_required_credit=all_credit,
+                curr_required_credit=135,
+                change_count=1,
+                entrance_year=2018
+            ).exists()
+        )
+        self.gen_pr.refresh_from_db()
+        self.assertEqual(
+            True,
+            RequirementChangeHistory.objects.filter(
+                requirement=general_requirement,
+                past_required_credit=general_credit,
+                curr_required_credit=40,
+                change_count=1,
+                entrance_year=2018
+            ).exists()
+        )
+
+        # 2) non-field does not change requirement credit.
+        major_1_all_credit = self.major_1_all.required_credit
+        major_1_requirement_credit = self.major_1_requirement.required_credit
+        major_2_all_credit = self.major_2_all.required_credit
+        major_2_requirement_credit = self.major_2_requirement.required_credit
+        all_credit = self.all_pr.required_credit
+        general_credit = self.gen_pr.required_credit
+        empty_body = {}
+        response = self.client.put(
+            f'/requirement/{self.plan.id}/', 
+            HTTP_AUTHORIZATION=self.user_token,
+            data=empty_body,
+            content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.major_1_all.refresh_from_db()
+        self.major_1_requirement.refresh_from_db()
+        self.major_2_all.refresh_from_db()
+        self.major_2_requirement.refresh_from_db()
+        self.all_pr.refresh_from_db()
+        self.gen_pr.refresh_from_db()
+        self.assertEqual(body, data)
+        self.assertEqual(major_1_all_credit, self.major_1_all.required_credit)
+        self.assertEqual(major_1_requirement_credit, self.major_1_requirement.required_credit)
+        self.assertEqual(major_2_all_credit, self.major_2_all.required_credit)
+        self.assertEqual(major_2_requirement_credit, self.major_2_requirement.required_credit)
+        self.assertEqual(all_credit, self.all_pr.required_credit)
+        self.assertEqual(general_credit, self.gen_pr.required_credit)
+
+        # 3) non-credit-change does not make requirement history.
+        response = self.client.put(
+            f'/requirement/{self.plan.id}/', 
+            HTTP_AUTHORIZATION=self.user_token,
+            data=body,
+            content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertEqual(body, data)
+        self.major_1_all.refresh_from_db()
+        self.assertEqual(
+            False,
+            RequirementChangeHistory.objects.filter(
+                requirement=self.major_1_all.requirement,
+                past_required_credit=self.major_1_all.required_credit,
+                curr_required_credit=self.major_1_all.required_credit,
+                change_count=1,
+                entrance_year=2018
+            ).exists()
+        )
+        self.major_1_requirement.refresh_from_db()
+        self.assertEqual(
+            False,
+            RequirementChangeHistory.objects.filter(
+                requirement=self.major_1_requirement.requirement,
+                past_required_credit=self.major_1_requirement.required_credit,
+                curr_required_credit=self.major_1_requirement.required_credit,
+                change_count=1,
+                entrance_year=2018
+            ).exists()
+        )
+        self.major_2_all.refresh_from_db()
+        self.assertEqual(
+            False,
+            RequirementChangeHistory.objects.filter(
+                requirement=self.major_2_all.requirement,
+                past_required_credit=self.major_2_all.required_credit,
+                curr_required_credit=self.major_2_all.required_credit,
+                change_count=1,
+                entrance_year=2018
+            ).exists()
+        )
+        self.major_2_requirement.refresh_from_db()
+        self.assertEqual(
+            False,
+            RequirementChangeHistory.objects.filter(
+                requirement=self.major_2_requirement.requirement,
+                past_required_credit=self.major_2_requirement.required_credit,
+                curr_required_credit=self.major_2_requirement.required_credit,
+                change_count=1,
+                entrance_year=2018
+            ).exists()
+        )
+        self.all_pr.refresh_from_db()
+        self.assertEqual(
+            False,
+            RequirementChangeHistory.objects.filter(
+                requirement=all_requirement,
+                past_required_credit=135,
+                curr_required_credit=135,
+                change_count=1,
+                entrance_year=2018
+            ).exists()
+        )
+        self.gen_pr.refresh_from_db()
+        self.assertEqual(
+            False,
+            RequirementChangeHistory.objects.filter(
+                requirement=general_requirement,
+                past_required_credit=40,
+                curr_required_credit=40,
+                change_count=1,
+                entrance_year=2018
+            ).exists()
+        )
     
+        # 4) not plan's owner.
+        response = self.client.put(
+            f'/requirement/{self.plan.id}/', 
+            HTTP_AUTHORIZATION=self.stranger_token,
+            data=body,
+            content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # 5) plan does not exist.
+        response = self.client.put(
+            '/requirement/9999/', 
+            HTTP_AUTHORIZATION=self.user_token,
+            data=body,
+            content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        # 6) auto_calculate = True.
+        body = {
+            "majors": [
+                {
+                    "major_name": "경영학과",
+                    "major_type": "double_major",
+                    "auto_calculate": True
+                },
+                {
+                    "major_name": "컴퓨터공학부",
+                    "major_type": "major",
+                    "auto_calculate": True
+                }
+            ],
+        }
+        response = self.client.put(
+            f'/requirement/{self.plan.id}/', 
+            HTTP_AUTHORIZATION=self.user_token,
+            data=body,
+            content_type="application/json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        result = {
+            'majors': 
+                [{
+                    'major_type': 'double_major', 
+                    'major_credit': 40, 
+                    'major_requirement_credit': 64, 
+                    'auto_calculate': True, 
+                    'major_name': '경영학과'}, 
+                {
+                    'major_type': 'major', 
+                    'major_credit': 45, 
+                    'major_requirement_credit': 49, 
+                    'auto_calculate': True, 
+                    'major_name': '컴퓨터공학부'}], 
+            'all': 135, 
+            'general': 40}
+        self.assertEqual(data, result)
