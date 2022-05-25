@@ -1,5 +1,5 @@
-from rest_framework import serializers
 from django.db.models import Case, When, IntegerField, Value
+from rest_framework import serializers
 from plan.models import Plan
 from user.serializers import MajorSerializer
 from semester.serializers import SemesterSerializer

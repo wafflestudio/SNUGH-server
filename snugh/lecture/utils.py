@@ -1,14 +1,14 @@
 """Utils related to Lecture APIs."""
 
-from semester.models import Semester
 from lecture.models import SemesterLecture
+from lecture.const import *
 from plan.models import Plan
 from user.models import Major, User
-from lecture.const import *
+from user.const import *
 from django.db.models import Case, When, Value, IntegerField
 from snugh.exceptions import NotOwner, NotFound
+from semester.models import Semester
 from semester.utils import add_semester_credits, sub_semester_credits
-from user.const import *
 
 def update_lecture_info(
     user: User, 
@@ -82,7 +82,6 @@ def __update_lecture_info(
         if not semesterlecture.is_modified:
             semester = sub_semester_credits(semesterlecture, semester)
             lecture = semesterlecture.lecture
-
             if semesterlecture.lecture_type != GENERAL:
                 major_count = 0
                 majorlectures = lecture.majorlecture.all()
@@ -145,7 +144,6 @@ def __update_lecture_info(
 
             if lecturecredits.exists():
                 semesterlecture.credit = lecturecredits[0].credit
-            
             semester = add_semester_credits(semesterlecture, semester)
             updated_semesterlectures.append(semesterlecture)
     SemesterLecture.objects.bulk_update(

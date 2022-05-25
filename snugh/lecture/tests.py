@@ -1,14 +1,13 @@
 from django.test import TestCase
 from rest_framework import status
 from user.utils import UserFactory
-
+from user.const import *
 from user.models import Major
 from lecture.models import Lecture, SemesterLecture
 from plan.models import Plan, PlanMajor
 from semester.models import Semester
-from history.models import CreditChangeHistory, LectureTypeChangeHistory
-from user.const import *
 from semester.const import *
+from history.models import CreditChangeHistory, LectureTypeChangeHistory
 
 class LectureTestCase(TestCase):
     """
@@ -156,7 +155,7 @@ class LectureTestCase(TestCase):
         self.assertEqual(body['detail'], "some lecture already exists in plan.")
         
 
-    def test_lecture_list(self):
+    def test_list_lecture(self):
         """
         Test cases in listing lecture.
             1) search past lectures [major_requirement].

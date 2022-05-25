@@ -1,15 +1,17 @@
 from django.test import TestCase
+from rest_framework import status
 from lecture.models import Lecture
 from lecture.utils_test import SemesterLectureFactory
+from user.models import Major
 from user.utils import UserFactory
 from plan.models import Plan, PlanMajor
-from rest_framework import status
 from semester.models import Semester
-from user.models import Major
+
 
 class SemesterTestCase(TestCase):
     """
     # Test Semester APIs.
+        [POST] semester/
         [GET] semester/<semester_id>/
         [DELETE] semester/<semester_id>/
     """
