@@ -1,16 +1,16 @@
 from django.test import TestCase
 from rest_framework import status
+from user.models import Major
 from user.utils import UserFactory
 from user.const import *
 from plan.models import Plan, PlanMajor
-from user.models import Major
+from plan.utils import plan_major_requirement_generator
 from semester.models import Semester
+from semester.const import *
 from lecture.models import Lecture
 from lecture.utils_test import SemesterLectureFactory
-from requirement.models import PlanRequirement
-from plan.utils import plan_major_requirement_generator
-from semester.const import *
 from lecture.models import SemesterLecture
+from requirement.models import PlanRequirement
 
 class PlanTestCase(TestCase):
     """

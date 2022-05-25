@@ -1,19 +1,16 @@
-from user.utils import UserFactory
-
 from django.test import TestCase
 from rest_framework import status
-
 from user.models import Major
+from user.utils import UserFactory
+from user.const import *
 from plan.models import Plan
+from plan.utils import plan_major_requirement_generator
+from semester.const import *
 from semester.models import Semester
+from lecture.const import *
 from lecture.models import Lecture, SemesterLecture
 from history.models import RequirementChangeHistory
-
-from lecture.const import *
-from semester.const import *
 from requirement.const import *
-from user.const import *
-from plan.utils import plan_major_requirement_generator
 
 
 class RequirementTestCase(TestCase):

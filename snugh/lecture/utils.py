@@ -1,14 +1,14 @@
 """Utils related to Lecture APIs."""
 
-from semester.models import Semester
 from lecture.models import SemesterLecture
+from lecture.const import *
 from plan.models import Plan
 from user.models import Major, User
-from lecture.const import *
+from user.const import *
 from django.db.models import Case, When, Value, IntegerField
 from snugh.exceptions import NotOwner, NotFound
+from semester.models import Semester
 from semester.utils import add_semester_credits, sub_semester_credits
-from user.const import *
 
 def update_lecture_info(
     user: User, 

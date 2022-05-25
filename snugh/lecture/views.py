@@ -1,22 +1,22 @@
-from django.db.models import Case, When, Q, Value, IntegerField, F, Prefetch
+from django.db.models import Case, When, Q, Value, IntegerField, F
 from django.db import transaction
+from django.core.paginator import Paginator
+from django.db.models.functions import Length
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from lecture.models import Lecture, SemesterLecture
 from lecture.serializers import SemesterLectureSerializer, LectureSerializer
-from semester.models import Semester
-from semester.serializers import SemesterSerializer
-from plan.models import Plan
-from user.models import Major, MajorEquivalent, DepartmentEquivalent
-from django.core.paginator import Paginator
-from django.db.models.functions import Length
-from snugh.permissions import IsOwnerOrCreateReadOnly
-from snugh.exceptions import DuplicationError, FieldError, NotFound
 from lecture.utils import update_lecture_info
 from lecture.const import *
-from user.const import *
+from semester.models import Semester
+from semester.serializers import SemesterSerializer
 from semester.utils import add_semester_credits, sub_semester_credits
+from plan.models import Plan
+from user.models import Major, MajorEquivalent, DepartmentEquivalent
+from user.const import *
+from snugh.permissions import IsOwnerOrCreateReadOnly
+from snugh.exceptions import DuplicationError, FieldError, NotFound
 from history.utils import credit_history_generator, lecturetype_history_generator
 from typing import List
 

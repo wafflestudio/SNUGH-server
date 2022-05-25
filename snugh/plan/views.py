@@ -1,4 +1,3 @@
-
 from django.db import transaction
 from rest_framework import status, viewsets, generics
 from rest_framework.response import Response
@@ -6,12 +5,12 @@ from rest_framework.decorators import action
 from snugh.permissions import IsOwnerOrCreateReadOnly
 from snugh.exceptions import NotOwner, NotFound, FieldError
 from lecture.utils import update_lecture_info
+from lecture.models import SemesterLecture
 from plan.serializers import PlanSerializer, PlanRetrieveSerializer
 from plan.models import Plan, PlanMajor
 from plan.utils import plan_major_requirement_generator
 from semester.models import Semester
 from requirement.models import PlanRequirement
-from lecture.models import SemesterLecture
 
 class PlanViewSet(viewsets.GenericViewSet, generics.RetrieveUpdateDestroyAPIView):
     """
