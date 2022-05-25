@@ -62,7 +62,7 @@ class LectureViewSet(viewsets.GenericViewSet):
             try :
                 lecture = Lecture.objects.get(id=lecture_id)
             except Lecture.DoesNotExist:
-                raise NotFound('lecture does not exist')
+                raise NotFound()
             lecture_type = lecture.lecture_type
             sl = SemesterLecture.objects.create(
                 semester=semester,
@@ -93,7 +93,7 @@ class LectureViewSet(viewsets.GenericViewSet):
         try:
             semester_to = Semester.objects.prefetch_related('semesterlecture').get(id=semester_to)
         except Semester.DoesNotExist:
-            raise NotFound('semester does not exist')
+            raise NotFound()
         semester_to_lectures = semester_to.semesterlecture.all()
         max_num = len(semester_to_lectures)
         semester_to_lectures = semester_to_lectures.filter(recent_sequence__gte=position).order_by('recent_sequence')

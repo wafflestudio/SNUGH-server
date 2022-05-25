@@ -80,7 +80,6 @@ class LectureTestCase(TestCase):
         Error cases in creating semester lecture.
             1) not semester's owner.
             2) semester does not exist.
-            3) lecture already exists in plan.
         """
         # 1) not semester's owner.
         data = {
@@ -806,8 +805,6 @@ class LecturePositionTestCase(TestCase):
             HTTP_AUTHORIZATION=self.user_token,
         )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        data = response.json()
-        self.assertEqual(data["detail"], "semester does not exist")
 
         # 8) Invalid field [position]
         data = {
