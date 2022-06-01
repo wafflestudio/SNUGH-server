@@ -1,6 +1,7 @@
 from os import getenv
 from pathlib import Path
 
+AUTH_USER_MODEL = 'user.User'
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -36,13 +37,9 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'corsheaders',
     'user.apps.UserConfig',
-    'lecture.apps.LectureConfig',
-    'requirement.apps.RequirementConfig',
     'faq.apps.FAQConfig',
     'bug_report.apps.BugReportConfig',
-    'plan.apps.PlanConfig',
-    'semester.apps.SemesterConfig',
-    'history.apps.HistoryConfig'
+    'core.apps.CoreConfig'
 ]
 
 MIDDLEWARE = [

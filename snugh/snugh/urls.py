@@ -7,10 +7,7 @@ import os
 
 urlpatterns = [
     path('', include('user.urls')),
-    path('', include('lecture.urls')),
-    path('', include('semester.urls')),
-    path('', include('plan.urls')),
-    path('', include('requirement.urls')),
+    path('', include('core.urls')),
     path('', include('faq.urls')),
     path('', include('bug_report.urls')),
     path('password_reset/', auth_views.PasswordResetView.as_view(), name='password_reset'),
