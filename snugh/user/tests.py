@@ -1,11 +1,9 @@
 from django.test import TestCase
-from django.db.models import Count
 from rest_framework import status
 from pathlib import Path
 from django.db.models import Q
-
-from .models import User, Major, UserMajor, UserProfile
-from .utils import UserFactory, UserMajorFactory
+from user.utils import UserFactory, UserMajorFactory
+from core.major.models import Major
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 

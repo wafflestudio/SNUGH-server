@@ -1,16 +1,18 @@
 from django.contrib.auth import authenticate, login, logout
 from django.db import transaction
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import redirect
 from rest_framework import status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from django.contrib.auth.models import User
-from user.models import *
-from user.serializers import *
-from user.const import *
-from django.core.mail.message import EmailMessage
+from django.contrib.auth import get_user_model
+from user.models import UserProfile
+from core.major.models import Major, UserMajor
+from core.major.serializers import MajorSerializer
+from core.major.const import *
+from user.serializers import UserSerializer
 
+User = get_user_model()
 
 class UserViewSet(viewsets.GenericViewSet):
     queryset = User.objects.all()
@@ -278,33 +280,3 @@ class UserViewSet(viewsets.GenericViewSet):
 
     def login_redirect(request):
         return redirect('http://snugh.s3-website.ap-northeast-2.amazonaws.com')
-
-
-class MajorViewSet(viewsets.GenericViewSet):
-    queryset = Major.objects.all()
-
-    # GET /major
-    def list(self, request):
-        search_keyword = request.query_params.get('search_keyword')
-        major_type = request.query_params.get('major_type')
-
-        majors = self.get_queryset().all()
-
-        # filtering
-        if search_keyword:
-            majors = majors.filter(major_name__icontains=search_keyword)
-        if major_type:
-            majors = majors.filter(major_type=major_type)
-
-        # remove duplicated major
-        unique_major_list = []
-        for major in majors:
-            if major.major_name not in unique_major_list:
-                unique_major_list.append(major.major_name)
-
-        # remove default major
-        if 'none' in unique_major_list:
-            unique_major_list.remove('none')
-
-        body = { 'majors': sorted(unique_major_list) }
-        return Response(body, status=status.HTTP_200_OK)

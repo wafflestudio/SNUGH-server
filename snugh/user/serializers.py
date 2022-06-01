@@ -1,7 +1,9 @@
 from rest_framework import serializers
-from django.contrib.auth.models import User
-from user.models import Major
+from django.contrib.auth import get_user_model
+from core.major.models import Major
+from core.major.serializers import MajorSerializer
 
+User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField()
@@ -34,17 +36,3 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_status(self, user):
         return user.userprofile.status
-
-
-class MajorSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField()
-    major_name = serializers.CharField()
-    major_type = serializers.CharField()
-
-    class Meta:
-        model = Major
-        fields = (
-            "id",
-            "major_name",
-            "major_type",
-        )
