@@ -14,13 +14,11 @@ class LectureQuerySet(models.QuerySet):
         return result
 
 
-class BaseLecture(models.Model):
+class Lecture(models.Model):
     """
-    Abstract base model for Lecture & LectureTmp models.
+    Static model related to lectures.
     # TODO: explain fields.
     """
-    class Meta:
-        abstract = True
     lecture_code = models.CharField(max_length=50, default="")
     lecture_name = models.CharField(max_length=50, db_index=True)
     open_department = models.CharField(max_length=50, null=True)
@@ -29,26 +27,6 @@ class BaseLecture(models.Model):
     lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
     credit = models.PositiveIntegerField(default=0)
     grade = models.PositiveSmallIntegerField(null=True, blank=True)
-
-
-class BaseMajorLecture(models.Model):
-    """
-    Abstract base model for MajorLecture & MajorLectureTmp models.
-    # TODO: explain fields.
-    """
-    class Meta:
-        abstract = True
-    start_year = models.PositiveSmallIntegerField()
-    end_year = models.PositiveSmallIntegerField()
-    is_required = models.BooleanField(default=False)
-    lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
-
-
-class Lecture(BaseLecture):
-    """
-    Static model related to lectures.
-    # TODO: explain fields.
-    """
     prev_lecture_name = models.CharField(max_length=50, null=True)
     recent_open_year = models.IntegerField(default=0)
     objects = LectureQuerySet.as_manager()
@@ -71,12 +49,16 @@ class SemesterLecture(models.Model):
     is_modified = models.BooleanField(default=False)
 
 
-class MajorLecture(BaseMajorLecture):
+class MajorLecture(models.Model):
     """
     Model for relating Major and Lecture models. Each lecture has it's own major.
     Need to created as a static model.
     # TODO: explain fields.
     """
+    start_year = models.PositiveSmallIntegerField()
+    end_year = models.PositiveSmallIntegerField()
+    is_required = models.BooleanField(default=False)
+    lecture_type = models.CharField(max_length=50, choices=LECTURE_TYPE, default=NONE)
     major = models.ForeignKey(Major, related_name='majorlecture', on_delete=models.CASCADE)
     lecture = models.ForeignKey(Lecture, related_name='majorlecture', on_delete=models.CASCADE)
     created_at = models.DateField(auto_now_add=True)
@@ -94,20 +76,3 @@ class LectureCredit(models.Model):
     end_year = models.PositiveSmallIntegerField()
     created_at = models.DateField(auto_now_add=True)
     updated_at = models.DateField(auto_now=True)
-
-
-class LectureTmp(BaseLecture):
-    """
-    # TODO: Comments about this model.
-    """
-    open_year = models.IntegerField(default=0)
-    is_added =  models.BooleanField(default=False)
-
-
-class MajorLectureTmp(BaseMajorLecture):
-    """
-    # TODO: Comments about this model.
-    """
-    major_name = models.CharField(max_length=50, default="")
-    major_type = models.CharField(max_length=50, default="")
-    lecture_code = models.CharField(max_length=50, default="")
