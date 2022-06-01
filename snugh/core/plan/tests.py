@@ -7,11 +7,11 @@ from core.plan.models import Plan, PlanMajor
 from core.plan.utils import plan_major_requirement_generator
 from core.semester.models import Semester
 from core.semester.const import *
-from core.lecture.models import Lecture
+from core.lecture.models import Lecture, SemesterLecture
 from core.lecture.utils_test import SemesterLectureFactory
-from core.lecture.models import SemesterLecture
 from core.requirement.models import PlanRequirement
 from core.const import *
+from user.const import *
 
 class PlanTestCase(TestCase):
     """

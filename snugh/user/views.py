@@ -123,7 +123,7 @@ class UserViewSet(viewsets.GenericViewSet):
 
         request.user.auth_token.delete()
         logout(request)
-        return Response(status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     # PUT /user
     @action(detail=False, methods=['PUT'])
