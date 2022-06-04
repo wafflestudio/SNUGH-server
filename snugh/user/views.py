@@ -5,14 +5,12 @@ from rest_framework import status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from django.contrib.auth import get_user_model
 from user.models import UserProfile
 from core.major.models import Major, UserMajor
 from core.major.serializers import MajorSerializer
 from core.major.const import *
 from user.serializers import UserSerializer
-
-User = get_user_model()
+from user.models import User
 
 class UserViewSet(viewsets.GenericViewSet):
     queryset = User.objects.all()

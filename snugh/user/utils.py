@@ -3,10 +3,8 @@ from rest_framework.authtoken.models import Token
 from faker import Faker
 
 from user.models import UserProfile
-from django.contrib.auth import get_user_model
+from user.models import User
 from core.major.models import Major, UserMajor
-
-User = get_user_model()
 
 class UserFactory(DjangoModelFactory):
     class Meta:

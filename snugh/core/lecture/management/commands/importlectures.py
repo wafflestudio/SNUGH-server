@@ -5,9 +5,9 @@ from django.core.management.base import BaseCommand, CommandError
 import requests
 import xlrd
 
-from lecture.models import Lecture
-import semester.const as SEMESTER_TYPES
-import lecture.const as LECTURE_TYPES
+from core.lecture.models import Lecture
+import core.semester.const as SEMESTER_TYPES
+import core.lecture.const as LECTURE_TYPES
 
 
 class Command(BaseCommand):

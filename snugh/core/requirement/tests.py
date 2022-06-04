@@ -12,6 +12,7 @@ from core.lecture.const import *
 from core.lecture.models import Lecture, SemesterLecture
 from core.history.models import RequirementChangeHistory
 from core.requirement.const import *
+from core.requirement.models import PlanRequirement
 
 
 class RequirementTestCase(TestCase):
@@ -312,7 +313,7 @@ class RequirementTestCase(TestCase):
             RequirementChangeHistory.objects.filter(
                 requirement=self.major_1_all.requirement,
                 past_required_credit=major_1_all_credit,
-                curr_required_credit=self.major_1_all.required_credit,
+                curr_required_credit=40,
                 change_count=1,
                 entrance_year=2018
             ).exists()
@@ -323,7 +324,7 @@ class RequirementTestCase(TestCase):
             RequirementChangeHistory.objects.filter(
                 requirement=self.major_1_requirement.requirement,
                 past_required_credit=major_1_requirement_credit,
-                curr_required_credit=self.major_1_requirement.required_credit,
+                curr_required_credit=33,
                 change_count=1,
                 entrance_year=2018
             ).exists()
@@ -334,7 +335,7 @@ class RequirementTestCase(TestCase):
             RequirementChangeHistory.objects.filter(
                 requirement=self.major_2_all.requirement,
                 past_required_credit=major_2_all_credit,
-                curr_required_credit=self.major_2_all.required_credit,
+                curr_required_credit=45,
                 change_count=1,
                 entrance_year=2018
             ).exists()
@@ -345,7 +346,7 @@ class RequirementTestCase(TestCase):
             RequirementChangeHistory.objects.filter(
                 requirement=self.major_2_requirement.requirement,
                 past_required_credit=major_2_requirement_credit,
-                curr_required_credit=self.major_2_requirement.required_credit,
+                curr_required_credit=31,
                 change_count=1,
                 entrance_year=2018
             ).exists()
@@ -388,19 +389,19 @@ class RequirementTestCase(TestCase):
             content_type="application/json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        self.major_1_all.refresh_from_db()
-        self.major_1_requirement.refresh_from_db()
-        self.major_2_all.refresh_from_db()
-        self.major_2_requirement.refresh_from_db()
-        self.all_pr.refresh_from_db()
-        self.gen_pr.refresh_from_db()
+        major_1_all = self.plan.planrequirement.get(requirement__major=self.major_1, requirement__requirement_type=MAJOR_ALL)
+        major_1_requirement = self.plan.planrequirement.get(requirement__major=self.major_1, requirement__requirement_type=MAJOR_REQUIREMENT)
+        major_2_all = self.plan.planrequirement.get(requirement__major=self.major_2, requirement__requirement_type=MAJOR_ALL)
+        major_2_requirement = self.plan.planrequirement.get(requirement__major=self.major_2, requirement__requirement_type=MAJOR_REQUIREMENT)
+        all_pr = self.plan.planrequirement.filter(requirement__requirement_type=ALL).order_by("-required_credit")[0]
+        gen_pr = self.plan.planrequirement.filter(requirement__requirement_type=GENERAL).order_by("-required_credit")[0]
         self.assertEqual(body, data)
-        self.assertEqual(major_1_all_credit, self.major_1_all.required_credit)
-        self.assertEqual(major_1_requirement_credit, self.major_1_requirement.required_credit)
-        self.assertEqual(major_2_all_credit, self.major_2_all.required_credit)
-        self.assertEqual(major_2_requirement_credit, self.major_2_requirement.required_credit)
-        self.assertEqual(all_credit, self.all_pr.required_credit)
-        self.assertEqual(general_credit, self.gen_pr.required_credit)
+        self.assertEqual(major_1_all_credit, major_1_all.required_credit)
+        self.assertEqual(major_1_requirement_credit, major_1_requirement.required_credit)
+        self.assertEqual(major_2_all_credit, major_2_all.required_credit)
+        self.assertEqual(major_2_requirement_credit, major_2_requirement.required_credit)
+        self.assertEqual(all_credit, all_pr.required_credit)
+        self.assertEqual(general_credit, gen_pr.required_credit)
 
         # 3) non-credit-change does not make requirement history.
         response = self.client.put(

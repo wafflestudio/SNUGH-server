@@ -1,13 +1,12 @@
 
 from core.major.models import Major
-from django.contrib.auth import get_user_model
 from core.requirement.models import Requirement
 from core.lecture.models import SemesterLecture
 from core.history.models import LectureTypeChangeHistory, CreditChangeHistory, RequirementChangeHistory
 from core.lecture.const import *
 from datetime import date
 from typing import List
-User = get_user_model()
+from user.models import User
 
 
 def lecturetype_history_generator(

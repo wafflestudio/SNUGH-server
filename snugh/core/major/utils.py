@@ -1,9 +1,7 @@
 from factory.django import DjangoModelFactory
-from django.contrib.auth import get_user_model
+from user.models import User
 from core.major.models import UserMajor
 
-
-User = get_user_model()
 
 class UserMajorFactory(DjangoModelFactory):
     class Meta:
