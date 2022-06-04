@@ -1,6 +1,6 @@
 from django.db import models
 from core.major.const import *
-from django.contrib.auth import get_user_model
+from user.models import User
 
 
 class Major(models.Model):
@@ -38,7 +38,7 @@ class MajorEquivalent(models.Model):
 
 
 class UserMajor(models.Model):
-    user = models.ForeignKey(get_user_model(), related_name='usermajor', on_delete=models.CASCADE)
+    user = models.ForeignKey(User, related_name='usermajor', on_delete=models.CASCADE)
     major = models.ForeignKey(Major, related_name='usermajor', on_delete=models.CASCADE)
 
     class Meta:

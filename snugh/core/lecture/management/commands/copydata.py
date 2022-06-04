@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
-from lecture.models import Lecture
-from user.models import Major
-from requirement.models import Requirement
+from core.lecture.models import Lecture
+from core.major.models import Major
+from core.requirement.models import Requirement
 
 
 class Command(BaseCommand):
