@@ -3,10 +3,6 @@ from core.major.models import Major
 
 
 class MajorSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField()
-    major_name = serializers.CharField()
-    major_type = serializers.CharField()
-
     class Meta:
         model = Major
         fields = (

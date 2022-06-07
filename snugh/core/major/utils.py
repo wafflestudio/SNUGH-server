@@ -1,5 +1,4 @@
 from factory.django import DjangoModelFactory
-from user.models import User
 from core.major.models import UserMajor
 
 

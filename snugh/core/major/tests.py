@@ -8,13 +8,12 @@ from rest_framework import status
 
 class UserMajorTestCase(TestCase):
     """
-    # Test
+    # Test Major APIs.
 
     [GET] major/
     [POST] user/major/
     [DELETE] user/major/
     """
-
 
     @classmethod
     def setUpTestData(cls):
@@ -23,14 +22,18 @@ class UserMajorTestCase(TestCase):
     
     def test_major_list(self):
         """
-        Test [GET] major/
+        Test cases in listing majors.
+            1) no major_type and search_keyword returns all majors.
+            2) both major_type and search_keyword exists.
+            3) only search_keyword exists.
+            4) only major_type exists.
         """
 
         # 중복여부, 정렬여부, None여부 확인 가능
         # None 값 제거 (-1)
         all_majors_cnt = Major.objects.values("major_name").distinct().count()-1
 
-        # major_type 없고 search_keyword 없을 때 -> 모든 major 리턴
+        # 1) no major_type and search_keyword returns all majors.
         body = {}
         response = self.client.get(
             "/major/",
@@ -47,7 +50,7 @@ class UserMajorTestCase(TestCase):
             self.assertEqual((data["majors"][-i-2]<=data["majors"][-i-1]), True)
         
 
-        # major_type 있고 search_keyword 있을 때 -> 해당 major_type중 search_keyword를 포함한 major들을 리턴
+        # 2) both major_type and search_keyword exists.
         body = {
             "major_type": "interdisciplinary_major",
             "search_keyword": "경영",
@@ -72,7 +75,7 @@ class UserMajorTestCase(TestCase):
         for idx, major_name in enumerate(results):
             self.assertEqual(data["majors"][idx], major_name)
 
-        # major_type 없고 search_keyword 있을 때 -> search_keyword를 포함한 major만 리턴
+        # 3) only search_keyword exists.
         body = {"search_keyword": "경영"}
         response = self.client.get(
             "/major/",
@@ -96,7 +99,7 @@ class UserMajorTestCase(TestCase):
         for idx, major_name in enumerate(results):
             self.assertEqual(data["majors"][idx], major_name)
 
-        # major_type 있고 search_keyword 없을 때 -> 해당 major_type의 모든 major 리턴
+        # 4) only major_type exists.
         body = {
             "major_type": "interdisciplinary_major",
         }
@@ -125,9 +128,10 @@ class UserMajorTestCase(TestCase):
         for idx, major_name in enumerate(results):
             self.assertEqual(data["majors"][idx], major_name)
 
+
     def test_major_create(self):
         """
-        Test [POST] user/major/
+        Test cases in creating user majors.
         """
 
         body = {"major_type": "major", "major_name": "경영학과"}
@@ -195,9 +199,15 @@ class UserMajorTestCase(TestCase):
             True,
         )
 
-    def test_major_create_error(self):
 
-        # Major does not exist
+    def test_major_create_error(self):
+        """
+        Error cases in creating user majors.
+            1) major does not exist.
+            2) major already exists.
+        """
+
+        # 1) major does not exist.
         body = {"major_type": "major", "major_name": "샤프심학과"}
         response = self.client.post(
             "/user/major/",
@@ -209,7 +219,7 @@ class UserMajorTestCase(TestCase):
         data = response.json()
         self.assertEqual(data["error"], "major not_exist")
 
-        # Major already exists
+        # 2) major already exists.
         body = {"major_type": "major", "major_name": "경영학과"}
         response = self.client.post(
             "/user/major/",
@@ -230,9 +240,10 @@ class UserMajorTestCase(TestCase):
         data = response.json()
         self.assertEqual(data["error"], "major already_exist")
 
+
     def test_major_delete(self):
         """
-        Test [DELETE] user/major/
+        Test cases in deleting user majors.
         """
 
         UserMajorFactory.create(
@@ -270,14 +281,21 @@ class UserMajorTestCase(TestCase):
             True,
         )
 
+
     def test_major_delete_error(self):
+        """
+        Error cases in deleting user majors.
+            1) major does not exist.
+            2) usermajor does not exist.
+            3) userMajor cannot be zero or minus.
+        """
 
         UserMajorFactory.create(
             user=self.user,
             majors=Major.objects.filter(Q(major_name="경영학과") & Q(major_type="major")),
         )
 
-        # Major does not exist
+        # 1) major does not exist.
         body = {"major_type": "major", "major_name": "샤프심학과"}
         response = self.client.delete(
             "/user/major/",
@@ -289,7 +307,7 @@ class UserMajorTestCase(TestCase):
         data = response.json()
         self.assertEqual(data["error"], "major not_exist")
 
-        # UserMajor does not exist
+        # 2) usermajor does not exist.
         body = {"major_type": "major", "major_name": "컴퓨터공학부"}
         response = self.client.delete(
             "/user/major/",
@@ -301,7 +319,7 @@ class UserMajorTestCase(TestCase):
         data = response.json()
         self.assertEqual(data["error"], "usermajor not_exist")
 
-        # UserMajor cannot be zero or minus
+        # 3) userMajor cannot be zero or minus.
         body = {"major_type": "major", "major_name": "경영학과"}
         response = self.client.delete(
             "/user/major/",
