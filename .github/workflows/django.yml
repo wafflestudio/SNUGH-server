@@ -36,4 +36,4 @@ jobs:
         export LOCAL_DB_NAME=snugh
         export LOCAL_DB_USER=root
         export LOCAL_DB_PASSWORD=root
-        python ./manage.py test --settings=snugh.settings.prod
+        python ./manage.py test
