@@ -16,7 +16,7 @@ class UserSignUpView(GenericAPIView):
     serializer_class = UserCreateSerializer
     permission_classes = (permissions.AllowAny, )
 
-    # POST /signup/
+    # POST /user/
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -29,7 +29,7 @@ class UserLoginView(GenericAPIView):
     serializer_class = UserLoginSerializer
     permission_classes = (permissions.AllowAny, )
 
-    # PUT /login/
+    # PUT /user/login/
     def put(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -39,7 +39,7 @@ class UserLoginView(GenericAPIView):
 class UserLogoutView(GenericAPIView):
     permission_classes = (permissions.IsAuthenticated, )
 
-    # GET /logout/
+    # GET /user/logout/
     def get(self, request):
         request.user.auth_token.delete()
         logout(request)
