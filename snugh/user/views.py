@@ -51,28 +51,14 @@ class UserLogoutView(GenericAPIView):
 class UserViewSet(viewsets.GenericViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-
-    # GET /user/logout
-    @action(detail=False, methods=['GET'])
-    def logout(self, request):
-        if not request.user.is_authenticated:
-            return Response({'error': 'no_token'}, status=status.HTTP_401_UNAUTHORIZED)
-
-        request.user.auth_token.delete()
-        logout(request)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    permission_classes = (permissions.IsAuthenticated, )
 
     # GET /user/me
     def retrieve(self, request, pk=None):
         user = request.user
 
-        # error case 1
-        if not request.user.is_authenticated:
-            return Response({'error':'no_token'}, status=status.HTTP_401_UNAUTHORIZED)
-
-        # error case 2
         if pk != 'me':
-            return Response( {'error': 'pk≠me'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'pk≠me'}, status=status.HTTP_403_FORBIDDEN)
 
         data = self.get_serializer(user).data
         return Response(data, status=status.HTTP_200_OK)
