@@ -55,46 +55,24 @@ class UserViewSet(viewsets.GenericViewSet):
 
     # GET /user/me
     def retrieve(self, request, pk=None):
-        user = request.user
-
         if pk != 'me':
             return Response({'error': 'pk≠me'}, status=status.HTTP_403_FORBIDDEN)
 
+        user = request.user
         data = self.get_serializer(user).data
         return Response(data, status=status.HTTP_200_OK)
 
     # PUT /user/me
     @transaction.atomic
     def update(self, request, pk=None):
-        user = request.user
-        userprofile = user.userprofile
-
-        # error case 1
         if pk != 'me':
             return Response( {'error': 'pk≠me'}, status=status.HTTP_403_FORBIDDEN)
 
-        # error case 2
-        if not request.user.is_authenticated:
-            return Response({'error':'no_token'}, status=status.HTTP_401_UNAUTHORIZED)
-
-        # edit user
-        body = request.data
-        if 'entrance_year' in body:
-            userprofile.entrance_year = body.get('entrance_year')
-        if 'status' in body:
-            userprofile.status = body.get('status')
-        if 'full_name' in body:
-            user.first_name = body.get('full_name')
-        if 'password' in body:
-            user.set_password(body.get('password'))
-
-        serializer = self.get_serializer(user, data=body, partial=True)
+        user = request.user
+        serializer = self.get_serializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        userprofile.save()
-
-        data = serializer.data
-        return Response(data, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     # DEL /user/me
     @transaction.atomic

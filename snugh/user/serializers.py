@@ -79,33 +79,39 @@ class UserLoginSerializer(serializers.Serializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField()
-    email = serializers.CharField()
-    entrance_year = serializers.SerializerMethodField()
-    full_name = serializers.SerializerMethodField()
+    full_name = serializers.CharField(source='first_name')
+    entrance_year = serializers.IntegerField(source='userprofile.entrance_year')
+    status = serializers.ChoiceField(choices=STUDENT_STATUS, source='userprofile.status')
     majors = serializers.SerializerMethodField()
-    status = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = (
             "id",
+            "password",
             "email",
-            "entrance_year",
             "full_name",
-            "majors",
+            "entrance_year",
             "status",
+            "majors",
         )
+        read_only_fields = ('id', 'email')
+        extra_kwargs = {'password': {'write_only': True}}
 
-    def get_entrance_year(self, user):
-        return user.userprofile.entrance_year
-
-    def get_full_name(self, user):
-        return user.first_name
+    def update(self, user, validated_data):
+        for attr, value in validated_data.items():
+            if attr == 'password':
+                user.set_password(value)
+                user.save()
+            elif attr == 'userprofile':
+                for attr_up, value_up in value.items():
+                    setattr(user.userprofile, attr_up, value_up)
+                user.userprofile.save()
+            else:
+                setattr(user, attr, value)
+                user.save()
+        return user
 
     def get_majors(self, user):
         majors = Major.objects.filter(usermajor__user=user)
         return MajorSerializer(majors, many=True).data
-
-    def get_status(self, user):
-        return user.userprofile.status
