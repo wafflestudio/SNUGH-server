@@ -9,7 +9,7 @@ from rest_framework.authtoken.models import Token
 from core.major.models import Major, UserMajor
 from core.major.serializers import MajorSerializer
 from core.major.const import *
-from user.serializers import UserCreateSerializer, UserLoginSerializer, UserSerializer
+from user.serializers import UserCreateSerializer, UserLoginSerializer, UserSerializer, UserMajorSerializer
 
 User = get_user_model()
 
@@ -49,9 +49,13 @@ class UserLogoutView(GenericAPIView):
 
 
 class UserViewSet(viewsets.GenericViewSet):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
     permission_classes = (permissions.IsAuthenticated, )
+
+    def get_serializer_class(self):
+        if self.action == "major":
+            return UserMajorSerializer
+        else:
+            return UserSerializer
 
     # GET /user/me
     def retrieve(self, request, pk=None):
@@ -101,62 +105,17 @@ class UserViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=['POST', 'DELETE'])
     @transaction.atomic
     def major(self, request):
-        user = request.user
-
-        # error case 1
-        if not request.user.is_authenticated:
-            return Response({'error': 'no_token'}, status=status.HTTP_401_UNAUTHORIZED)
-
-        # error case 2
-        major_name = request.data.get('major_name')
-        major_type = request.data.get('major_type')
-
-        if not Major.objects.filter(major_name=major_name, major_type=major_type).exists():
-            return Response({'error': 'major not_exist'}, status=status.HTTP_400_BAD_REQUEST)
-
-        searched_major = Major.objects.get(major_name=major_name, major_type=major_type)
-
-        # POST /user/major
         if self.request.method == 'POST':
-            if UserMajor.objects.filter(user=user, major__major_name=major_name).exists():
-                return Response({'error': 'major already_exist'}, status=status.HTTP_400_BAD_REQUEST)
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid()
+            serializer.create()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-            UserMajor.objects.create(user=user, major=searched_major)
-            try:
-                changed_usermajor = UserMajor.objects.get(user=user, major__major_type=SINGLE_MAJOR)
-                not_only_major = changed_usermajor.major
-                changed_usermajor.delete()
-                new_type_major = Major.objects.get(major_name=not_only_major.major_name, major_type=MAJOR)
-                UserMajor.objects.create(user=user, major=new_type_major)
-            except UserMajor.DoesNotExist:
-                pass
-
-        # DEL /user/major
-        elif self.request.method == 'DELETE':
-            if not UserMajor.objects.filter(user=user, major=searched_major).exists():
-                return Response({'error': 'usermajor not_exist'}, status=status.HTTP_400_BAD_REQUEST)
-
-            if len(list(UserMajor.objects.filter(user=user))) == 1:
-                return Response({'error': 'The number of majors cannot be zero or minus.'}, status=status.HTTP_400_BAD_REQUEST)
-
-            usermajor = UserMajor.objects.get(user=user, major=searched_major)
-            usermajor.delete()
-
-            changed_usermajor = UserMajor.objects.filter(user=user)
-            if changed_usermajor.count() == 1:
-                only_major = changed_usermajor.first().major
-                if only_major.major_type == MAJOR:
-                    changed_usermajor.first().delete()
-                    new_type_major = Major.objects.get(major_name=only_major.major_name, major_type=SINGLE_MAJOR)
-                    UserMajor.objects.create(user=user, major=new_type_major)
-
-        majors = Major.objects.filter(usermajor__user=user)
-        body = {'majors': MajorSerializer(majors, many=True).data}
-
-        if self.request.method == 'POST':
-            return Response(body, status=status.HTTP_201_CREATED)
-        else:
-            return Response(body, status=status.HTTP_200_OK)
+        if self.request.method == 'DELETE':
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid()
+            serializer.delete()
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
     def login_redirect(request):
         return redirect('http://snugh.s3-website.ap-northeast-2.amazonaws.com')

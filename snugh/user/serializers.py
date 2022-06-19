@@ -1,13 +1,14 @@
-from rest_framework import serializers
-from rest_framework.exceptions import ValidationError, PermissionDenied
+from rest_framework import serializers, status
+from rest_framework.exceptions import ValidationError, PermissionDenied, NotFound
 from rest_framework.authtoken.models import Token
+from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model, authenticate
 from django.contrib.auth.models import update_last_login
 from core.major.models import Major, UserMajor
 from core.major.serializers import MajorSerializer
 from user.models import UserProfile
 from user.const import STUDENT_STATUS
-from core.major.const import MAJOR
+from core.major.const import *
 
 User = get_user_model()
 
@@ -114,4 +115,56 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_majors(self, user):
         majors = Major.objects.filter(usermajor__user=user)
+        return MajorSerializer(majors, many=True).data
+
+
+class UserMajorSerializer(serializers.Serializer):
+    major_name = serializers.CharField(required=True, write_only=True)
+    major_type = serializers.CharField(required=True, write_only=True)
+    majors = serializers.SerializerMethodField()
+
+    def create(self):
+        user = self.context.get('request').user
+        major = get_object_or_404(Major, **self.validated_data)
+
+        if UserMajor.objects.filter(user=user, major=major).exists():
+            raise ValidationError("UserMajor already exists")
+
+        UserMajor.objects.create(user=user, major=major)
+
+        try:
+            changed_usermajor = UserMajor.objects.get(user=user, major__major_type=SINGLE_MAJOR)
+            not_only_major = changed_usermajor.major
+            changed_usermajor.delete()
+            new_type_major = Major.objects.get(major_name=not_only_major.major_name, major_type=MAJOR)
+            UserMajor.objects.create(user=user, major=new_type_major)
+        except UserMajor.DoesNotExist:
+            pass
+
+        return MajorSerializer(Major.objects.filter(usermajor__user=user), many=True).data, status.HTTP_201_CREATED
+
+    def delete(self):
+        user = self.context.get('request').user
+        major = get_object_or_404(Major, **self.validated_data)
+
+        if not UserMajor.objects.filter(user=user, major=major).exists():
+            raise NotFound("UserMajor does not exist")
+
+        if len(UserMajor.objects.filter(user=user)) == 1:
+            return ValidationError("The number of majors cannot be zero or minus.")
+
+        UserMajor.objects.get(user=user, major=major).delete()
+
+        changed_usermajor = UserMajor.objects.filter(user=user)
+        if changed_usermajor.count() == 1:
+            only_major = changed_usermajor.first().major
+            if only_major.major_type == MAJOR:
+                changed_usermajor.first().delete()
+                new_type_major = Major.objects.get(major_name=only_major.major_name, major_type=SINGLE_MAJOR)
+                UserMajor.objects.create(user=user, major=new_type_major)
+
+        return MajorSerializer(Major.objects.filter(usermajor__user=user), many=True).data, status.HTTP_200_OK
+
+    def get_majors(self, user):
+        majors = Major.objects.filter(usermajor__user=self.context.get('request').user)
         return MajorSerializer(majors, many=True).data
