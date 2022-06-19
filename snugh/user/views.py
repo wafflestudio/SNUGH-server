@@ -5,10 +5,8 @@ from rest_framework import status, viewsets, permissions
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.generics import GenericAPIView
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.authtoken.models import Token
-from core.major.models import Major, UserMajor
-from core.major.serializers import MajorSerializer
-from core.major.const import *
 from user.serializers import UserCreateSerializer, UserLoginSerializer, UserSerializer, UserMajorSerializer
 
 User = get_user_model()
@@ -60,7 +58,7 @@ class UserViewSet(viewsets.GenericViewSet):
     # GET /user/me
     def retrieve(self, request, pk=None):
         if pk != 'me':
-            return Response({'error': 'pk≠me'}, status=status.HTTP_403_FORBIDDEN)
+            raise PermissionDenied("Only 'me' allowed for pk")
 
         user = request.user
         data = self.get_serializer(user).data
@@ -70,7 +68,7 @@ class UserViewSet(viewsets.GenericViewSet):
     @transaction.atomic
     def update(self, request, pk=None):
         if pk != 'me':
-            return Response( {'error': 'pk≠me'}, status=status.HTTP_403_FORBIDDEN)
+            raise PermissionDenied("Only 'me' allowed for pk")
 
         user = request.user
         serializer = self.get_serializer(user, data=request.data, partial=True)
@@ -81,20 +79,13 @@ class UserViewSet(viewsets.GenericViewSet):
     # DEL /user/me
     @transaction.atomic
     def delete(self, request, pk=None):
-        user = request.user
-
-        # error case 1
         if pk != 'me':
-            return Response( {'error': 'pk≠me'}, status=status.HTTP_403_FORBIDDEN)
+            raise PermissionDenied("Only 'me' allowed for pk")
 
-        # error case 2
-        if not request.user.is_authenticated:
-            return Response({'error': 'no_token'}, status=status.HTTP_401_UNAUTHORIZED)
-
-        userprofile = request.user.userprofile
+        user = request.user
+        userprofile = user.userprofile
         token, created = Token.objects.get_or_create(user=user)
         logout(request)
-
         user.delete()
         userprofile.delete()
         token.delete()

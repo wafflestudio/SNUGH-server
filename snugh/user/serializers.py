@@ -59,7 +59,6 @@ class UserCreateSerializer(serializers.Serializer):
 
 
 class UserLoginSerializer(serializers.Serializer):
-    # user = UserSerializer(read_only=True)
     id = serializers.IntegerField(read_only=True)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
@@ -75,7 +74,6 @@ class UserLoginSerializer(serializers.Serializer):
             raise PermissionDenied("Username or password wrong")
         update_last_login(None, user)
         self.instance = user
-        # self.instance = get_object_or_404(UserProfile, user=user)
         return data
 
 
