@@ -1,11 +1,15 @@
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError, PermissionDenied
 from rest_framework.authtoken.models import Token
-from core.major.models import *
+from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth.models import update_last_login
+from core.major.models import Major, UserMajor
 from core.major.serializers import MajorSerializer
-from user.models import *
+from user.models import UserProfile
 from user.const import STUDENT_STATUS
 from core.major.const import MAJOR
+
+User = get_user_model()
 
 
 class UserCreateSerializer(serializers.Serializer):
@@ -51,6 +55,27 @@ class UserCreateSerializer(serializers.Serializer):
             UserMajor.objects.create(user=user, major=searched_major)
 
         return user
+
+
+class UserLoginSerializer(serializers.Serializer):
+    # user = UserSerializer(read_only=True)
+    id = serializers.IntegerField(read_only=True)
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+    token = serializers.SerializerMethodField()
+
+    def get_token(self, user):
+        token, created = Token.objects.get_or_create(user=user)
+        return token.key
+
+    def validate(self, data):
+        user = authenticate(username=data.pop('email'), password=data.pop('password'))
+        if user is None:
+            raise PermissionDenied("Username or password wrong")
+        update_last_login(None, user)
+        self.instance = user
+        # self.instance = get_object_or_404(UserProfile, user=user)
+        return data
 
 
 class UserSerializer(serializers.ModelSerializer):

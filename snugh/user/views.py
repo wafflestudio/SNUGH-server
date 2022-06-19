@@ -1,15 +1,17 @@
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import get_user_model, login, logout
 from django.db import transaction
 from django.shortcuts import redirect
 from rest_framework import status, viewsets, permissions
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.generics import GenericAPIView
+from rest_framework.authtoken.models import Token
 from core.major.models import Major, UserMajor
 from core.major.serializers import MajorSerializer
 from core.major.const import *
-from user.serializers import *
-from user.models import *
+from user.serializers import UserCreateSerializer, UserLoginSerializer, UserSerializer
+
+User = get_user_model()
 
 
 class UserSignUpView(GenericAPIView):
@@ -25,6 +27,17 @@ class UserSignUpView(GenericAPIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
+class UserLoginView(GenericAPIView):
+    serializer_class = UserLoginSerializer
+    permission_classes = (permissions.AllowAny, )
+
+    # PUT /login/
+    def put(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class UserViewSet(viewsets.GenericViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -38,27 +51,6 @@ class UserViewSet(viewsets.GenericViewSet):
         request.user.auth_token.delete()
         logout(request)
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-    # PUT /user
-    @action(detail=False, methods=['PUT'])
-    def login(self, request):
-        username = request.data.get('email')
-        password = request.data.get('password')
-
-        # error case 1
-        if not username:
-            return Response({'error': 'username missing'}, status=status.HTTP_400_BAD_REQUEST)
-        if not password:
-            return Response({'error': 'password missing'}, status=status.HTTP_400_BAD_REQUEST)
-
-        user = authenticate(request, username=username, password=password)
-        if user:
-            login(request, user)
-            data = self.get_serializer(user).data
-            token, created = Token.objects.get_or_create(user=user)
-            data['token'] = token.key
-            return Response(data, status=status.HTTP_200_OK)
-        return Response({'error': 'username or password wrong'}, status=status.HTTP_403_FORBIDDEN)
 
     # GET /user/me
     def retrieve(self, request, pk=None):
