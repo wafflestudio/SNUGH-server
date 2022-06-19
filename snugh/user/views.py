@@ -38,6 +38,16 @@ class UserLoginView(GenericAPIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+class UserLogoutView(GenericAPIView):
+    permission_classes = (permissions.IsAuthenticated, )
+
+    # GET /logout/
+    def get(self, request):
+        request.user.auth_token.delete()
+        logout(request)
+        return Response(status=status.HTTP_200_OK)
+
+
 class UserViewSet(viewsets.GenericViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
