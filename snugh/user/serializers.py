@@ -109,14 +109,13 @@ class UserSerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             if attr == 'password':
                 user.set_password(value)
-                user.save()
             elif attr == 'userprofile':
                 for attr_up, value_up in value.items():
                     setattr(user.userprofile, attr_up, value_up)
-                user.userprofile.save()
             else:
                 setattr(user, attr, value)
-                user.save()
+        user.userprofile.save()
+        user.save()
         return user
 
     def get_majors(self, user):
@@ -124,7 +123,7 @@ class UserSerializer(serializers.ModelSerializer):
         return MajorSerializer(majors, many=True).data
 
 
-class UserMajorSerializer(serializers.Serializer):
+class UserMajorService(serializers.Serializer):
     major_name = serializers.CharField(required=True, write_only=True)
     major_type = serializers.CharField(required=True, write_only=True)
     majors = serializers.SerializerMethodField()
@@ -159,7 +158,7 @@ class UserMajorSerializer(serializers.Serializer):
 
         UserMajor.objects.get(user=user, major=major).delete()
 
-        changed_usermajor = UserMajor.objects.filter(user=user)
+        changed_usermajor = user.usermajor.all()
         if changed_usermajor.count() == 1:
             only_major = changed_usermajor.first().major
             if only_major.major_type == MAJOR:

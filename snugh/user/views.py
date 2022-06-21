@@ -7,7 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.generics import GenericAPIView
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.authtoken.models import Token
-from user.serializers import UserCreateSerializer, UserLoginSerializer, UserSerializer, UserMajorSerializer
+from user.serializers import UserCreateSerializer, UserLoginSerializer, UserSerializer, UserMajorService
 
 User = get_user_model()
 
@@ -51,7 +51,7 @@ class UserViewSet(viewsets.GenericViewSet):
 
     def get_serializer_class(self):
         if self.action == "major":
-            return UserMajorSerializer
+            return UserMajorService
         else:
             return UserSerializer
 
