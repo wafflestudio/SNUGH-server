@@ -147,8 +147,6 @@ class UserMajorSerializer(serializers.Serializer):
         except UserMajor.DoesNotExist:
             pass
 
-        return MajorSerializer(Major.objects.filter(usermajor__user=user), many=True).data, status.HTTP_201_CREATED
-
     def delete(self):
         user = self.context.get('request').user
         major = get_object_or_404(Major, **self.validated_data)
@@ -169,8 +167,6 @@ class UserMajorSerializer(serializers.Serializer):
                 new_type_major = Major.objects.get(major_name=only_major.major_name, major_type=SINGLE_MAJOR)
                 UserMajor.objects.create(user=user, major=new_type_major)
 
-        return MajorSerializer(Major.objects.filter(usermajor__user=user), many=True).data, status.HTTP_200_OK
-
-    def get_majors(self, user):
+    def get_majors(self, instance):
         majors = Major.objects.filter(usermajor__user=self.context.get('request').user)
         return MajorSerializer(majors, many=True).data
