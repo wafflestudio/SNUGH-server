@@ -62,11 +62,19 @@ class UserLoginSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
+    entrance_year = serializers.IntegerField(read_only=True, source='userprofile.entrance_year')
+    full_name = serializers.CharField(read_only=True, source='first_name')
+    majors = serializers.SerializerMethodField()
+    status = serializers.ChoiceField(read_only=True, choices=STUDENT_STATUS, source='userprofile.status')
     token = serializers.SerializerMethodField()
 
     def get_token(self, user):
         token, created = Token.objects.get_or_create(user=user)
         return token.key
+
+    def get_majors(self, user):
+        majors = Major.objects.filter(usermajor__user=user)
+        return MajorSerializer(majors, many=True).data
 
     def validate(self, data):
         user = authenticate(username=data.pop('email'), password=data.pop('password'))
@@ -78,21 +86,21 @@ class UserLoginSerializer(serializers.Serializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    full_name = serializers.CharField(source='first_name')
     entrance_year = serializers.IntegerField(source='userprofile.entrance_year')
-    status = serializers.ChoiceField(choices=STUDENT_STATUS, source='userprofile.status')
+    full_name = serializers.CharField(source='first_name')
     majors = serializers.SerializerMethodField()
+    status = serializers.ChoiceField(choices=STUDENT_STATUS, source='userprofile.status')
 
     class Meta:
         model = User
         fields = (
             "id",
-            "password",
             "email",
-            "full_name",
+            "password",
             "entrance_year",
-            "status",
+            "full_name",
             "majors",
+            "status",
         )
         read_only_fields = ('id', 'email')
         extra_kwargs = {'password': {'write_only': True}}
