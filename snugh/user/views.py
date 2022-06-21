@@ -98,13 +98,13 @@ class UserViewSet(viewsets.GenericViewSet):
     def major(self, request):
         if self.request.method == 'POST':
             serializer = self.get_serializer(data=request.data)
-            serializer.is_valid()
+            serializer.is_valid(raise_exception=True)
             serializer.create()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         if self.request.method == 'DELETE':
             serializer = self.get_serializer(data=request.data)
-            serializer.is_valid()
+            serializer.is_valid(raise_exception=True)
             serializer.delete()
             return Response(serializer.data, status=status.HTTP_200_OK)
 
