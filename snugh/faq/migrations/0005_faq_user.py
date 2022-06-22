@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='faq',
             name='user',
-            field=models.ForeignKey(default=5, on_delete=django.db.models.deletion.CASCADE, related_name='faq', to='auth.user'),
+            field=models.ForeignKey(default=5, on_delete=django.db.models.deletion.CASCADE, related_name='faq', to='user.user'),
             preserve_default=False,
         ),
     ]
